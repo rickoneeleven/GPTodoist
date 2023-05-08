@@ -26,7 +26,7 @@ def count_tokens(tokenizer, messages):
 def summarize_and_shorten_messages(tokenizer, messages, max_tokens=3000):
     if count_tokens(tokenizer, messages) > max_tokens:
         print()
-        print("chuncking....")
+        print("consolidating memories through sleep....")
         print()
         user_summary_request = "summerise our conversation please"
         messages.append({"role": "user", "content": user_summary_request})
