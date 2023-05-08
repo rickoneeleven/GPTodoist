@@ -55,25 +55,20 @@ def today():
     ] + hourly_forecast
 
     max_temperature = max(all_weather_data, key=lambda x: x[2])[2]
+    min_temperature = min(all_weather_data, key=lambda x: x[2])[2]
+    max_wind_speed = max(all_weather_data, key=lambda x: x[1])[1]
     min_wind_speed = min(all_weather_data, key=lambda x: x[1])[1]
+    max_chance_of_rain = max([x[3].get("3h", 0) for x in all_weather_data])
     min_chance_of_rain = min([x[3].get("3h", 0) for x in all_weather_data])
 
-    print("Current weather in Billinge, UK:")
+    print(f"Current weather in Billinge, UK:")
 
-    if wind_speed_mph == min_wind_speed:
-        print(f"\033[32mWind speed: {wind_speed_mph:.2f} mph\033[0m")
-    else:
-        print(f"Wind speed: {wind_speed_mph:.2f} mph")
-
-    if temperature_c == max_temperature:
-        print(f"\033[32mTemperature: {temperature_c:.2f} °C\033[0m")
-    else:
-        print(f"Temperature: {temperature_c:.2f} °C")
-
-    if chance_of_rain.get("3h", 0) == min_chance_of_rain:
-        print(f"\033[32mChance of rain: {chance_of_rain}\033[0m\n")
-    else:
-        print(f"Chance of rain: {chance_of_rain}\n")
+    color_wind_speed(wind_speed_mph, min_wind_speed, max_wind_speed)
+    color_temperature(temperature_c, max_temperature, min_temperature)
+    color_chance_of_rain(
+        chance_of_rain.get("3h", 0), min_chance_of_rain, max_chance_of_rain
+    )
+    print()
 
     print("Hourly forecast for the rest of the day:\n")
 
@@ -81,20 +76,37 @@ def today():
         time_str = local_time.strftime("%H:%M:%S")
         print(time_str)
 
-        if temperature_c == max_temperature:
-            print(f"\033[32mTemperature: {temperature_c:.2f} °C\033[0m")
-        else:
-            print(f"Temperature: {temperature_c:.2f} °C")
-
-        if wind_speed_mph == min_wind_speed:
-            print(f"\033[32mWind speed: {wind_speed_mph:.2f} mph\033[0m")
-        else:
-            print(f"Wind speed: {wind_speed_mph:.2f} mph")
-
-        rain_value = chance_of_rain.get("3h", 0)
-        if rain_value == min_chance_of_rain:
-            print(f"\033[32mChance of rain: {chance_of_rain}\033[0m")
-        else:
-            print(f"Chance of rain: {chance_of_rain}")
+        color_temperature(temperature_c, max_temperature, min_temperature)
+        color_wind_speed(wind_speed_mph, min_wind_speed, max_wind_speed)
+        color_chance_of_rain(
+            chance_of_rain.get("3h", 0), min_chance_of_rain, max_chance_of_rain
+        )
 
         print()
+
+
+def color_temperature(temp, max_temp, min_temp):
+    if temp == max_temp:
+        print(f"\033[32mTemperature: {temp:.2f} °C\033[0m")
+    elif temp == min_temp:
+        print(f"\033[31mTemperature: {temp:.2f} °C\033[0m")
+    else:
+        print(f"Temperature: {temp:.2f} °C")
+
+
+def color_wind_speed(wind_speed, min_wind_speed, max_wind_speed):
+    if wind_speed == min_wind_speed:
+        print(f"\033[32mWind speed: {wind_speed:.2f} mph\033[0m")
+    elif wind_speed == max_wind_speed:
+        print(f"\033[31mWind speed: {wind_speed:.2f} mph\033[0m")
+    else:
+        print(f"Wind speed: {wind_speed:.2f} mph")
+
+
+def color_chance_of_rain(rain_value, min_rain_value, max_rain_value):
+    if rain_value == min_rain_value:
+        print(f"\033[32mChance of rain: {rain_value}\033[0m")
+    elif rain_value == max_rain_value:
+        print(f"\033[31mChance of rain: {rain_value}\033[0m")
+    else:
+        print(f"Chance of rain: {rain_value}")
