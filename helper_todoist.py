@@ -119,7 +119,8 @@ def get_next_todoist_task(api):
             print()
 
     else:
-        print("All tasks complete, comrade. Well done.")
+        print("Well done, comrade")
+        print()
 
 
 def complete_active_todoist_task(api):
