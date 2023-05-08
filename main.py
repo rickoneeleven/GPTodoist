@@ -1,4 +1,4 @@
-import openai, os, json, re
+import openai, os, json, re, time
 import helper_todoist, helper_gpt, helper_parse, cext_cmd_check, module_call_counter, helper_general
 
 from transformers import GPT2Tokenizer
@@ -65,7 +65,17 @@ def inject_system_message(messages, content):
 
 
 def get_assistant_response(messages):
-    response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo", messages=messages
+        )
+    except openai.error.RateLimitError as e:
+        print("Rate limit exceeded. Retrying in a few seconds...")
+        time.sleep(10)  # Wait for 10 seconds before retrying
+        return get_assistant_response(messages)  # Retry the function call
+    except Exception as e:
+        print(f"Error while getting assistant response: {e}")
+        return None
     return response.choices[0].message["content"]
 
 
