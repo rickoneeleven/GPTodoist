@@ -1,0 +1,7 @@
+*.json
+venv/
+__pycache__/
+.breakpoints
+replit.nix
+poetry.lock
+.replit
