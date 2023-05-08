@@ -89,7 +89,7 @@ def get_next_todoist_task(api):
         add_to_active_task_file(task_name, task_id, task_due)
 
         print()
-        print(f"{task_name}")
+        print(f"\033[32m{task_name}\033[0m")
         if task_due:
             task_due_london = helper_general.convert_to_london_timezone(task_due)
             task_due_london_datetime = datetime.datetime.strptime(
@@ -113,9 +113,9 @@ def get_next_todoist_task(api):
         ]
 
         if x_tasks:
-            print("Spare time focus:")
+            print("\033[38;2;192;192;192mSpare time focus:\033[0m")
             for x_task in x_tasks:
-                print(x_task["task_name"])
+                print(f"\033[38;2;192;192;192m{x_task['task_name']}\033[0m")
             print()
 
     else:
