@@ -12,7 +12,7 @@ api = TodoistAPI(TODOIST_API_KEY)
 
 read_file = lambda file_path: open(file_path, "r").read()
 system_txt_file = read_file("system_message.txt")
-evil_mode_txt_file = read_file("evil_mode.txt")
+second_mode_txt_file = read_file("second_mode.txt")
 
 
 def count_tokens(tokenizer, messages):
@@ -137,7 +137,7 @@ def main_loop():
                     print("Failed to add task.")
             continue
         elif "~~~" in user_message.lower():
-            inject_system_message(messages, evil_mode_txt_file)
+            inject_system_message(messages, second_mode_txt_file)
             print("openai content filter bypassed")
         elif user_message.lower() == "commands":
             helper_general.print_commands()
