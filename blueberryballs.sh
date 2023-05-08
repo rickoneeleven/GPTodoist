@@ -19,6 +19,8 @@ if [ "$cont" != "y" ]; then exit 1; fi
 #read -n 1 -p "Continue? (y/n) " cont
 #if [ "$cont" != "y" ]; then exit 1; fi
 
+echo
+echo
 read -p "Commit message: " message
 git commit -m "$message"i
 echo
