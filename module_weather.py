@@ -23,24 +23,22 @@ def get_hourly_forecast():
 
     hourly_forecast = []
 
-    # Get today's date
-    today = datetime.date.today()
+    num_forecasts = 4  # Set the desired number of forecasts
 
     for weather in forecast:
         # Convert UTC time to local time
         local_time = weather.reference_time("date").astimezone()
-        # Check if the forecast is for today and before 8 PM
-        if (
-            local_time.date() == today
-            and local_time.hour >= 8
-            and local_time.hour <= 20
-        ):
-            wind_speed_mph = weather.wind()["speed"] * 2.237
-            temperature_c = weather.temperature("celsius")["temp"]
-            chance_of_rain = weather.rain
-            hourly_forecast.append(
-                (local_time, wind_speed_mph, temperature_c, chance_of_rain)
-            )
+
+        # Check if we already have the desired number of forecasts
+        if len(hourly_forecast) >= num_forecasts:
+            break
+
+        wind_speed_mph = weather.wind()["speed"] * 2.237
+        temperature_c = weather.temperature("celsius")["temp"]
+        chance_of_rain = weather.rain
+        hourly_forecast.append(
+            (local_time, wind_speed_mph, temperature_c, chance_of_rain)
+        )
 
     return hourly_forecast
 

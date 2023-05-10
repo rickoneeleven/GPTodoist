@@ -23,7 +23,7 @@ def ifelse_commands(api, user_message):
         helper_todoist.delete_todoist_task(api)
         helper_todoist.get_next_todoist_task(api)
         return True
-    elif command == "all":
+    elif command == "all" or command == "show all":
         helper_todoist.display_todoist_tasks(api)
         return True
     elif command == "clear":

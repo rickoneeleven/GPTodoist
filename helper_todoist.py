@@ -7,7 +7,7 @@ from pytz import timezone
 
 def add_to_active_task_file(task_name, task_id, task_due):
     active_task = {"task_name": task_name, "task_id": task_id, "task_due": task_due}
-    with open("active_task.json", "w") as outfile:
+    with open("j_active_task.json", "w") as outfile:
         json.dump(active_task, outfile)
 
 
@@ -76,7 +76,7 @@ def read_long_term_tasks(filename):
 
 def get_next_todoist_task(api):
     tasks = fetch_todoist_tasks(api)
-    long_term_tasks = read_long_term_tasks("long_term_tasks.json")
+    long_term_tasks = read_long_term_tasks("j_long_term_tasks.json")
 
     if tasks:
         next_task = tasks[0]
@@ -125,7 +125,7 @@ def get_next_todoist_task(api):
 
 def complete_active_todoist_task(api):
     try:
-        with open("active_task.json", "r") as infile:
+        with open("j_active_task.json", "r") as infile:
             active_task = json.load(infile)
             task_id = active_task["task_id"]
             task_name = active_task["task_name"]
@@ -162,7 +162,7 @@ def complete_active_todoist_task(api):
                         for task in todays_completed_tasks
                         if date.fromisoformat(task["time_complete"][:10]) != yesterday
                     ]
-                    with open("todays_completed_tasks.json", "w") as outfile:
+                    with open("j_todays_completed_tasks.json", "w") as outfile:
                         json.dump(todays_completed_tasks, outfile, indent=2)
 
             else:
@@ -180,13 +180,13 @@ def update_todays_completed_tasks(task_name, task_id, time_complete):
     completed_tasks.append(
         {"task_name": task_name, "task_id": task_id, "time_complete": time_complete}
     )
-    with open("todays_completed_tasks.json", "w") as outfile:
+    with open("j_todays_completed_tasks.json", "w") as outfile:
         json.dump(completed_tasks, outfile, indent=2)
 
 
 def get_todays_completed_tasks():
     try:
-        with open("todays_completed_tasks.json", "r") as infile:
+        with open("j_todays_completed_tasks.json", "r") as infile:
             return json.load(infile)
     except FileNotFoundError:
         return []
@@ -194,7 +194,7 @@ def get_todays_completed_tasks():
 
 def undo_active_todoist_task(api):
     try:
-        with open("active_task.json", "r") as infile:
+        with open("j_active_task.json", "r") as infile:
             active_task = json.load(infile)
             task_id = active_task["task_id"]
             task_name = active_task["task_name"]
@@ -219,7 +219,7 @@ def undo_active_todoist_task(api):
 def remove_task_from_todays_completed_tasks(task_id):
     completed_tasks = get_todays_completed_tasks()
     updated_tasks = [task for task in completed_tasks if task["task_id"] != task_id]
-    with open("todays_completed_tasks.json", "w") as outfile:
+    with open("j_todays_completed_tasks.json", "w") as outfile:
         json.dump(updated_tasks, outfile)
 
 
@@ -239,10 +239,10 @@ def parse_update_due_date_command(user_message):
 def update_task_due_date(api, user_message, task_id=False):
     print(user_message)
     try:
-        with open("active_task.json", "r") as infile:
+        with open("j_active_task.json", "r") as infile:
             if not task_id:
                 task_time, task_day = parse_update_due_date_command(user_message)
-                print("loading active_task.json...")
+                print("loading j_active_task.json...")
                 active_task = json.load(infile)
                 task_id = active_task["task_id"]
                 task_name = active_task["task_name"]
@@ -295,7 +295,7 @@ def update_task_due_date(api, user_message, task_id=False):
 
 def delete_todoist_task(api):
     try:
-        with open("active_task.json", "r") as infile:
+        with open("j_active_task.json", "r") as infile:
             active_task = json.load(infile)
             task_id = active_task["task_id"]
             task_name = active_task["task_name"]

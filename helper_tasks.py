@@ -8,8 +8,8 @@ def add_long_term_task(user_message):
     # added = datetime.datetime.now(london_tz).strftime("%Y-%m-%d %H:%M:%S") DELETE ME 03/05/23
     added = helper_general.get_timestamp()
 
-    if os.path.exists("long_term_tasks.json"):
-        with open("long_term_tasks.json", "r") as file:
+    if os.path.exists("j_long_term_tasks.json"):
+        with open("j_long_term_tasks.json", "r") as file:
             tasks = json.load(file)
             index = len(tasks)
     else:
@@ -20,12 +20,12 @@ def add_long_term_task(user_message):
 
     tasks.append(task)
 
-    with open("long_term_tasks.json", "w") as file:
+    with open("j_long_term_tasks.json", "w") as file:
         json.dump(tasks, file, indent=2)
 
 
 def print_tasks() -> None:
-    filename = "long_term_tasks.json"
+    filename = "j_long_term_tasks.json"
 
     with open(filename, "r") as f:
         tasks = json.load(f)
@@ -61,7 +61,7 @@ def print_tasks() -> None:
 
 
 def rename_long_task(user_message: str) -> None:
-    if not os.path.exists("long_term_tasks.json"):
+    if not os.path.exists("j_long_term_tasks.json"):
         print("No tasks available to rename.")
         return
 
@@ -78,7 +78,7 @@ def rename_long_task(user_message: str) -> None:
 
     new_name = " ".join(tokens[3:])
 
-    with open("long_term_tasks.json", "r") as file:
+    with open("j_long_term_tasks.json", "r") as file:
         tasks = json.load(file)
 
     task_found = False
@@ -92,14 +92,14 @@ def rename_long_task(user_message: str) -> None:
         print(f"Task with index {id} not found.")
         return
 
-    with open("long_term_tasks.json", "w") as file:
+    with open("j_long_term_tasks.json", "w") as file:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} renamed to '{new_name}'.")
 
 
 def delete_long_task(user_message: str) -> None:
-    if not os.path.exists("long_term_tasks.json"):
+    if not os.path.exists("j_long_term_tasks.json"):
         print("No tasks available to delete.")
         return
 
@@ -114,7 +114,7 @@ def delete_long_task(user_message: str) -> None:
         print("Invalid index value. Please provide a valid integer.")
         return
 
-    with open("long_term_tasks.json", "r") as file:
+    with open("j_long_term_tasks.json", "r") as file:
         tasks = json.load(file)
 
     task_found = False
@@ -132,7 +132,7 @@ def delete_long_task(user_message: str) -> None:
     for i, task in enumerate(tasks):
         task["index"] = i
 
-    with open("long_term_tasks.json", "w") as file:
+    with open("j_long_term_tasks.json", "w") as file:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} deleted.")

@@ -115,7 +115,7 @@ def clear_active_tasks_messages(messages):
 
 
 def main_loop():
-    messages = load_json("conversation_history.json")
+    messages = load_json("j_conversation_history.json")
 
     while True:
         clear_active_tasks_messages(messages)
@@ -220,7 +220,7 @@ def main_loop():
 
         # ----------------------- END: bot parsing todoist stuff and then todoist api interaction
         messages.append({"role": "assistant", "content": assistant_message})
-        save_json("conversation_history.json", messages)
+        save_json("j_conversation_history.json", messages)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
