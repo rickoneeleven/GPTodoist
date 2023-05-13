@@ -5,7 +5,7 @@ import tiktoken
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 
-def summarize_and_shorten_messages(messages, max_tokens=4000):
+def summarize_and_shorten_messages(messages, max_tokens=3200):
     token_count = num_tokens_from_messages(messages)
     print(f"Initial token count: {token_count}")
 

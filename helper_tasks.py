@@ -1,11 +1,9 @@
-import os, json
+import os, json, time
 import module_call_counter, helper_general
 
 
 def add_long_term_task(user_message):
     task_name = user_message[8:].strip()
-    # london_tz = pytz.timezone('Europe/London') DELETE ME 03/05/23
-    # added = datetime.datetime.now(london_tz).strftime("%Y-%m-%d %H:%M:%S") DELETE ME 03/05/23
     added = helper_general.get_timestamp()
 
     if os.path.exists("j_long_term_tasks.json"):
@@ -136,6 +134,7 @@ def delete_long_task(user_message: str) -> None:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} deleted.")
+    time.sleep(2)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

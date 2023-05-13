@@ -33,6 +33,8 @@ def print_commands():
         "rename long": "renames long term task. rename long [id] [new task name]",
         "delete long": "deletes long term task. delete long [id]",
         "weather": "show the weather for today",
+        "add file <filename>": "adds file to system messages",
+        "reset": "deletes j_conversation_history.json, j_loaded_files.json and empties system_messages.txt",
     }
     print()
     max_command_len = max(len(command) for command in commands)

@@ -1,6 +1,6 @@
 import openai, os, json, re, time
-import helper_todoist, helper_gpt, helper_parse, cext_cmd_check, module_call_counter, helper_general, helper_code
-import helper_messages
+import helper_todoist, helper_gpt, helper_parse, cext_cmd_check, module_call_counter, helper_general
+import helper_messages, helper_code
 
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
@@ -10,9 +10,6 @@ TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
 
 read_file = lambda file_path: open(file_path, "r").read()
-system_txt_file = read_file("system_message.txt")
-second_mode_txt_file = read_file("second_mode.txt")
-
 
 save_json = lambda file_path, data: json.dump(data, open(file_path, "w"), indent=2)
 load_json = (
@@ -27,7 +24,6 @@ def get_user_input():
 
 
 def inject_system_message(messages, content):
-    content = helper_code.shrink_code(content)
     system_message = {"role": "system", "content": content}
     messages[:] = [msg for msg in messages if msg["role"] != "system"]
     messages.append(system_message)
@@ -62,11 +58,6 @@ def display_assistant_response(assistant_message):
     )
 
 
-def should_inject_system_message(messages):
-    if not messages:
-        return True
-
-
 def clear_active_tasks_messages(messages):
     messages[:] = [
         msg
@@ -76,11 +67,18 @@ def clear_active_tasks_messages(messages):
 
 
 def main_loop():
-    messages = load_json("j_conversation_history.json")
-
     while True:
+        messages = load_json("j_conversation_history.json")
         clear_active_tasks_messages(messages)
         user_message = get_user_input()
+
+        system_txt = ""
+        loaded_files = load_json("j_loaded_files.json")
+        for file in loaded_files:
+            content = read_file(file["filename"])
+            shrunk_content = helper_code.shrink_code(content)
+            system_txt += f"{file['filename']}:\n{shrunk_content}\n"
+
         timestamp = helper_general.get_timestamp()
 
         if user_message.lower().startswith("add task"):
@@ -96,9 +94,6 @@ def main_loop():
                 else:
                     print("Failed to add task.")
             continue
-        elif "~~~" in user_message.lower():
-            inject_system_message(messages, second_mode_txt_file)
-            print("openai content filter bypassed")
         elif user_message.lower() == "commands":
             helper_general.print_commands()
             continue
@@ -115,8 +110,7 @@ def main_loop():
             )
             continue
 
-        if should_inject_system_message(messages):
-            inject_system_message(messages, system_txt_file)
+        inject_system_message(messages, system_txt)
 
         tasks = helper_todoist.fetch_todoist_tasks(api)
         timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")

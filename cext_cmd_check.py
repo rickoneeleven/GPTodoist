@@ -1,5 +1,5 @@
 import os
-import helper_todoist, module_call_counter, helper_tasks, module_weather
+import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code
 
 
 def ifelse_commands(api, user_message):
@@ -44,6 +44,14 @@ def ifelse_commands(api, user_message):
         return True
     elif command.startswith("delete long"):
         helper_tasks.delete_long_task(user_message)
+        os.system("clear")
+        helper_tasks.print_tasks()
+        return True
+    elif command.startswith("add file"):
+        helper_code.add_file(user_message)
+        return True
+    elif command == "reset":
+        helper_code.reset_all()
         return True
     return False
 
