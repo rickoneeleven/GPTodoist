@@ -4,3 +4,5 @@ python-dateutil
 transformers
 torch
 black
+pyowm
+todoist_api_python

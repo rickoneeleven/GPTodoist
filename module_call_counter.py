@@ -3,7 +3,7 @@ import os
 import inspect
 from functools import wraps
 
-json_file = "function_calls.json"
+json_file = "j_function_calls.json"
 
 
 def apply_call_counter_to_all(module_globals, target_module_name):
