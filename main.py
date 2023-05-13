@@ -70,7 +70,9 @@ def get_assistant_response(messages):
             model="gpt-3.5-turbo", messages=messages
         )
     except openai.error.RateLimitError as e:
-        print("Rate limit exceeded. Retrying in a few seconds...")
+        print(e)
+        print()
+        print("Rate limit exceeded? Retrying in a few seconds...")
         time.sleep(10)  # Wait for 10 seconds before retrying
         return get_assistant_response(messages)  # Retry the function call
     except Exception as e:
