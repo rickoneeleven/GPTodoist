@@ -1,47 +1,69 @@
-import openai, os, json, re, time
-import helper_todoist, helper_gpt, helper_parse, cext_cmd_check, module_call_counter, helper_general
+import openai, os, json, re, time, tiktoken
+import helper_todoist, helper_gpt, helper_parse, cext_cmd_check, module_call_counter, helper_general, helper_code
 
-from transformers import GPT2Tokenizer
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
-tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
+# encoding = tiktoken.get_encoding("cl100k_base")
+encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 read_file = lambda file_path: open(file_path, "r").read()
 system_txt_file = read_file("system_message.txt")
 second_mode_txt_file = read_file("second_mode.txt")
 
 
-def count_tokens(tokenizer, messages):
-    total_tokens = 0
+def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
+    """Returns the number of tokens used by a list of messages."""
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        print("Warning: model not found. Using cl100k_base encoding.")
+        encoding = tiktoken.get_encoding("cl100k_base")
+    if model == "gpt-3.5-turbo":
+        print(
+            "Warning: gpt-3.5-turbo may change over time. Returning num tokens assuming gpt-3.5-turbo-0301."
+        )
+        return num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301")
+    elif model == "gpt-4":
+        print(
+            "Warning: gpt-4 may change over time. Returning num tokens assuming gpt-4-0314."
+        )
+        return num_tokens_from_messages(messages, model="gpt-4-0314")
+    elif model == "gpt-3.5-turbo-0301":
+        tokens_per_message = (
+            4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+        )
+        tokens_per_name = -1  # if there's a name, the role is omitted
+    elif model == "gpt-4-0314":
+        tokens_per_message = 3
+        tokens_per_name = 1
+    else:
+        raise NotImplementedError(
+            f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
+        )
+    num_tokens = 0
     for message in messages:
-        output = tokenizer.encode(message["content"], add_special_tokens=False)
-        total_tokens += len(output)
-    return total_tokens
+        num_tokens += tokens_per_message
+        for key, value in message.items():
+            num_tokens += len(encoding.encode(value))
+            if key == "name":
+                num_tokens += tokens_per_name
+    num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+    return num_tokens
 
 
-def summarize_and_shorten_messages(tokenizer, messages, max_tokens=3000):
-    if count_tokens(tokenizer, messages) > max_tokens:
-        print()
-        print("consolidating memories through sleep....")
-        print()
-        user_summary_request = "summerise our conversation please"
-        messages.append({"role": "user", "content": user_summary_request})
+def summarize_and_shorten_messages(messages, max_tokens=4000):
+    token_count = num_tokens_from_messages(messages)
+    print(f"Initial token count: {token_count}")
 
-        assistant_summary_response = get_assistant_response(messages)
-
-        # Remove the temporary user message from the messages object
-        messages.pop()
-
-        # Remove the oldest 2/3 of messages
-        two_thirds_index = len(messages) * 2 // 3
-        del messages[:two_thirds_index]
-
-        # Add the new summary
-        messages.insert(0, {"role": "assistant", "content": assistant_summary_response})
+    if token_count > max_tokens:
+        while token_count > max_tokens:
+            messages.pop(0)
+            token_count = num_tokens_from_messages(messages)
+            print(f"Reduced token count: {token_count}")
 
     return messages
 
@@ -59,12 +81,14 @@ def get_user_input():
 
 
 def inject_system_message(messages, content):
+    content = helper_code.shrink_code(content)
     system_message = {"role": "system", "content": content}
     messages[:] = [msg for msg in messages if msg["role"] != "system"]
     messages.append(system_message)
 
 
 def get_assistant_response(messages):
+    messages = summarize_and_shorten_messages(messages)
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo", messages=messages
@@ -122,7 +146,6 @@ def main_loop():
     while True:
         clear_active_tasks_messages(messages)
         user_message = get_user_input()
-        messages = summarize_and_shorten_messages(tokenizer, messages)
         timestamp = helper_general.get_timestamp()
 
         if user_message.lower().startswith("add task"):

@@ -17,6 +17,8 @@ sentence-transformers = "^2.2.2"
 todoist-api-python = "^2.0.2"
 bs4 = "^0.0.1"
 pyowm = "^3.3.0"
+astunparse = "^1.6.3"
+tiktoken = "^0.4.0"
 
 [tool.poetry.dev-dependencies]
 debugpy = "^1.6.2"
