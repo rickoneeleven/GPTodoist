@@ -1,5 +1,6 @@
-import openai, os, json, re, time, tiktoken
+import openai, os, json, re, time
 import helper_todoist, helper_gpt, helper_parse, cext_cmd_check, module_call_counter, helper_general, helper_code
+import helper_messages
 
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
@@ -7,65 +8,10 @@ from todoist_api_python.api import TodoistAPI
 openai.api_key = os.environ["OPENAI_API_KEY"]
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
-# encoding = tiktoken.get_encoding("cl100k_base")
-encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 read_file = lambda file_path: open(file_path, "r").read()
 system_txt_file = read_file("system_message.txt")
 second_mode_txt_file = read_file("second_mode.txt")
-
-
-def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
-    """Returns the number of tokens used by a list of messages."""
-    try:
-        encoding = tiktoken.encoding_for_model(model)
-    except KeyError:
-        print("Warning: model not found. Using cl100k_base encoding.")
-        encoding = tiktoken.get_encoding("cl100k_base")
-    if model == "gpt-3.5-turbo":
-        print(
-            "Warning: gpt-3.5-turbo may change over time. Returning num tokens assuming gpt-3.5-turbo-0301."
-        )
-        return num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301")
-    elif model == "gpt-4":
-        print(
-            "Warning: gpt-4 may change over time. Returning num tokens assuming gpt-4-0314."
-        )
-        return num_tokens_from_messages(messages, model="gpt-4-0314")
-    elif model == "gpt-3.5-turbo-0301":
-        tokens_per_message = (
-            4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-        )
-        tokens_per_name = -1  # if there's a name, the role is omitted
-    elif model == "gpt-4-0314":
-        tokens_per_message = 3
-        tokens_per_name = 1
-    else:
-        raise NotImplementedError(
-            f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
-        )
-    num_tokens = 0
-    for message in messages:
-        num_tokens += tokens_per_message
-        for key, value in message.items():
-            num_tokens += len(encoding.encode(value))
-            if key == "name":
-                num_tokens += tokens_per_name
-    num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
-    return num_tokens
-
-
-def summarize_and_shorten_messages(messages, max_tokens=4000):
-    token_count = num_tokens_from_messages(messages)
-    print(f"Initial token count: {token_count}")
-
-    if token_count > max_tokens:
-        while token_count > max_tokens:
-            messages.pop(0)
-            token_count = num_tokens_from_messages(messages)
-            print(f"Reduced token count: {token_count}")
-
-    return messages
 
 
 save_json = lambda file_path, data: json.dump(data, open(file_path, "w"), indent=2)
@@ -88,7 +34,7 @@ def inject_system_message(messages, content):
 
 
 def get_assistant_response(messages):
-    messages = summarize_and_shorten_messages(messages)
+    messages = helper_messages.summarize_and_shorten_messages(messages)
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo", messages=messages
@@ -119,17 +65,6 @@ def display_assistant_response(assistant_message):
 def should_inject_system_message(messages):
     if not messages:
         return True
-
-    last_assistant_message = None
-    for message in reversed(messages):
-        if message["role"] == "assistant":
-            last_assistant_message = message
-            break
-
-    if last_assistant_message is None or "😈" not in last_assistant_message["content"]:
-        return True
-
-    return False
 
 
 def clear_active_tasks_messages(messages):

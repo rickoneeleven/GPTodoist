@@ -6,4 +6,3 @@ torch
 black
 pyowm
 todoist_api_python
-python-minifier

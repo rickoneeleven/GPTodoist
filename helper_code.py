@@ -1,7 +1,6 @@
 import module_call_counter
 import ast
 import astunparse
-import python_minifier
 
 
 def shrink_code(code):
@@ -18,10 +17,12 @@ def shrink_code(code):
     # Remove comments and unnecessary whitespace by unparsing the AST back into code
     code_without_comments = astunparse.unparse(tree)
 
-    # Minify the code
-    minified_code = python_minifier.minify(code_without_comments)
+    # Remove all unnecessary spaces but keep newlines
+    condensed_code = "\n".join(
+        line.strip() for line in code_without_comments.split("\n")
+    )
 
-    return minified_code
+    return condensed_code
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
