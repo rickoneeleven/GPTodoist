@@ -77,6 +77,26 @@ def display_assistant_response(assistant_message):
     print("\n--------------------------------------------------------------")
 
 
+def handle_user_input(user_message, messages, api, timestamp):
+    timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
+
+    if "```" in user_message.lower():
+        task_id_prompt = helper_gpt.create_task_id_prompt(
+            " ".join(user_message.split()[1:])
+        )
+        messages.append({"role": "user", "content": task_id_prompt})
+    elif user_message.lower().startswith("move task"):
+        task_id_prompt = helper_gpt.create_task_id_prompt(
+            " ".join(user_message.split()[2:])
+        )
+        messages.append({"role": "user", "content": task_id_prompt})
+    else:
+        user_message_with_time = f"{timestamp_hhmm}: {user_message}"
+        messages.append({"role": "user", "content": user_message_with_time})
+
+    return messages
+
+
 def main_loop():
     while True:
         messages = load_json("j_conversation_history.json")
@@ -94,39 +114,9 @@ def main_loop():
 
         timestamp = helper_general.get_timestamp()
 
-        if user_message.lower().startswith("add task"):
-            task_data = helper_parse.get_taskname_time_day_as_tuple(user_message)
-            if task_data:
-                # This line unpacks the task_data tuple (or a list) into three separate variables: task_name, task_time, and task_day.
-                task_name, task_time, task_day = task_data
-                task = helper_todoist.add_todoist_task(
-                    api, task_name, task_time, task_day
-                )
-                if task:
-                    print(f"Task '{task.content}' successfully added.")
-                else:
-                    print("Failed to add task.")
-            continue
-        elif user_message.lower() == "commands":
-            helper_general.print_commands()
-            continue
-        elif cext_cmd_check.ifelse_commands(
-            api, user_message
-        ):  # look at me mama, i can flyyyyyyyyyyy!
-            continue
-        elif user_message.lower().startswith("complete"):
-            task_name = user_message[len("complete") :].strip()
-            task_id = "manual entry"
-            helper_todoist.update_todays_completed_tasks(task_name, task_id, timestamp)
-            print(
-                f"Manually completed task '\033[91m{task_name}\033[0m' added to today's completed tasks."
-            )
-            continue
-
         if system_txt.strip():  # checks it's not an empty file
-            # Add the desired message at the top of system_txt
             system_txt = (
-                "+++ Keep your responses short and concise. You are a code refactoring bot, help the user with the files below. +++\n\n"
+                "+++You are a refactoring bot, help the user with the files below.+++\n\n"
                 + system_txt
             )
             inject_system_message(messages, system_txt)
@@ -142,20 +132,14 @@ def main_loop():
         else:
             todoist_tasks_message = "Active Tasks:\n [All tasks complete!]"
             messages.append({"role": "system", "content": todoist_tasks_message})
-        # ----------------------- bot parsing todoist stuff and then todoist api interaction
-        if "```" in user_message.lower():
-            task_id_prompt = helper_gpt.create_task_id_prompt(
-                " ".join(user_message.split()[1:])
-            )
-            messages.append({"role": "user", "content": task_id_prompt})
-        elif user_message.lower().startswith("move task"):
-            task_id_prompt = helper_gpt.create_task_id_prompt(
-                " ".join(user_message.split()[2:])
-            )
-            messages.append({"role": "user", "content": task_id_prompt})
-        else:
-            user_message_with_time = f"{timestamp_hhmm}: {user_message}"
-            messages.append({"role": "user", "content": user_message_with_time})
+
+        # Check if the user message is a command
+        if cext_cmd_check.ifelse_commands(api, user_message):
+            # If it is a command, start the next iteration of the loop
+            continue
+
+        # If not a command, handle the user input
+        messages = handle_user_input(user_message, messages, api, timestamp)
 
         # Load the JSON file if it exists, otherwise create an empty list
         if os.path.isfile("j_loaded_files.json"):
@@ -172,36 +156,7 @@ def main_loop():
 
         assistant_message = get_assistant_response(messages)
         display_assistant_response(assistant_message)
-        # ----------------------- todoist: complete a task
-        if "```" in user_message.lower() and "Task ID" in assistant_message:
-            task_id = extract_task_id_from_response(assistant_message)
-            if task_id is not None:
-                task = api.get_task(task_id=task_id)
-                if task is not None:
-                    task_name = task.content
-                    time_complete = helper_general.get_timestamp()
 
-                    if helper_todoist.complete_todoist_task_by_id(api, task_id):
-                        print(
-                            f"\033[91m Task with ID {task_id} successfully marked as complete. \033[0m"
-                        )
-                        helper_todoist.update_todays_completed_tasks(
-                            task_name, task_id, time_complete
-                        )
-                    else:
-                        print("Failed to complete the task.")
-        if (
-            user_message.lower().startswith("move task")
-            and "Task ID" in assistant_message
-        ):
-            task_id = extract_task_id_from_response(assistant_message)
-            if task_id is not None:
-                helper_todoist.update_task_due_date(api, user_message, task_id)
-                helper_todoist.get_next_todoist_task(api)
-            else:
-                print("penis")
-
-        # ----------------------- END: bot parsing todoist stuff and then todoist api interaction
         messages.append({"role": "assistant", "content": assistant_message})
         save_json("j_conversation_history.json", messages)
 

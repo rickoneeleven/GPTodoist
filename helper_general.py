@@ -26,7 +26,6 @@ def print_commands():
         "all": "show all tasks",
         "clear": "clear the screen",
         "add long": "add long [task name] to add task to j_long_term_tasks.json",
-        "complete": "complete [task name] manually add to j_todays_completed_tasks.json",
         "move task": "move task [task name] uses the bot to get the taskid, and move task time",
         "show long": "print list of long term tasks",
         "rename long": "renames long term task. rename long [id] [new task name]",

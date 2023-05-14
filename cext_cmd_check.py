@@ -1,5 +1,5 @@
 import os
-import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code
+import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code, helper_parse
 
 
 def ifelse_commands(api, user_message):
@@ -50,6 +50,18 @@ def ifelse_commands(api, user_message):
     elif command == "reset":
         helper_code.reset_all()
         return True
+
+    elif command.startswith("add task"):
+        task_data = helper_parse.get_taskname_time_day_as_tuple(user_message)
+        if task_data:
+            task_name, task_time, task_day = task_data
+            task = helper_todoist.add_todoist_task(api, task_name, task_time, task_day)
+            if task:
+                print(f"Task '{task.content}' successfully added.")
+            else:
+                print("Failed to add task.")
+        return True
+
     return False
 
 
