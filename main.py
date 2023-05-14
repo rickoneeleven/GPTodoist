@@ -100,13 +100,18 @@ def handle_user_input(user_message, messages, api, timestamp):
 def main_loop():
     while True:
         messages = load_json("j_conversation_history.json")
+        loaded_files = load_json("j_loaded_files.json")
+        # Print the loaded files
+        if loaded_files:
+            print(
+                f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
+            )
         user_message = get_user_input()
 
         messages[:] = [
             msg for msg in messages if msg["role"] != "system"
         ]  # remove system messages
         system_txt = ""
-        loaded_files = load_json("j_loaded_files.json")
         for file in loaded_files:
             content = read_file(file["filename"])
             shrunk_content = helper_code.shrink_code(content)
@@ -122,7 +127,6 @@ def main_loop():
             inject_system_message(messages, system_txt)
 
         tasks = helper_todoist.fetch_todoist_tasks(api)
-        timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
         if tasks:
             task_list = "\n".join(
                 [f"- {task.content} [Task ID: {task.id}]" for task in tasks]
@@ -147,12 +151,6 @@ def main_loop():
                 loaded_files = json.load(file)
         else:
             loaded_files = []
-
-        # Print the loaded files
-        if loaded_files:
-            print(
-                f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
-            )
 
         assistant_message = get_assistant_response(messages)
         display_assistant_response(assistant_message)
