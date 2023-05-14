@@ -1,6 +1,7 @@
 import openai, os, json, re, time
 import helper_todoist, helper_gpt, cext_cmd_check, module_call_counter, helper_general
 import helper_messages, helper_code
+from rich import print
 
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
@@ -32,7 +33,7 @@ def get_assistant_response(messages):
     messages = helper_messages.summarize_and_shorten_messages(messages)
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo", messages=messages
+            model="gpt-3.5-turbo", messages=messages, stream=True
         )
     except openai.error.RateLimitError as e:
         print(e)
@@ -43,18 +44,32 @@ def get_assistant_response(messages):
     except Exception as e:
         print(f"Error while getting assistant response: {e}")
         return None
-    return response.choices[0].message["content"]
+
+    # Initialize a list to collect the chunks of the response
+    response_chunks = []
+    print()
+
+    # Iterate over the chunks of the response as they arrive
+    for chunk in response:
+        # Check if the chunk's 'delta' contains a 'content' key
+        content = chunk["choices"][0].get("delta", {}).get("content")
+        if content is not None:
+            # If it does, add it to the list and print it
+            response_chunks.append(content)
+            print(content, end="")
+
+    # Add a newline at the end of the response
+    print(f"\n-------------------------------------------------")
+
+    # Join the chunks together to form the full response
+    full_response = "".join(response_chunks)
+
+    return full_response
 
 
 def extract_task_id_from_response(response_text):
     match = re.search(r"Task ID: (\d+)", response_text, re.IGNORECASE)
     return int(match.group(1)) if match else None
-
-
-def display_assistant_response(assistant_message):
-    print(
-        f"\n\n{assistant_message}\n--------------------------------------------------------------"
-    )
 
 
 def handle_user_input(user_message, messages, api, timestamp):
@@ -133,8 +148,6 @@ def main_loop():
             loaded_files = []
 
         assistant_message = get_assistant_response(messages)
-        display_assistant_response(assistant_message)
-
         messages.append({"role": "assistant", "content": assistant_message})
         save_json("j_conversation_history.json", messages)
 
