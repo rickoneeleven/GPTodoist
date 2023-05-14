@@ -3,20 +3,10 @@ import module_call_counter, helper_general
 import shutil
 
 
-def backup_tasks_file(func):
-    def wrapper(*args, **kwargs):
-        tasks_filename = "j_long_term_tasks.json"
-        tasks_backup_filename = "x_bak_j_long_term_tasks.json"
-        shutil.copyfile(tasks_filename, tasks_backup_filename)
-        result = func(*args, **kwargs)
-        with open(tasks_filename, "w") as f:
-            json.dump(result, f, indent=2)
-        return result
-
-    return wrapper
+def backup_file():
+    shutil.copy2("j_long_term_tasks.json", "x_bak_j_long_term_tasks.json")
 
 
-@backup_tasks_file
 def add_long_term_task(user_message):
     task_name = user_message[8:].strip()
     added = helper_general.get_timestamp()
@@ -35,8 +25,7 @@ def add_long_term_task(user_message):
 
     with open("j_long_term_tasks.json", "w") as file:
         json.dump(tasks, file, indent=2)
-    with open("x_bak_j_long_term_tasks.json", "w") as file:
-        json.dump(tasks, file, indent=2)
+    backup_file()
 
 
 def print_tasks() -> None:
@@ -75,7 +64,6 @@ def print_tasks() -> None:
             print()
 
 
-@backup_tasks_file
 def rename_long_task(user_message: str) -> None:
     if not os.path.exists("j_long_term_tasks.json"):
         print("No tasks available to rename.")
@@ -112,9 +100,9 @@ def rename_long_task(user_message: str) -> None:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} renamed to '{new_name}'.")
+    backup_file()
 
 
-@backup_tasks_file
 def delete_long_task(user_message: str) -> None:
     if not os.path.exists("j_long_term_tasks.json"):
         print("No tasks available to delete.")
@@ -153,6 +141,7 @@ def delete_long_task(user_message: str) -> None:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} deleted.")
+    backup_file()
     time.sleep(2)
 
 
