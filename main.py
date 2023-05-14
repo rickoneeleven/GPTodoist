@@ -25,7 +25,6 @@ def get_user_input():
 
 def inject_system_message(messages, content):
     system_message = {"role": "system", "content": content}
-    messages[:] = [msg for msg in messages if msg["role"] != "system"]
     messages.append(system_message)
 
 
@@ -58,20 +57,14 @@ def display_assistant_response(assistant_message):
     )
 
 
-def clear_active_tasks_messages(messages):
-    messages[:] = [
-        msg
-        for msg in messages
-        if not (msg["role"] == "system" and msg["content"].startswith("Active Tasks:"))
-    ]
-
-
 def main_loop():
     while True:
         messages = load_json("j_conversation_history.json")
-        clear_active_tasks_messages(messages)
         user_message = get_user_input()
 
+        messages[:] = [
+            msg for msg in messages if msg["role"] != "system"
+        ]  # remove system messages
         system_txt = ""
         loaded_files = load_json("j_loaded_files.json")
         for file in loaded_files:
@@ -110,18 +103,21 @@ def main_loop():
             )
             continue
 
-        inject_system_message(messages, system_txt)
+        if system_txt.strip():  # checks it's not an empty file
+            # Add the desired message at the top of system_txt
+            system_txt = (
+                "+++You are a refactoring bot, help the user with the files below.+++\n\n"
+                + system_txt
+            )
+            inject_system_message(messages, system_txt)
 
         tasks = helper_todoist.fetch_todoist_tasks(api)
         timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
         if tasks:
             task_list = "\n".join(
-                [
-                    f"- {task.content} (due: {parse(task.due.datetime).strftime('%Y-%m-%d %I:%M %p') if task.due and task.due.datetime else timestamp_hhmm}) [Task ID: {task.id}]"
-                    for task in tasks
-                ]
+                [f"- {task.content} [Task ID: {task.id}]" for task in tasks]
             )
-            todoist_tasks_message = f"Here are the users active tasks, they may ask you to reference the ID:\n{task_list}"
+            todoist_tasks_message = f"My outstanding tasks today:\n{task_list}"
             messages.append({"role": "system", "content": todoist_tasks_message})
         else:
             todoist_tasks_message = "Active Tasks:\n [All tasks complete!]"
