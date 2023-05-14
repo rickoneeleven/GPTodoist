@@ -126,7 +126,7 @@ def main_loop():
         if system_txt.strip():  # checks it's not an empty file
             # Add the desired message at the top of system_txt
             system_txt = (
-                "+++You are a refactoring bot, help the user with the files below.+++\n\n"
+                "+++ Keep your responses short and concise. You are a code refactoring bot, help the user with the files below. +++\n\n"
                 + system_txt
             )
             inject_system_message(messages, system_txt)
