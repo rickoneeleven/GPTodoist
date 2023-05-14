@@ -1,25 +1,10 @@
 import module_call_counter
-import ast, astunparse, os, json
+import os, json
 
 
 def shrink_code(code):
-    # Parse the code into an AST
-    tree = ast.parse(code)
-
-    # Remove docstrings
-    for node in ast.walk(tree):
-        if isinstance(
-            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)
-        ):
-            node.docstring = None
-
-    # Remove comments and unnecessary whitespace by unparsing the AST back into code
-    code_without_comments = astunparse.unparse(tree)
-
     # Remove all unnecessary spaces but keep newlines
-    condensed_code = "\n".join(
-        line.strip() for line in code_without_comments.split("\n")
-    )
+    condensed_code = "\n".join(line.strip() for line in code.split("\n"))
 
     return condensed_code
 

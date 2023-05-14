@@ -2,6 +2,9 @@ import openai, os, json, re, time
 import helper_todoist, helper_gpt, helper_parse, cext_cmd_check, module_call_counter, helper_general
 import helper_messages, helper_code
 
+from rich import print
+from rich.syntax import Syntax
+
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
 
@@ -52,9 +55,26 @@ def extract_task_id_from_response(response_text):
 
 
 def display_assistant_response(assistant_message):
-    print(
-        f"\n\n{assistant_message}\n--------------------------------------------------------------"
-    )
+    print("\n")
+    # Split the message into parts based on triple backticks
+    parts = re.split(r"(```)", assistant_message)
+
+    # Initialize a flag to track whether we're inside a code block
+    in_code_block = False
+
+    # Iterate over the parts
+    for part in parts:
+        if part == "```":
+            # If we encounter triple backticks, toggle the in_code_block flag
+            in_code_block = not in_code_block
+        elif in_code_block:
+            # If we're inside a code block, apply syntax highlighting
+            syntax = Syntax(part, "python", theme="monokai", line_numbers=False)
+            print(syntax)
+        else:
+            # If we're not inside a code block, print the part as is
+            print(part)
+    print("\n--------------------------------------------------------------")
 
 
 def main_loop():
