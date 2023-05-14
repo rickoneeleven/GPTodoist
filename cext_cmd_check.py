@@ -12,9 +12,6 @@ def ifelse_commands(api, user_message):
         helper_todoist.complete_active_todoist_task(api)
         helper_todoist.get_next_todoist_task(api)
         return True
-    elif command == "undo":
-        helper_todoist.undo_active_todoist_task(api)
-        return True
     elif command.startswith("time"):
         helper_todoist.update_task_due_date(api, user_message, False)
         helper_todoist.get_next_todoist_task(api)

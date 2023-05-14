@@ -192,37 +192,6 @@ def get_todays_completed_tasks():
         return []
 
 
-def undo_active_todoist_task(api):
-    try:
-        with open("j_active_task.json", "r") as infile:
-            active_task = json.load(infile)
-            task_id = active_task["task_id"]
-            task_name = active_task["task_name"]
-
-            task = api.get_task(task_id)
-            if task:
-                api.reopen_task(task_id=task_id)
-                print()
-                print(f"{task_name} reopened")
-                print()
-                remove_task_from_todays_completed_tasks(task_id)
-            else:
-                print(f"Task {task_id} not found.")
-    except FileNotFoundError:
-        print("Active task file not found.")
-    except KeyError:
-        print("Task ID not found in the active task file.")
-    except Exception as error:
-        print(f"Error reopening active task: {error}")
-
-
-def remove_task_from_todays_completed_tasks(task_id):
-    completed_tasks = get_todays_completed_tasks()
-    updated_tasks = [task for task in completed_tasks if task["task_id"] != task_id]
-    with open("j_todays_completed_tasks.json", "w") as outfile:
-        json.dump(updated_tasks, outfile)
-
-
 def parse_update_due_date_command(user_message):
     parts = user_message.lower().split()
     if len(parts) < 2 or parts[0] != "time":

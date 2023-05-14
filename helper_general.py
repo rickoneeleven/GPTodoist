@@ -21,7 +21,6 @@ def print_commands():
         "~~~": "~~~ anywhere in message causes filters to be bypassed",
         "```": "``` anywhere in message asks the bot to try and mark the task complete on todoist",
         "done": "queries the todoist api direct to complete the active task in j_active_task.json",
-        "undo": "queries the todoist api to REOPEN the active task in j_active_task.json",
         "time": "updates task's due time. [time 1800] -> 1800 today, [time 1800 tomorrow] -> you guessed it!",
         "delete": "deletes the active task from todoist, doesn't add to completed json file",
         "all": "show all tasks",
