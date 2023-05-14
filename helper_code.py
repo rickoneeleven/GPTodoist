@@ -64,8 +64,8 @@ def add_file(user_message):
 
 def reset_all():
     # Delete j_conversation_history.json if it exists
-    if os.path.isfile("j_conversation_history.json"):
-        os.remove("j_conversation_history.json")
+    # if os.path.isfile("j_conversation_history.json"):
+    #    os.remove("j_conversation_history.json")
 
     # Delete j_loaded_files.json if it exists
     if os.path.isfile("j_loaded_files.json"):
