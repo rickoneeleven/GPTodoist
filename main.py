@@ -157,6 +157,19 @@ def main_loop():
             user_message_with_time = f"{timestamp_hhmm}: {user_message}"
             messages.append({"role": "user", "content": user_message_with_time})
 
+        # Load the JSON file if it exists, otherwise create an empty list
+        if os.path.isfile("j_loaded_files.json"):
+            with open("j_loaded_files.json", "r") as file:
+                loaded_files = json.load(file)
+        else:
+            loaded_files = []
+
+        # Print the loaded files
+        if loaded_files:
+            print(
+                f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
+            )
+
         assistant_message = get_assistant_response(messages)
         display_assistant_response(assistant_message)
         # ----------------------- todoist: complete a task
