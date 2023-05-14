@@ -1,5 +1,5 @@
 import openai, os, json, re, time
-import helper_todoist, helper_gpt, helper_parse, cext_cmd_check, module_call_counter, helper_general
+import helper_todoist, helper_gpt, cext_cmd_check, module_call_counter, helper_general
 import helper_messages, helper_code
 
 from rich import print
@@ -110,7 +110,7 @@ def main_loop():
         for file in loaded_files:
             content = read_file(file["filename"])
             shrunk_content = helper_code.shrink_code(content)
-            system_txt += f"{file['filename']}:\n{shrunk_content}\n"
+            system_txt += f"---\n\n{file['filename']}:\n{shrunk_content}\n"
 
         timestamp = helper_general.get_timestamp()
 
