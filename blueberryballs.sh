@@ -22,7 +22,7 @@ if [ "$cont" != "y" ]; then exit 1; fi
 echo
 echo
 read -p "Commit message: " message
-git commit -m "$message"i
+git commit -m "$message"
 echo
 echo
 git push
