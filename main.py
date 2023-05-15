@@ -21,7 +21,19 @@ load_json = (
 
 
 def get_user_input():
-    return input("You: ")
+    print("You: ", end="")
+    user_input = ""
+    while True:
+        line = input()  # No need to strip trailing whitespaces
+        user_input += line + "\n"  # Add user input (with newline character)
+        if line.endswith("qq"):  # User input ended
+            break
+    user_input = (
+        user_input.rstrip()
+    )  # Remove trailing whitespace (i.e. the last newline character)
+    if user_input.endswith("qq"):
+        user_input = user_input[:-2]  # Remove trailing double dot
+    return user_input
 
 
 def inject_system_message(messages, content):
@@ -50,21 +62,25 @@ def get_assistant_response(messages):
     print()
 
     # Iterate over the chunks of the response as they arrive
-    for chunk in response:
-        # Check if the chunk's 'delta' contains a 'content' key
-        content = chunk["choices"][0].get("delta", {}).get("content")
-        if content is not None:
-            # If it does, add it to the list and print it
-            response_chunks.append(content)
-            print(content, end="")
+    try:
+        for chunk in response:
+            # Check if the chunk's 'delta' contains a 'content' key
+            content = chunk["choices"][0].get("delta", {}).get("content")
+            if content is not None:
+                # If it does, add it to the list and print it
+                response_chunks.append(content)
+                print(content, end="")
 
-    # Add a newline at the end of the response
-    print(f"\n-------------------------------------------------")
+        # Add a newline at the end of the response
+        print("\n-------------------------------------------------")
 
-    # Join the chunks together to form the full response
-    full_response = "".join(response_chunks)
+        # Join the chunks together to form the full response
+        full_response = "".join(response_chunks)
 
-    return full_response
+        return full_response
+    except KeyboardInterrupt:
+        print("\nStopping streaming response due to user command.")
+        return "[user cancelled assistant response]"
 
 
 def extract_task_id_from_response(response_text):
