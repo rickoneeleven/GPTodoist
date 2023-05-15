@@ -20,6 +20,11 @@ load_json = (
 )
 
 
+def write_to_file(filename, data):
+    with open(filename, "w") as file:
+        file.write(data)
+
+
 def get_user_input():
     print("You: ", end="")
     user_input = ""
@@ -41,7 +46,6 @@ def inject_system_message(messages, content):
     messages.append(system_message)
 
 
-# This variable will be used to signal the chatbot response thread to stop
 stop_chatbot_response = False
 
 
@@ -70,29 +74,24 @@ def get_assistant_response(messages):
         print(f"Error while getting assistant response: {e}")
         return ""
 
-    # Initialize a list to collect the chunks of the response
     response_chunks = []
     print()
 
-    # Start a new thread to listen for the ENTER key press
     threading.Thread(target=listen_for_enter_key).start()
-    time.sleep(0.5)  # stop collision with listen_for_enter_key message
+    time.sleep(0.5)
 
-    # Iterate over the chunks of the response as they arrive
     try:
         for chunk in response:
-            # Check if the chunk's 'delta' contains a 'content' key
             content = chunk["choices"][0].get("delta", {}).get("content")
             if content is not None:
-                # If it does, add it to the list and print it
                 response_chunks.append(content)
                 print(content, end="")
 
-        # Add a newline at the end of the response
         print("\n-------------------------------------------------")
 
-        # Join the chunks together to form the full response
         full_response = "".join(response_chunks)
+
+        write_to_file("refactored.txt", full_response)
 
         return full_response
     except KeyboardInterrupt:
@@ -158,7 +157,6 @@ def main_loop():
     while True:
         messages = load_json("j_conversation_history.json")
         loaded_files = load_json("j_loaded_files.json")
-        # Print the loaded files
         if loaded_files:
             print(
                 f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
@@ -180,15 +178,11 @@ def main_loop():
             system_txt = "Be short and concise with your answers.\n\n" + system_txt
             inject_system_message(messages, system_txt)
 
-        # Check if the user message is a command
         if cext_cmd_check.ifelse_commands(api, user_message):
-            # If it is a command, start the next iteration of the loop
             continue
 
-        # If not a command, handle the user input
         messages = handle_user_input(user_message, messages, api, timestamp)
 
-        # Load the JSON file if it exists, otherwise create an empty list
         if os.path.isfile("j_loaded_files.json"):
             with open("j_loaded_files.json", "r") as file:
                 loaded_files = json.load(file)
@@ -199,6 +193,13 @@ def main_loop():
         handle_special_commands(user_message, assistant_message, api)
         messages.append({"role": "assistant", "content": assistant_message})
         save_json("j_conversation_history.json", messages)
+
+        # Extract code between triple backticks and write to refactored.py
+        code_to_write = re.search(r"```(.*?)```", assistant_message, re.DOTALL)
+        if code_to_write:
+            # Remove leading and trailing newlines
+            code_to_write = code_to_write.group(1).strip()
+            write_to_file("refactored.py", code_to_write)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
