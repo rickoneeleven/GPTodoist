@@ -1,4 +1,4 @@
-import openai, os, json, re, time
+import openai, os, json, re, time, threading
 import helper_todoist, helper_gpt, cext_cmd_check, module_call_counter, helper_general
 import helper_messages, helper_code
 from rich import print
@@ -29,7 +29,20 @@ def inject_system_message(messages, content):
     messages.append(system_message)
 
 
+# This variable will be used to signal the chatbot response thread to stop
+stop_chatbot_response = False
+
+
+def listen_for_enter_key():
+    global stop_chatbot_response
+    input("-------------------------------------------------\n")
+    stop_chatbot_response = True
+
+
 def get_assistant_response(messages):
+    global stop_chatbot_response
+    stop_chatbot_response = False
+
     messages = helper_messages.summarize_and_shorten_messages(messages)
     try:
         response = openai.ChatCompletion.create(
@@ -43,14 +56,24 @@ def get_assistant_response(messages):
         return get_assistant_response(messages)  # Retry the function call
     except Exception as e:
         print(f"Error while getting assistant response: {e}")
-        return None
+        return ""
 
     # Initialize a list to collect the chunks of the response
     response_chunks = []
     print()
 
+    # Start a new thread to listen for the ENTER key press
+    threading.Thread(target=listen_for_enter_key).start()
+    time.sleep(0.5)  # stop collision with listen_for_enter_key message
+
     # Iterate over the chunks of the response as they arrive
     for chunk in response:
+        # Check if the ENTER key has been pressed
+        if stop_chatbot_response:
+            print("\nInterrupted by user")
+            response.close()
+            return "[user stopped assistants response]"
+
         # Check if the chunk's 'delta' contains a 'content' key
         content = chunk["choices"][0].get("delta", {}).get("content")
         if content is not None:
@@ -58,8 +81,7 @@ def get_assistant_response(messages):
             response_chunks.append(content)
             print(content, end="")
 
-    # Add a newline at the end of the response
-    print(f"\n-------------------------------------------------")
+    print("\n-------------------------------------------------")
 
     # Join the chunks together to form the full response
     full_response = "".join(response_chunks)
