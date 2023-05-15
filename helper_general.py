@@ -18,7 +18,6 @@ def get_timestamp():
 def print_commands():
     commands = {
         "add task": "add task [task name]/[task name 1800]/[task name 1800 tomorrow]",
-        "~~~": "~~~ anywhere in message causes filters to be bypassed",
         "```": "``` anywhere in message asks the bot to try and mark the task complete on todoist",
         "done": "queries the todoist api direct to complete the active task in j_active_task.json",
         "time": "updates task's due time. [time 1800] -> 1800 today, [time 1800 tomorrow] -> you guessed it!",

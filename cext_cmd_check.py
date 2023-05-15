@@ -1,5 +1,5 @@
 import os
-import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code, helper_parse
+import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code, helper_parse, helper_general
 
 
 def ifelse_commands(api, user_message):
@@ -49,6 +49,9 @@ def ifelse_commands(api, user_message):
         return True
     elif command == "reset":
         helper_code.reset_all()
+        return True
+    elif command == "commands":
+        helper_general.print_commands()
         return True
 
     elif command.startswith("add task"):

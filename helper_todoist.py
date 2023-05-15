@@ -319,4 +319,17 @@ def format_due_time(due_time_str, timezone):
     return friendly_due_time
 
 
+def insert_tasks_into_system_prompt(api, messages):
+    tasks = fetch_todoist_tasks(api)
+    if tasks:
+        task_list = "\n".join(
+            [f"- {task.content} [Task ID: {task.id}]" for task in tasks]
+        )
+        todoist_tasks_message = f"My outstanding tasks today:\n{task_list}"
+        messages.append({"role": "system", "content": todoist_tasks_message})
+    else:
+        todoist_tasks_message = "Active Tasks:\n [All tasks complete!]"
+        messages.append({"role": "system", "content": todoist_tasks_message})
+
+
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

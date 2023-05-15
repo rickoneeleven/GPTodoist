@@ -76,11 +76,13 @@ def handle_user_input(user_message, messages, api, timestamp):
     timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
 
     if "```" in user_message.lower():
+        helper_todoist.insert_tasks_into_system_prompt(api, messages)
         task_id_prompt = helper_gpt.create_task_id_prompt(
             " ".join(user_message.split()[1:])
         )
         messages.append({"role": "user", "content": task_id_prompt})
     elif user_message.lower().startswith("move task"):
+        helper_todoist.insert_tasks_into_system_prompt(api, messages)
         task_id_prompt = helper_gpt.create_task_id_prompt(
             " ".join(user_message.split()[2:])
         )
@@ -92,6 +94,33 @@ def handle_user_input(user_message, messages, api, timestamp):
     return messages
 
 
+def handle_special_commands(user_message, assistant_message, api):
+    if "```" in user_message.lower() and "Task ID" in assistant_message:
+        task_id = extract_task_id_from_response(assistant_message)
+        if task_id is not None:
+            task = api.get_task(task_id=task_id)
+            if task is not None:
+                task_name = task.content
+                time_complete = helper_general.get_timestamp()
+
+                if helper_todoist.complete_todoist_task_by_id(api, task_id):
+                    print(
+                        f"\[green] Task with ID {task_id} successfully marked as complete. [/green]"
+                    )
+                    helper_todoist.update_todays_completed_tasks(
+                        task_name, task_id, time_complete
+                    )
+                else:
+                    print("Failed to complete the task.")
+    if user_message.lower().startswith("move task") and "Task ID" in assistant_message:
+        task_id = extract_task_id_from_response(assistant_message)
+        if task_id is not None:
+            helper_todoist.update_task_due_date(api, user_message, task_id)
+            helper_todoist.get_next_todoist_task(api)
+        else:
+            print("Failed to move the task.")
+
+
 def main_loop():
     while True:
         messages = load_json("j_conversation_history.json")
@@ -99,7 +128,7 @@ def main_loop():
         # Print the loaded files
         if loaded_files:
             print(
-                f"\033[31m{', '.join([file['filename'] for file in loaded_files])} loaded into memory...\033[0m"
+                f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
             )
         user_message = get_user_input()
 
@@ -115,22 +144,8 @@ def main_loop():
         timestamp = helper_general.get_timestamp()
 
         if system_txt.strip():  # checks it's not an empty file
-            system_txt = (
-                "+++You are a refactoring bot, help the user with the files below.+++\n\n"
-                + system_txt
-            )
+            system_txt = "Be short and concise with your answers.\n\n" + system_txt
             inject_system_message(messages, system_txt)
-
-        tasks = helper_todoist.fetch_todoist_tasks(api)
-        if tasks:
-            task_list = "\n".join(
-                [f"- {task.content} [Task ID: {task.id}]" for task in tasks]
-            )
-            todoist_tasks_message = f"My outstanding tasks today:\n{task_list}"
-            messages.append({"role": "system", "content": todoist_tasks_message})
-        else:
-            todoist_tasks_message = "Active Tasks:\n [All tasks complete!]"
-            messages.append({"role": "system", "content": todoist_tasks_message})
 
         # Check if the user message is a command
         if cext_cmd_check.ifelse_commands(api, user_message):
@@ -148,6 +163,7 @@ def main_loop():
             loaded_files = []
 
         assistant_message = get_assistant_response(messages)
+        handle_special_commands(user_message, assistant_message, api)
         messages.append({"role": "assistant", "content": assistant_message})
         save_json("j_conversation_history.json", messages)
 
