@@ -25,15 +25,15 @@ def get_user_input():
     user_input = ""
     while True:
         line = input()  # No need to strip trailing whitespaces
-        user_input += line + "\n"  # Add user input (with newline character)
-        if line.endswith("qq"):  # User input ended
+        if line == "ignore":
+            # Ignore everything above
+            user_input = ""
+        elif line.endswith("qq"):  # User input ended
+            user_input += line[:-2]  # Add the current line without the trailing "qq"
             break
-    user_input = (
-        user_input.rstrip()
-    )  # Remove trailing whitespace (i.e. the last newline character)
-    if user_input.endswith("qq"):
-        user_input = user_input[:-2]  # Remove trailing double dot
-    return user_input
+        else:
+            user_input += line + "\n"  # Add the current line to user_input
+    return user_input.rstrip("\n")  # Remove trailing newline
 
 
 def inject_system_message(messages, content):

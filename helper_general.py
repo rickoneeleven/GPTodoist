@@ -32,6 +32,7 @@ def print_commands():
         "weather": "show the weather for today",
         "add file <filename>": "adds file to system messages",
         "reset": "deletes j_conversation_history.json, j_loaded_files.json and empties system_messages.txt",
+        "ignore": "ignore on a new line on it's own, tells the prompt to ignore everything typed before it",
     }
     print()
     max_command_len = max(len(command) for command in commands)
