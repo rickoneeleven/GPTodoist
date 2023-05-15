@@ -55,6 +55,7 @@ def listen_for_enter_key():
     stop_chatbot_response = True
 
 
+"""
 def get_assistant_response(messages):
     global stop_chatbot_response
     stop_chatbot_response = False
@@ -91,12 +92,47 @@ def get_assistant_response(messages):
 
         full_response = "".join(response_chunks)
 
-        write_to_file("refactored.txt", full_response)
-
         return full_response
     except KeyboardInterrupt:
         print("\nStopping streaming response due to user command.")
         return "[user cancelled assistant response]"
+"""
+
+
+def get_assistant_response(messages):
+    messages = helper_messages.summarize_and_shorten_messages(messages)
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo", messages=messages, stream=True
+        )
+    except openai.error.RateLimitError as e:
+        print(e)
+        print()
+        print("Rate limit exceeded? Retrying in a few seconds...")
+        time.sleep(10)  # Wait for 10 seconds before retrying
+        return get_assistant_response(messages)  # Retry the function call
+    except Exception as e:
+        print(f"Error while getting assistant response: {e}")
+        return ""
+
+    response_chunks = []
+    print()
+
+    try:
+        for chunk in response:
+            content = chunk["choices"][0].get("delta", {}).get("content")
+            if content is not None:
+                response_chunks.append(content)
+                print(content, end="")
+
+        print("\n-------------------------------------------------")
+
+        full_response = "".join(response_chunks)
+
+        return full_response
+    except Exception as e:
+        print(f"Error while streaming response: {e}")
+        return "[error occurred during assistant response]"
 
 
 def extract_task_id_from_response(response_text):
@@ -162,6 +198,7 @@ def main_loop():
                 f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
             )
         user_message = get_user_input()
+        print("processing...")
 
         messages[:] = [
             msg for msg in messages if msg["role"] != "system"
