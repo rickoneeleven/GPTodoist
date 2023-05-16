@@ -174,7 +174,10 @@ def main_loop():
         timestamp = helper_general.get_timestamp()
 
         if system_txt.strip():  # checks it's not an empty file
-            system_txt = "Be short and concise with your answers.\n\n" + system_txt
+            system_txt = (
+                "Be short and concise with your answers. When printing refactored code, always encompass it within triple ticks.\n\n"
+                + system_txt
+            )
             inject_system_message(messages, system_txt)
 
         if cext_cmd_check.ifelse_commands(api, user_message):
@@ -199,7 +202,7 @@ def main_loop():
             for i, code in enumerate(code_sections):
                 # Remove leading and trailing newlines
                 code = code.strip()
-                write_to_file(f"refactored.py", code)
+                write_to_file("refactored.py", code)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
