@@ -1,14 +1,3 @@
-import openai
-import re
-import requests
-import os
-import json
-import logging
-from transformers import GPT2Tokenizer
-from transformers import logging as hf_logging
-from finished import get_openai_api_key, print_commands
-from bs4 import BeautifulSoup
-
 logging.basicConfig(level=logging.ERROR)
 hf_logging.set_verbosity_error()
 
@@ -16,12 +5,47 @@ FILE_NAME = "fetched_urls.json"
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
 
-def count_tokens(tokenizer, messages):
-    total_tokens = 0
-    for message in messages:
-        output = tokenizer.encode(message["content"], add_special_tokens=False)
-        total_tokens += len(output)
-    return total_tokens
+def get_assistant_response(messages):
+    global stop_chatbot_response
+    stop_chatbot_response = False
+
+    messages = helper_messages.summarize_and_shorten_messages(messages)
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo", messages=messages, stream=True
+        )
+    except openai.error.RateLimitError as e:
+        print(e)
+        print()
+        print("Rate limit exceeded? Retrying in a few seconds...")
+        time.sleep(10)  # Wait for 10 seconds before retrying
+        return get_assistant_response(messages)  # Retry the function call
+    except Exception as e:
+        print(f"Error while getting assistant response: {e}")
+        return ""
+
+    response_chunks = []
+    print()
+
+    threading.Thread(target=listen_for_enter_key).start()
+    time.sleep(0.5)
+
+    try:
+        for chunk in response:
+            content = chunk["choices"][0].get("delta", {}).get("content")
+            if content is not None:
+                response_chunks.append(content)
+                print(content, end="")
+
+        print("\n-------------------------------------------------")
+
+        full_response = "".join(response_chunks)
+
+        return full_response
+    except KeyboardInterrupt:
+        print("\nStopping streaming response due to user command.")
+        return "[user cancelled assistant response]"
+
 
 
 def print_system_messages(messages):
