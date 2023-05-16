@@ -21,7 +21,8 @@ load_json = (
 
 
 def write_to_file(filename, data):
-    with open(filename, "w") as file:
+    with open(filename, "a") as file:
+        file.write(f"\n{helper_general.get_timestamp()}\n")
         file.write(data)
 
 
@@ -33,6 +34,9 @@ def get_user_input():
         if line == "ignore":
             # Ignore everything above
             user_input = ""
+        elif line == "!!":
+            # Submit everything above and ignore "!!"
+            break
         elif line.endswith("qq"):  # User input ended
             user_input += line[:-2]  # Add the current line without the trailing "qq"
             break
@@ -232,11 +236,12 @@ def main_loop():
         save_json("j_conversation_history.json", messages)
 
         # Extract code between triple backticks and write to refactored.py
-        code_to_write = re.search(r"```(.*?)```", assistant_message, re.DOTALL)
-        if code_to_write:
-            # Remove leading and trailing newlines
-            code_to_write = code_to_write.group(1).strip()
-            write_to_file("refactored.py", code_to_write)
+        code_sections = re.findall(r"```(.*?)```", assistant_message, re.DOTALL)
+        if code_sections:
+            for i, code in enumerate(code_sections):
+                # Remove leading and trailing newlines
+                code = code.strip()
+                write_to_file(f"refactored.py", code)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

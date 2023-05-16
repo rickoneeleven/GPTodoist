@@ -21,6 +21,7 @@ astunparse = "^1.6.3"
 tiktoken = "^0.4.0"
 rich = "^13.3.5"
 keyboard = "^0.13.5"
+console = "^0.9907"
 
 [tool.poetry.dev-dependencies]
 debugpy = "^1.6.2"
