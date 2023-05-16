@@ -22,7 +22,9 @@ load_json = (
 
 def write_to_file(filename, data):
     with open(filename, "a") as file:
-        file.write(f"\n{helper_general.get_timestamp()}\n")
+        file.write(
+            f"\n-----------------------------------------------{helper_general.get_timestamp()}\n"
+        )
         file.write(data)
 
 
