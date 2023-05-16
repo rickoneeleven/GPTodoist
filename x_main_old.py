@@ -47,7 +47,6 @@ def get_assistant_response(messages):
         return "[user cancelled assistant response]"
 
 
-
 def print_system_messages(messages):
     print("System messages:")
     for idx, message in enumerate(messages):
