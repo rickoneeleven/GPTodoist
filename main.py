@@ -135,7 +135,7 @@ def handle_special_commands(user_message, assistant_message, api):
 
                 if helper_todoist.complete_todoist_task_by_id(api, task_id):
                     print(
-                        f"\[green] Task with ID {task_id} successfully marked as complete. [/green]"
+                        f"[green] Task with ID {task_id} successfully marked as complete. [/green]"
                     )
                     helper_todoist.update_todays_completed_tasks(
                         task_name, task_id, time_complete
