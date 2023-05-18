@@ -48,6 +48,7 @@ def ifelse_commands(api, user_message):
         helper_code.add_file(user_message)
         return True
     elif command == "reset":
+        os.system("clear")
         helper_code.reset_all()
         return True
     elif command == "commands":

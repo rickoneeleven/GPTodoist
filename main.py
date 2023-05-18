@@ -1,4 +1,4 @@
-import openai, os, json, re, time, threading
+import openai, os, json, re, time
 import helper_todoist, helper_gpt, cext_cmd_check, module_call_counter, helper_general
 import helper_messages, helper_code
 from rich import print
@@ -117,6 +117,20 @@ def handle_user_input(user_message, messages, api, timestamp):
             " ".join(user_message.split()[2:])
         )
         messages.append({"role": "user", "content": task_id_prompt})
+    elif user_message.lower().startswith("refactor"):
+        user_message = " ".join(user_message.split()[1:])
+        prompt = f"""look at {user_message} and suggest one refactor following the guidelines
+              ---
+                - Improve Code Readability
+                - Remove Dead Code
+                - DRY (Don't Repeat Yourself)
+                - Use Pythonic Conventions
+                - Simplify Conditional Logic
+                - Improve Data Structures 
+              ---
+                remember to always encompass any code output with triple ticks and only GIVE ME ONE REFACTOR"""
+        user_message_with_time = f"{timestamp_hhmm}: {prompt}"
+        messages.append({"role": "user", "content": user_message_with_time})
     else:
         user_message_with_time = f"{timestamp_hhmm}: {user_message}"
         messages.append({"role": "user", "content": user_message_with_time})
@@ -162,28 +176,32 @@ def main_loop():
         user_message = get_user_input()
         print("processing...")
 
+        if cext_cmd_check.ifelse_commands(api, user_message):
+            continue
+
         messages[:] = [
             msg for msg in messages if msg["role"] != "system"
         ]  # remove system messages
         system_txt = ""
+
+        # Create a string that lists all the loaded files
+        file_list = ", ".join([file["filename"] for file in loaded_files])
+
+        # Prepend the file list to user_message
+        if file_list:
+            print("willy")
+            user_message += f" {file_list}"
+
+        timestamp = helper_general.get_timestamp()
+        messages = handle_user_input(user_message, messages, api, timestamp)
+
         for file in loaded_files:
             content = read_file(file["filename"])
             shrunk_content = helper_code.shrink_code(content)
             system_txt += f"---\n\n{file['filename']}:\n{shrunk_content}\n"
 
-        timestamp = helper_general.get_timestamp()
-
         if system_txt.strip():  # checks it's not an empty file
-            system_txt = (
-                "Be short and concise with your answers. When printing refactored code, always encompass it within triple ticks.\n\n"
-                + system_txt
-            )
             inject_system_message(messages, system_txt)
-
-        if cext_cmd_check.ifelse_commands(api, user_message):
-            continue
-
-        messages = handle_user_input(user_message, messages, api, timestamp)
 
         if os.path.isfile("j_loaded_files.json"):
             with open("j_loaded_files.json", "r") as file:
