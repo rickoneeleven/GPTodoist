@@ -189,7 +189,6 @@ def main_loop():
 
         # Prepend the file list to user_message
         if file_list:
-            print("willy")
             user_message += f" {file_list}"
 
         timestamp = helper_general.get_timestamp()
@@ -201,7 +200,8 @@ def main_loop():
             system_txt += f"---\n\n{file['filename']}:\n{shrunk_content}\n"
 
         if system_txt.strip():  # checks it's not an empty file
-            inject_system_message(messages, system_txt)
+            system_message = {"role": "system", "content": system_txt}
+            messages.append(system_message)
 
         if os.path.isfile("j_loaded_files.json"):
             with open("j_loaded_files.json", "r") as file:
