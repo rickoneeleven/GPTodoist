@@ -61,11 +61,13 @@ def listen_for_enter_key():
     stop_chatbot_response = True
 
 
-def get_assistant_response(messages):
+def get_assistant_response(messages, model_to_use):
     messages = helper_messages.summarize_and_shorten_messages(messages)
+    if model_to_use == "gpt-4":
+        print("[red]USING BIG BRAIN GPT4!!!![/red]")
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo", messages=messages, stream=True
+            model=model_to_use, messages=messages, stream=True
         )
     except openai.error.RateLimitError as e:
         print(e)
@@ -105,7 +107,20 @@ def extract_task_id_from_response(response_text):
 def handle_user_input(user_message, messages, api, timestamp):
     timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
 
-    if "```" in user_message.lower():
+    # check the model to use based on the user's message
+    model_to_use = "gpt-3.5-turbo"  # default model
+    processed = False  # flag to indicate whether the user message was processed
+
+    if user_message.startswith("3 "):
+        model_to_use = "gpt-3.5-turbo"
+        user_message = user_message[2:]  # remove the prefix
+        processed = True
+    elif user_message.startswith("4 "):
+        model_to_use = "gpt-4"
+        user_message = user_message[2:]  # remove the prefix
+        processed = True
+
+    if "~~~" in user_message.lower():
         helper_todoist.insert_tasks_into_system_prompt(api, messages)
         task_id_prompt = helper_gpt.create_task_id_prompt(
             " ".join(user_message.split()[1:])
@@ -118,6 +133,7 @@ def handle_user_input(user_message, messages, api, timestamp):
         )
         messages.append({"role": "user", "content": task_id_prompt})
     elif user_message.lower().startswith("refactor"):
+        model_to_use = "gpt-4"
         user_message = " ".join(user_message.split()[1:])
         prompt = f"""look at {user_message} and suggest one refactor following the guidelines
               ---
@@ -135,11 +151,11 @@ def handle_user_input(user_message, messages, api, timestamp):
         user_message_with_time = f"{timestamp_hhmm}: {user_message}"
         messages.append({"role": "user", "content": user_message_with_time})
 
-    return messages
+    return messages, model_to_use, processed
 
 
 def handle_special_commands(user_message, assistant_message, api):
-    if "```" in user_message.lower() and "Task ID" in assistant_message:
+    if "~~~" in user_message.lower() and "Task ID" in assistant_message:
         task_id = extract_task_id_from_response(assistant_message)
         if task_id is not None:
             task = api.get_task(task_id=task_id)
@@ -192,7 +208,13 @@ def main_loop():
             user_message += f" {file_list}"
 
         timestamp = helper_general.get_timestamp()
-        messages = handle_user_input(user_message, messages, api, timestamp)
+        messages, model_to_use, processed = handle_user_input(
+            user_message, messages, api, timestamp
+        )
+
+        if not processed:
+            print("eh?\n")
+            continue
 
         for file in loaded_files:
             content = read_file(file["filename"])
@@ -209,13 +231,13 @@ def main_loop():
         else:
             loaded_files = []
 
-        assistant_message = get_assistant_response(messages)
+        assistant_message = get_assistant_response(messages, model_to_use)
         handle_special_commands(user_message, assistant_message, api)
         messages.append({"role": "assistant", "content": assistant_message})
         save_json("j_conversation_history.json", messages)
 
         # Extract code between triple backticks and write to refactored.py
-        code_sections = re.findall(r"```(.*?)```", assistant_message, re.DOTALL)
+        code_sections = re.findall(r"~~~(.*?)~~~", assistant_message, re.DOTALL)
         if code_sections:
             for i, code in enumerate(code_sections):
                 # Remove leading and trailing newlines
