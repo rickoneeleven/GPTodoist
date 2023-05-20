@@ -1,6 +1,6 @@
 import openai, os, json, re, time
 import helper_todoist, helper_gpt, cext_cmd_check, module_call_counter, helper_general
-import helper_messages, helper_code
+import helper_messages, helper_code, helper_regex
 from rich import print
 
 from dateutil.parser import parse
@@ -99,11 +99,6 @@ def get_assistant_response(messages, model_to_use):
         return "[error occurred during assistant response]"
 
 
-def extract_task_id_from_response(response_text):
-    match = re.search(r"Task ID: (\d+)", response_text, re.IGNORECASE)
-    return int(match.group(1)) if match else None
-
-
 def handle_user_input(user_message, messages, api, timestamp):
     timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
 
@@ -114,11 +109,14 @@ def handle_user_input(user_message, messages, api, timestamp):
     if user_message.startswith("3 "):
         model_to_use = "gpt-3.5-turbo"
         user_message = user_message[2:]  # remove the prefix
+        user_message_with_time = f"{timestamp_hhmm}: {user_message}"
+        messages.append({"role": "user", "content": user_message_with_time})
     elif user_message.startswith("4 "):
         model_to_use = "gpt-4"
         user_message = user_message[2:]  # remove the prefix
-
-    if "~~~" in user_message.lower():
+        user_message_with_time = f"{timestamp_hhmm}: {user_message}"
+        messages.append({"role": "user", "content": user_message_with_time})
+    elif "~~~" in user_message.lower():
         helper_todoist.insert_tasks_into_system_prompt(api, messages)
         task_id_prompt = helper_gpt.create_task_id_prompt(
             " ".join(user_message.split()[1:])
@@ -153,7 +151,7 @@ def handle_user_input(user_message, messages, api, timestamp):
 
 def handle_special_commands(user_message, assistant_message, api):
     if "~~~" in user_message.lower() and "Task ID" in assistant_message:
-        task_id = extract_task_id_from_response(assistant_message)
+        task_id = helper_regex.extract_task_id_from_response(assistant_message)
         if task_id is not None:
             task = api.get_task(task_id=task_id)
             if task is not None:
@@ -170,7 +168,7 @@ def handle_special_commands(user_message, assistant_message, api):
                 else:
                     print("Failed to complete the task.")
     if user_message.lower().startswith("move task") and "Task ID" in assistant_message:
-        task_id = extract_task_id_from_response(assistant_message)
+        task_id = helper_regex.extract_task_id_from_response(assistant_message)
         if task_id is not None:
             helper_todoist.update_task_due_date(api, user_message, task_id)
             helper_todoist.get_next_todoist_task(api)
