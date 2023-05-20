@@ -109,16 +109,14 @@ def handle_user_input(user_message, messages, api, timestamp):
 
     # check the model to use based on the user's message
     model_to_use = "gpt-3.5-turbo"  # default model
-    processed = False  # flag to indicate whether the user message was processed
+    pass_to_bot = True  # flag to indicate whether the user message was pass_to_bot
 
     if user_message.startswith("3 "):
         model_to_use = "gpt-3.5-turbo"
         user_message = user_message[2:]  # remove the prefix
-        processed = True
     elif user_message.startswith("4 "):
         model_to_use = "gpt-4"
         user_message = user_message[2:]  # remove the prefix
-        processed = True
 
     if "~~~" in user_message.lower():
         helper_todoist.insert_tasks_into_system_prompt(api, messages)
@@ -148,10 +146,9 @@ def handle_user_input(user_message, messages, api, timestamp):
         user_message_with_time = f"{timestamp_hhmm}: {prompt}"
         messages.append({"role": "user", "content": user_message_with_time})
     else:
-        user_message_with_time = f"{timestamp_hhmm}: {user_message}"
-        messages.append({"role": "user", "content": user_message_with_time})
+        pass_to_bot = False
 
-    return messages, model_to_use, processed
+    return messages, model_to_use, pass_to_bot
 
 
 def handle_special_commands(user_message, assistant_message, api):
@@ -208,11 +205,11 @@ def main_loop():
             user_message += f" {file_list}"
 
         timestamp = helper_general.get_timestamp()
-        messages, model_to_use, processed = handle_user_input(
+        messages, model_to_use, pass_to_bot = handle_user_input(
             user_message, messages, api, timestamp
         )
 
-        if not processed:
+        if not pass_to_bot:
             print("eh?\n")
             continue
 
