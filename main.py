@@ -131,14 +131,15 @@ def handle_user_input(user_message, messages, api, timestamp):
     elif user_message.lower().startswith("refactor"):
         model_to_use = "gpt-4"
         user_message = " ".join(user_message.split()[1:])
-        prompt = f"""look at {user_message} and suggest one refactor following the guidelines:
+        prompt = f"""look at {user_message} one do one refactor with the following in mind:
                 - Improve Code Readability
                 - Remove Dead Code
                 - DRY (Don't Repeat Yourself)
                 - Use Pythonic Conventions
                 - Simplify Conditional Logic
                 - Improve Data Structures 
-                remember to always encompass any code output with triple ticks and only GIVE ME ONE REFACTOR"""
+                encompass any code output with triple ticks and only do one refactor. the refactor must not results
+                in the loss of any functionaility. if you remove code or logic, explain why it's no longer necessary"""
         user_message_with_time = f"{timestamp_hhmm}: {prompt}"
         messages.append({"role": "user", "content": user_message_with_time})
     else:
