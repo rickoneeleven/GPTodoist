@@ -115,7 +115,7 @@ def get_next_todoist_task(api):
         add_to_active_task_file(task_name, task_id, task_due)
 
         print()
-        print(f"\033[32m{task_name}\033[0m")
+        print(f"[green]{task_name}[/green]")
         if task_due:
             task_due_london = helper_general.convert_to_london_timezone(task_due)
             task_due_london_datetime = datetime.datetime.strptime(
@@ -139,9 +139,9 @@ def get_next_todoist_task(api):
         ]
 
         if x_tasks:
-            print("\033[38;2;192;192;192mSpare time focus:\033[0m")
+            print("[gray]Spare time focus:[/gray]")
             for x_task in x_tasks:
-                print(f"\033[38;2;192;192;192m{x_task['task_name']}\033[0m")
+                print(f"[gray]{x_task['task_name']}[/gray]")
             print()
 
     else:
@@ -158,7 +158,7 @@ def complete_active_todoist_task(api):
 
             if complete_todoist_task_by_id(api, task_id):
                 print()
-                print(f"\033[91m {task_name} \033[0m complete")
+                print(f"[bright_red] {task_name} [/bright_red] complete")
                 print()
                 london_tz = timezone("Europe/London")
                 now = datetime.datetime.now(london_tz)
@@ -299,7 +299,7 @@ def delete_todoist_task(api):
             if task:
                 api.delete_task(task_id=task_id)
                 print()
-                print(f"\033[91m {task_name} \033[0m - deleted. Next task: ")
+                print(f"[bright_red] {task_name} [/bright_red] - deleted. Next task: ")
                 print()
                 return True
             else:
