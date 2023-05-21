@@ -22,9 +22,7 @@ load_json = (
 
 def write_to_file(filename, data):
     with open(filename, "a") as file:
-        file.write(
-            f"\n-----------------------------------------------{helper_general.get_timestamp()}\n"
-        )
+        # file.write(f"\n-----------------------------------------------{helper_general.get_timestamp()}\n")
         file.write(data)
 
 
@@ -139,7 +137,7 @@ def handle_user_input(user_message, messages, api, timestamp):
                 - Simplify Conditional Logic
                 - Improve Data Structures 
                 encompass any code output with triple ticks and only do one refactor. the refactor must not results
-                in the loss of any functionaility. if you remove code or logic, explain why it's no longer necessary"""
+                in the loss of any functionaility. if you remove code or logic, explain why it's no longer necessary."""
         user_message_with_time = f"{timestamp_hhmm}: {prompt}"
         messages.append({"role": "user", "content": user_message_with_time})
     else:
