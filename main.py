@@ -146,33 +146,6 @@ def handle_user_input(user_message, messages, api, timestamp):
     return messages, model_to_use, pass_to_bot
 
 
-def handle_special_commands(user_message, assistant_message, api):
-    if "~~~" in user_message.lower() and "Task ID" in assistant_message:
-        task_id = helper_regex.extract_task_id_from_response(assistant_message)
-        if task_id is not None:
-            task = api.get_task(task_id=task_id)
-            if task is not None:
-                task_name = task.content
-                time_complete = helper_general.get_timestamp()
-
-                if helper_todoist.complete_todoist_task_by_id(api, task_id):
-                    print(
-                        f"[green] Task with ID {task_id} successfully marked as complete. [/green]"
-                    )
-                    helper_todoist.update_todays_completed_tasks(
-                        task_name, task_id, time_complete
-                    )
-                else:
-                    print("Failed to complete the task.")
-    if user_message.lower().startswith("move task") and "Task ID" in assistant_message:
-        task_id = helper_regex.extract_task_id_from_response(assistant_message)
-        if task_id is not None:
-            helper_todoist.update_task_due_date(api, user_message, task_id)
-            helper_todoist.get_next_todoist_task(api)
-        else:
-            print("Failed to move the task.")
-
-
 def main_loop():
     while True:
         messages = load_json("j_conversation_history.json")
@@ -224,7 +197,7 @@ def main_loop():
             loaded_files = []
 
         assistant_message = get_assistant_response(messages, model_to_use)
-        handle_special_commands(user_message, assistant_message, api)
+        helper_todoist.handle_special_commands(user_message, assistant_message, api)
         messages.append({"role": "assistant", "content": assistant_message})
         save_json("j_conversation_history.json", messages)
 

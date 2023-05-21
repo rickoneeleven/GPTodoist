@@ -1,8 +1,34 @@
 import re, json, pytz, dateutil.parser, datetime
-import helper_parse, module_call_counter, helper_general
+import helper_parse, module_call_counter, helper_general, helper_regex
 from dateutil.parser import parse
 from datetime import date, timedelta
 from pytz import timezone
+from rich import print
+
+
+def handle_special_commands(user_message, assistant_message, api):
+    if "~~~" in user_message.lower() and "Task ID" in assistant_message:
+        task_id = helper_regex.extract_task_id_from_response(assistant_message)
+        if task_id is not None:
+            task = api.get_task(task_id=task_id)
+            if task is not None:
+                task_name = task.content
+                time_complete = helper_general.get_timestamp()
+
+                if complete_todoist_task_by_id(api, task_id):
+                    print(
+                        f"[green] Task with ID {task_id} successfully marked as complete. [/green]"
+                    )
+                    update_todays_completed_tasks(task_name, task_id, time_complete)
+                else:
+                    print("Failed to complete the task.")
+    if user_message.lower().startswith("move task") and "Task ID" in assistant_message:
+        task_id = helper_regex.extract_task_id_from_response(assistant_message)
+        if task_id is not None:
+            update_task_due_date(api, user_message, task_id)
+            get_next_todoist_task(api)
+        else:
+            print("Failed to move the task.")
 
 
 def add_to_active_task_file(task_name, task_id, task_due):
