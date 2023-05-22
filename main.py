@@ -1,23 +1,33 @@
 import openai, os, json, re, time
 import helper_todoist, helper_gpt, cext_cmd_check, module_call_counter, helper_general
-import helper_messages, helper_code, helper_regex
+import helper_messages, helper_code
 from rich import print
 
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
+from typing import Any, Union
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
 
-read_file = lambda file_path: open(file_path, "r").read()
 
-save_json = lambda file_path, data: json.dump(data, open(file_path, "w"), indent=2)
-load_json = (
-    lambda file_path: json.load(open(file_path, "r"))
-    if os.path.exists(file_path)
-    else []
-)
+def read_file(file_path: str) -> str:
+    with open(file_path, "r") as f:
+        return f.read()
+
+
+def save_json(file_path: str, data: Any) -> None:
+    with open(file_path, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def load_json(file_path: str) -> Union[dict, list]:
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            return json.load(f)
+    else:
+        return []
 
 
 def write_to_file(filename, data):
