@@ -139,9 +139,9 @@ def get_next_todoist_task(api):
         ]
 
         if x_tasks:
-            print("[gray]Spare time focus:[/gray]")
+            print("[bright_black]Spare time focus:[/bright_black]")
             for x_task in x_tasks:
-                print(f"[gray]{x_task['task_name']}[/gray]")
+                print(f"[bright_black]{x_task['task_name']}[/bright_black]")
             print()
 
     else:

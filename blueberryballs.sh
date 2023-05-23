@@ -2,6 +2,7 @@
 git config --global user.email "pinescore@outlook.com"
 git config --global user.name "Ryan Alexander Partington"
 
+git pull
 #https://github.com/psf/black
 black ./
 
