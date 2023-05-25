@@ -61,57 +61,6 @@ def inject_system_message(messages, content):
     messages.append(system_message)
 
 
-stop_chatbot_response = False
-
-
-def listen_for_enter_key():
-    global stop_chatbot_response
-    input("-------------------------------------------------\n")
-    stop_chatbot_response = True
-
-
-def get_assistant_response(messages, model_to_use, retries=5, backoff_factor=2):
-    messages = helper_messages.summarize_and_shorten_messages(messages)
-    if model_to_use == "gpt-4":
-        print("[red]USING BIG BRAIN GPT4!!!![/red]")
-
-    for retry in range(retries):
-        try:
-            response = openai.ChatCompletion.create(
-                model=model_to_use, messages=messages, stream=True
-            )
-
-            response_chunks = []
-            print()
-
-            try:
-                for chunk in response:
-                    content = chunk["choices"][0].get("delta", {}).get("content")
-                    if content is not None:
-                        response_chunks.append(content)
-                        print(content, end="")
-
-                print("\n-------------------------------------------------")
-
-                full_response = "".join(response_chunks)
-
-                return full_response
-            except Exception as e:
-                print(f"Error while streaming response: {e}")
-                return "[error occurred during assistant response]"
-        except openai.error.RateLimitError:
-            if retry < retries - 1:  # Check if there are retries left
-                sleep_time = backoff_factor**retry  # Exponential backoff
-                print(f"Rate limit exceeded? Retrying in {sleep_time} seconds...")
-                time.sleep(sleep_time)
-            else:
-                print("Retry limit exceeded. Please try again later.")
-                return "[rate limit exceeded]"
-        except Exception as e:
-            print(f"Error while getting assistant response: {e}")
-            return "[error occurred while getting assistant response]"
-
-
 def handle_user_input(user_message, messages, api, timestamp):
     timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
 
@@ -203,7 +152,7 @@ def main_loop():
         else:
             loaded_files = []
 
-        assistant_message = get_assistant_response(messages, model_to_use)
+        assistant_message = helper_gpt.get_assistant_response(messages, model_to_use)
         helper_todoist.handle_special_commands(user_message, assistant_message, api)
         messages.append({"role": "assistant", "content": assistant_message})
         save_json("j_conversation_history.json", messages)
