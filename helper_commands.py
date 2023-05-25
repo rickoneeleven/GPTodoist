@@ -58,6 +58,9 @@ def ifelse_commands(api, user_message):
     elif command == "save":
         helper_messages.save_conversation()
         return True
+    elif command == "show conv":
+        helper_messages.show_saved_conversations()
+        return True
 
     elif command.startswith("add task"):
         task_data = helper_parse.get_taskname_time_day_as_tuple(user_message)

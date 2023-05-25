@@ -131,4 +131,21 @@ def generate_filename(assistant_response):
     return filename
 
 
+def show_saved_conversations():
+    saved_conversations_file = "j_saved_conversations.json"
+
+    if not os.path.exists(saved_conversations_file):
+        print("j_saved_conversations.json not found.")
+        return
+
+    saved_conversations = helper_general.load_json(saved_conversations_file)
+
+    for conversation in saved_conversations:
+        conversation_id = f"[{conversation['id']}]"
+        filename = conversation["filename"]
+        date = conversation["date"]
+
+        print(f"{conversation_id:<7} {filename:<65} {date}")
+
+
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
