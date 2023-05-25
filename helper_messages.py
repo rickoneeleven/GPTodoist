@@ -1,4 +1,4 @@
-import module_call_counter, helper_general, helper_gpt
+import module_call_counter, helper_general, helper_gpt, helper_messages
 import tiktoken, os, json, datetime, shutil
 from rich import print
 
@@ -240,7 +240,7 @@ def load_conversation(user_message):
             with open(saved_conversations_file, "w") as outfile:
                 json.dump(saved_conversations, outfile, indent=2)
 
-            print(f"Loaded conversation {id} ({filename})")
+            helper_messages.print_conversation_history()
         else:
             print(f"The file {filename} does not exist.")
     else:
