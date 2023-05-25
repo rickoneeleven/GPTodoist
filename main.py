@@ -11,13 +11,6 @@ TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
 
 
-def write_to_file(filename, data):
-    with open(filename, "a") as file:
-        # file.write(f"\n-----------------------------------------------{helper_general.get_timestamp()}\n")
-        file.write("\n\n\n\n\n")
-        file.write(data)
-
-
 def get_user_input():
     print("You: ", end="")
     user_input = ""
@@ -135,7 +128,7 @@ def main_loop():
             for i, code in enumerate(code_sections):
                 # Remove leading and trailing newlines
                 code = code.strip()
-                write_to_file("refactored.py", code)
+                helper_general.write_to_file("refactored.py", code)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

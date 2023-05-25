@@ -57,3 +57,10 @@ def load_json(file_path: str) -> Union[dict, list]:
             return json.load(f)
     else:
         return []
+
+
+def write_to_file(filename, data):
+    with open(filename, "a") as file:
+        # file.write(f"\n-----------------------------------------------{helper_general.get_timestamp()}\n")
+        file.write("\n\n\n\n\n")
+        file.write(data)
