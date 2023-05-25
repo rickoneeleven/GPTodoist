@@ -1,5 +1,5 @@
 import openai, os, json, re
-import helper_todoist, helper_gpt, cext_cmd_check, module_call_counter, helper_general
+import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general
 import helper_code, helper_messages
 from rich import print
 
@@ -86,7 +86,7 @@ def main_loop():
         user_message = get_user_input()
         print("processing...")
 
-        if cext_cmd_check.ifelse_commands(api, user_message):
+        if helper_commands.ifelse_commands(api, user_message):
             continue
 
         messages[:] = [
