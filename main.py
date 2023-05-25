@@ -77,12 +77,18 @@ def main_loop():
     while True:
         helper_gpt.where_are_we(1.24, 20)
         messages = helper_general.load_json("j_conversation_history.json")
-        helper_messages.current_tokkies(messages)
         loaded_files = helper_general.load_json("j_loaded_files.json")
         if loaded_files:
             print(
                 f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
             )
+            system_txt = ""  # dup 1
+            for file in loaded_files:  # dup 1
+                content = helper_general.read_file(file["filename"])  # dup 1
+                system_txt += f"---\n\n{file['filename']}:\n{content}\n"  # dup 1
+                system_message = {"role": "system", "content": system_txt}  # dup 1
+                messages.append(system_message)  # dup 1
+        helper_messages.current_tokkies(messages)
         user_message = get_user_input()
         print("processing...")
 
@@ -103,14 +109,15 @@ def main_loop():
             print("eh?\n")
             continue
 
-        for file in loaded_files:
-            content = helper_general.read_file(file["filename"])
-            shrunk_content = helper_code.shrink_code(content)
-            system_txt += f"---\n\n{file['filename']}:\n{shrunk_content}\n"
-
-        if system_txt.strip():  # checks it's not an empty file
-            system_message = {"role": "system", "content": system_txt}
-            messages.append(system_message)
+        for (
+            file
+        ) in (
+            loaded_files
+        ):  # we do this logic so the system message is after user message, bot responds well
+            content = helper_general.read_file(file["filename"])  # dup 2
+            system_txt += f"---\n\n{file['filename']}:\n{content}\n"  # dup 2
+            system_message = {"role": "system", "content": system_txt}  # dup 2
+            messages.append(system_message)  # dup 2
 
         if os.path.isfile("j_loaded_files.json"):
             with open("j_loaded_files.json", "r") as file:
