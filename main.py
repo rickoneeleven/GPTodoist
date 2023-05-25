@@ -137,20 +137,6 @@ def handle_user_input(user_message, messages, api, timestamp):
             " ".join(user_message.split()[2:])
         )
         messages.append({"role": "user", "content": task_id_prompt})
-    elif user_message.lower().startswith("refactor"):
-        model_to_use = "gpt-4"
-        user_message = " ".join(user_message.split()[1:])
-        prompt = f"""look at {user_message} one do one refactor with the following in mind:
-                - Improve Code Readability
-                - Remove Dead Code
-                - DRY (Don't Repeat Yourself)
-                - Use Pythonic Conventions
-                - Simplify Conditional Logic
-                - Improve Data Structures 
-                encompass any code output with triple ticks and only do one refactor. the refactor must not results
-                in the loss of any functionaility. if you remove code or logic, explain why it's no longer necessary."""
-        user_message_with_time = f"{timestamp_hhmm}: {prompt}"
-        messages.append({"role": "user", "content": user_message_with_time})
     else:
         pass_to_bot = False
 
@@ -179,10 +165,6 @@ def main_loop():
 
         # Create a string that lists all the loaded files
         file_list = ", ".join([file["filename"] for file in loaded_files])
-
-        # Prepend the file list to user_message
-        if file_list:
-            user_message += f" {file_list}"
 
         timestamp = helper_general.get_timestamp()
         messages, model_to_use, pass_to_bot = handle_user_input(

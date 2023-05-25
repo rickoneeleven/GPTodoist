@@ -35,11 +35,11 @@ def where_are_we(exchange_rate, max_spends_gbp):
 
     if gbp_amount <= expected_spending:
         print(
-            f"[light_sea_green]Your spending is on track! You've spent £{gbp_amount} (${dollar_amount}) out of £{max_spends_gbp} so far, and you should be at £{expected_spending} by now.[/light_sea_green]\n"
+            f"[light_sea_green]Let your crative juices flow. £{gbp_amount} (${dollar_amount}) spent this month, let's get to £{expected_spending}.[/light_sea_green]\n"
         )
     else:
         print(
-            f"[bright_magenta]Your spending is above the expected limit! You've spent £{gbp_amount} (${dollar_amount}) out of £{max_spends_gbp} so far, and you should be at £{expected_spending} by now.[/bright_magenta]\n"
+            f"[bright_magenta]Take your foot off the gas my-g, we're at £{gbp_amount} (${dollar_amount}) and want to be chillin at about £{expected_spending} for now.[/bright_magenta]\n"
         )
 
 
