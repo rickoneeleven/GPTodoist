@@ -70,42 +70,46 @@ def listen_for_enter_key():
     stop_chatbot_response = True
 
 
-def get_assistant_response(messages, model_to_use):
+def get_assistant_response(messages, model_to_use, retries=5, backoff_factor=2):
     messages = helper_messages.summarize_and_shorten_messages(messages)
     if model_to_use == "gpt-4":
         print("[red]USING BIG BRAIN GPT4!!!![/red]")
-    try:
-        response = openai.ChatCompletion.create(
-            model=model_to_use, messages=messages, stream=True
-        )
-    except openai.error.RateLimitError as e:
-        print(e)
-        print()
-        print("Rate limit exceeded? Retrying in a few seconds...")
-        time.sleep(10)  # Wait for 10 seconds before retrying
-        return get_assistant_response(messages)  # Retry the function call
-    except Exception as e:
-        print(f"Error while getting assistant response: {e}")
-        return ""
 
-    response_chunks = []
-    print()
+    for retry in range(retries):
+        try:
+            response = openai.ChatCompletion.create(
+                model=model_to_use, messages=messages, stream=True
+            )
 
-    try:
-        for chunk in response:
-            content = chunk["choices"][0].get("delta", {}).get("content")
-            if content is not None:
-                response_chunks.append(content)
-                print(content, end="")
+            response_chunks = []
+            print()
 
-        print("\n-------------------------------------------------")
+            try:
+                for chunk in response:
+                    content = chunk["choices"][0].get("delta", {}).get("content")
+                    if content is not None:
+                        response_chunks.append(content)
+                        print(content, end="")
 
-        full_response = "".join(response_chunks)
+                print("\n-------------------------------------------------")
 
-        return full_response
-    except Exception as e:
-        print(f"Error while streaming response: {e}")
-        return "[error occurred during assistant response]"
+                full_response = "".join(response_chunks)
+
+                return full_response
+            except Exception as e:
+                print(f"Error while streaming response: {e}")
+                return "[error occurred during assistant response]"
+        except openai.error.RateLimitError:
+            if retry < retries - 1:  # Check if there are retries left
+                sleep_time = backoff_factor**retry  # Exponential backoff
+                print(f"Rate limit exceeded? Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+            else:
+                print("Retry limit exceeded. Please try again later.")
+                return "[rate limit exceeded]"
+        except Exception as e:
+            print(f"Error while getting assistant response: {e}")
+            return "[error occurred while getting assistant response]"
 
 
 def handle_user_input(user_message, messages, api, timestamp):
@@ -143,6 +147,18 @@ def handle_user_input(user_message, messages, api, timestamp):
     return messages, model_to_use, pass_to_bot
 
 
+def print_conversation_history():
+    conversation_file = "j_conversation_history.json"
+    if os.path.exists(conversation_file):
+        conversation_history = load_json(conversation_file)
+        for message in conversation_history:
+            print(f"{message['role'].capitalize()}: {message['content']}")
+        print("\n\n")
+
+
+print_conversation_history()
+
+
 def main_loop():
     while True:
         helper_gpt.where_are_we(1.24, 20)
@@ -162,9 +178,6 @@ def main_loop():
             msg for msg in messages if msg["role"] != "system"
         ]  # remove system messages
         system_txt = ""
-
-        # Create a string that lists all the loaded files
-        file_list = ", ".join([file["filename"] for file in loaded_files])
 
         timestamp = helper_general.get_timestamp()
         messages, model_to_use, pass_to_bot = handle_user_input(
