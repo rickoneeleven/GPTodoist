@@ -1,4 +1,4 @@
-import os
+import os, time
 import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code, helper_parse, helper_general
 import helper_messages
 
@@ -63,6 +63,10 @@ def ifelse_commands(api, user_message):
         return True
     elif command == "save":
         helper_messages.save_conversation()
+        print("clearning console....")
+        time.sleep(3)
+        os.system("clear")
+        helper_code.reset_all()
         return True
     elif command == "show conv":
         helper_messages.show_saved_conversations()

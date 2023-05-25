@@ -1,5 +1,5 @@
 import module_call_counter, helper_general, helper_gpt
-import tiktoken, os, json, datetime
+import tiktoken, os, json, datetime, shutil
 from rich import print
 
 
@@ -190,6 +190,59 @@ def delete_conversation(user_message):
             json.dump(saved_conversations, outfile, indent=2)
 
         print(f"Conversation {id} has been deleted.")
+    else:
+        print(f"Conversation with id {id} not found.")
+
+
+def load_conversation(user_message):
+    conversation_file = "j_conversation_history.json"
+    saved_conversations_file = "j_saved_conversations.json"
+
+    if not os.path.exists(saved_conversations_file):
+        print("j_saved_conversations.json not found.")
+        return
+
+    saved_conversations = helper_general.load_json(saved_conversations_file)
+
+    # Extract the conversation ID from the user_message
+    parts = user_message.split()
+    if len(parts) < 3 or not parts[2].isdigit():
+        print("Invalid user_message format. It should be like 'load conv ID'.")
+        return
+
+    id = int(parts[2])
+
+    # Find the conversation with the given id
+    conversation_to_load = None
+    for conversation in saved_conversations:
+        if conversation["id"] == id:
+            conversation_to_load = conversation
+            break
+
+    if conversation_to_load:
+        filename = conversation_to_load["filename"]
+
+        if os.path.exists(filename):
+            # Delete the existing j_conversation_history.json if it exists
+            if os.path.exists(conversation_file):
+                os.remove(conversation_file)
+
+            # Move the looked up filename.json to j_conversation_history.json
+            shutil.copy2(filename, conversation_file)
+
+            # Remove the JSON file
+            os.remove(filename)
+
+            # Remove the entry from the j_saved_conversations.json list
+            saved_conversations.remove(conversation_to_load)
+
+            # Save the updated saved conversations list to j_saved_conversations.json
+            with open(saved_conversations_file, "w") as outfile:
+                json.dump(saved_conversations, outfile, indent=2)
+
+            print(f"Loaded conversation {id} ({filename})")
+        else:
+            print(f"The file {filename} does not exist.")
     else:
         print(f"Conversation with id {id} not found.")
 
