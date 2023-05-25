@@ -70,6 +70,16 @@ def handle_user_input(user_message, messages, api, timestamp):
     return messages, model_to_use, pass_to_bot
 
 
+def process_loaded_files(messages, loaded_files):
+    system_txt = ""
+    for file in loaded_files:
+        content = helper_general.read_file(file["filename"])
+        system_txt += f"---\n\n{file['filename']}:\n{content}\n"
+        system_message = {"role": "system", "content": system_txt}
+        messages.append(system_message)
+    return messages
+
+
 helper_messages.print_conversation_history()
 
 
@@ -82,12 +92,9 @@ def main_loop():
             print(
                 f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
             )
-            system_txt = ""  # dup 1
-            for file in loaded_files:  # dup 1
-                content = helper_general.read_file(file["filename"])  # dup 1
-                system_txt += f"---\n\n{file['filename']}:\n{content}\n"  # dup 1
-                system_message = {"role": "system", "content": system_txt}  # dup 1
-                messages.append(system_message)  # dup 1
+            messages = process_loaded_files(
+                messages, loaded_files
+            )  # to get correct tokkie count
         helper_messages.current_tokkies(messages)
         user_message = get_user_input()
         print("processing...")
@@ -98,7 +105,6 @@ def main_loop():
         messages[:] = [
             msg for msg in messages if msg["role"] != "system"
         ]  # remove system messages
-        system_txt = ""
 
         timestamp = helper_general.get_timestamp()
         messages, model_to_use, pass_to_bot = handle_user_input(
@@ -114,10 +120,7 @@ def main_loop():
         ) in (
             loaded_files
         ):  # we do this logic so the system message is after user message, bot responds well
-            content = helper_general.read_file(file["filename"])  # dup 2
-            system_txt += f"---\n\n{file['filename']}:\n{content}\n"  # dup 2
-            system_message = {"role": "system", "content": system_txt}  # dup 2
-            messages.append(system_message)  # dup 2
+            messages = process_loaded_files(messages, loaded_files)
 
         if os.path.isfile("j_loaded_files.json"):
             with open("j_loaded_files.json", "r") as file:
