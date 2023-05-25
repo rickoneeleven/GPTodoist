@@ -45,6 +45,12 @@ def ifelse_commands(api, user_message):
         os.system("clear")
         helper_tasks.print_tasks()
         return True
+    elif command.startswith("delete conv"):
+        helper_messages.delete_conversation(user_message)
+        return True
+    elif command.startswith("load conv"):
+        helper_messages.load_conversation(user_message)
+        return True
     elif command.startswith("add file"):
         helper_code.add_file(user_message)
         return True

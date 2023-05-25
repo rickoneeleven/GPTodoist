@@ -148,4 +148,50 @@ def show_saved_conversations():
         print(f"{conversation_id:<7} {filename:<65} {date}")
 
 
+def delete_conversation(user_message):
+    saved_conversations_file = "j_saved_conversations.json"
+
+    if not os.path.exists(saved_conversations_file):
+        print("j_saved_conversations.json not found.")
+        return
+
+    saved_conversations = helper_general.load_json(saved_conversations_file)
+
+    # Extract the conversation ID from the user_message
+    parts = user_message.split()
+    if len(parts) < 3 or not parts[2].isdigit():
+        print("Invalid user_message format. It should be like 'delete conv ID'.")
+        return
+
+    id = int(parts[2])
+
+    # Find the conversation with the given id
+    conversation_to_delete = None
+    for conversation in saved_conversations:
+        if conversation["id"] == id:
+            conversation_to_delete = conversation
+            break
+
+    # If the conversation was found, delete it and remove it from the list
+    if conversation_to_delete:
+        filename = conversation_to_delete["filename"]
+
+        # Remove the JSON file
+        if os.path.exists(filename):
+            os.remove(filename)
+        else:
+            print(f"The file {filename} does not exist.")
+
+        # Remove the entry from the j_saved_conversations.json list
+        saved_conversations.remove(conversation_to_delete)
+
+        # Save the updated saved conversations list to j_saved_conversations.json
+        with open(saved_conversations_file, "w") as outfile:
+            json.dump(saved_conversations, outfile, indent=2)
+
+        print(f"Conversation {id} has been deleted.")
+    else:
+        print(f"Conversation with id {id} not found.")
+
+
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
