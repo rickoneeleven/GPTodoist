@@ -1,6 +1,6 @@
 import openai, os, json, re
 import helper_todoist, helper_gpt, cext_cmd_check, module_call_counter, helper_general
-import helper_code
+import helper_code, helper_messages
 from rich import print
 
 from dateutil.parser import parse
@@ -77,16 +77,7 @@ def handle_user_input(user_message, messages, api, timestamp):
     return messages, model_to_use, pass_to_bot
 
 
-def print_conversation_history():
-    conversation_file = "j_conversation_history.json"
-    if os.path.exists(conversation_file):
-        conversation_history = helper_general.load_json(conversation_file)
-        for message in conversation_history:
-            print(f"{message['role'].capitalize()}: {message['content']}")
-        print("\n\n")
-
-
-print_conversation_history()
+helper_messages.print_conversation_history()
 
 
 def main_loop():

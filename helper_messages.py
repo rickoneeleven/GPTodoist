@@ -1,5 +1,6 @@
-import module_call_counter
-import tiktoken
+import module_call_counter, helper_general
+import tiktoken, os
+from rich import print
 
 
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
@@ -56,6 +57,15 @@ def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
                 num_tokens += tokens_per_name
     num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
     return num_tokens
+
+
+def print_conversation_history():
+    conversation_file = "j_conversation_history.json"
+    if os.path.exists(conversation_file):
+        conversation_history = helper_general.load_json(conversation_file)
+        for message in conversation_history:
+            print(f"{message['role'].capitalize()}: {message['content']}")
+        print("\n\n")
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
