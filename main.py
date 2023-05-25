@@ -5,29 +5,10 @@ from rich import print
 
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
-from typing import Any, Union
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
-
-
-def read_file(file_path: str) -> str:
-    with open(file_path, "r") as f:
-        return f.read()
-
-
-def save_json(file_path: str, data: Any) -> None:
-    with open(file_path, "w") as f:
-        json.dump(data, f, indent=2)
-
-
-def load_json(file_path: str) -> Union[dict, list]:
-    if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            return json.load(f)
-    else:
-        return []
 
 
 def write_to_file(filename, data):
@@ -99,7 +80,7 @@ def handle_user_input(user_message, messages, api, timestamp):
 def print_conversation_history():
     conversation_file = "j_conversation_history.json"
     if os.path.exists(conversation_file):
-        conversation_history = load_json(conversation_file)
+        conversation_history = helper_general.load_json(conversation_file)
         for message in conversation_history:
             print(f"{message['role'].capitalize()}: {message['content']}")
         print("\n\n")
@@ -111,8 +92,8 @@ print_conversation_history()
 def main_loop():
     while True:
         helper_gpt.where_are_we(1.24, 20)
-        messages = load_json("j_conversation_history.json")
-        loaded_files = load_json("j_loaded_files.json")
+        messages = helper_general.load_json("j_conversation_history.json")
+        loaded_files = helper_general.load_json("j_loaded_files.json")
         if loaded_files:
             print(
                 f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
@@ -138,7 +119,7 @@ def main_loop():
             continue
 
         for file in loaded_files:
-            content = read_file(file["filename"])
+            content = helper_general.read_file(file["filename"])
             shrunk_content = helper_code.shrink_code(content)
             system_txt += f"---\n\n{file['filename']}:\n{shrunk_content}\n"
 
@@ -155,7 +136,7 @@ def main_loop():
         assistant_message = helper_gpt.get_assistant_response(messages, model_to_use)
         helper_todoist.handle_special_commands(user_message, assistant_message, api)
         messages.append({"role": "assistant", "content": assistant_message})
-        save_json("j_conversation_history.json", messages)
+        helper_general.save_json("j_conversation_history.json", messages)
 
         # Extract code between triple backticks and write to refactored.py
         code_sections = re.findall(r"```(.*?)```", assistant_message, re.DOTALL)

@@ -1,6 +1,6 @@
-import datetime
-import pytz
+import datetime, os, pytz, json
 from dateutil.parser import parse
+from typing import Any, Union
 
 
 def convert_to_london_timezone(timestamp: str) -> str:
@@ -39,3 +39,21 @@ def print_commands():
     for command, description in commands.items():
         print(f"{command.ljust(max_command_len)}   -   {description}")
     print()
+
+
+def read_file(file_path: str) -> str:
+    with open(file_path, "r") as f:
+        return f.read()
+
+
+def save_json(file_path: str, data: Any) -> None:
+    with open(file_path, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def load_json(file_path: str) -> Union[dict, list]:
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            return json.load(f)
+    else:
+        return []
