@@ -124,11 +124,11 @@ def main_loop():
         helper_general.save_json("j_conversation_history.json", messages)
 
         # Extract code between triple backticks and write to refactored.py
-        code_sections = re.findall(r"```(.*?)```", assistant_message, re.DOTALL)
+        code_sections = re.findall(r"```(?:.*?)?(.*?)```", assistant_message, re.DOTALL)
         if code_sections:
             for i, code in enumerate(code_sections):
-                # Remove leading and trailing newlines
-                code = code.strip()
+                # Remove leading and trailing newlines and any mention of "python"
+                code = re.sub("python", "", code.strip())
                 helper_general.write_to_file("refactored.py", code)
 
 

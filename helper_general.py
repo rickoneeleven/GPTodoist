@@ -1,4 +1,5 @@
 import datetime, os, pytz, json
+import helper_general
 from dateutil.parser import parse
 from typing import Any, Union
 
@@ -65,6 +66,8 @@ def load_json(file_path: str) -> Union[dict, list]:
 
 def write_to_file(filename, data):
     with open(filename, "a") as file:
-        # file.write(f"\n-----------------------------------------------{helper_general.get_timestamp()}\n")
+        file.write(
+            f"#{helper_general.get_timestamp()} ---------------------------------\n"
+        )
         file.write(data)
-        file.write("\n\n\n\n")
+        file.write("\n\n")
