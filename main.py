@@ -159,6 +159,7 @@ def handle_user_input(user_message, messages, api, timestamp):
 
 def main_loop():
     while True:
+        helper_gpt.where_are_we(1.24, 20)
         messages = load_json("j_conversation_history.json")
         loaded_files = load_json("j_loaded_files.json")
         if loaded_files:
