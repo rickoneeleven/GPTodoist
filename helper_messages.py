@@ -8,7 +8,6 @@ encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 def summarize_and_shorten_messages(messages, max_tokens=3000):
     token_count = num_tokens_from_messages(messages)
-    print(f"tokens: {token_count}")
 
     if token_count > max_tokens:
         while token_count > max_tokens:
@@ -57,6 +56,11 @@ def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
                 num_tokens += tokens_per_name
     num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
     return num_tokens
+
+
+def current_tokkies(messages):
+    tokkies = num_tokens_from_messages(messages)
+    print(f"current message tokkies: {tokkies}\n")
 
 
 def print_conversation_history():

@@ -77,6 +77,7 @@ def main_loop():
     while True:
         helper_gpt.where_are_we(1.24, 20)
         messages = helper_general.load_json("j_conversation_history.json")
+        helper_messages.current_tokkies(messages)
         loaded_files = helper_general.load_json("j_loaded_files.json")
         if loaded_files:
             print(
