@@ -1,5 +1,5 @@
-import module_call_counter, helper_general
-import tiktoken, os
+import module_call_counter, helper_general, helper_gpt
+import tiktoken, os, json, datetime
 from rich import print
 
 
@@ -70,6 +70,65 @@ def print_conversation_history():
         for message in conversation_history:
             print(f"{message['role'].capitalize()}: {message['content']}")
         print("\n\n")
+
+
+def save_conversation():
+    conversation_file = "j_conversation_history.json"
+
+    if not os.path.exists(conversation_file):
+        print("j_conversation_history.json not found.")
+        return
+
+    messages = helper_general.load_json(conversation_file)
+    user_message = "can you reply with only 5 words, summarizing our conversation."
+    messages.append({"role": "user", "content": user_message})
+    assistant_message = helper_gpt.get_assistant_response(messages, "gpt-4")
+
+    # Generate the filename
+    filename = generate_filename(assistant_message)
+    print(f"Filename: {filename}")
+
+    # Save to j_saved_conversations.json
+    saved_conversations_file = "j_saved_conversations.json"
+    if not os.path.exists(saved_conversations_file):
+        with open(saved_conversations_file, "w") as outfile:
+            json.dump([], outfile, indent=2)
+
+    saved_conversations = helper_general.load_json(saved_conversations_file)
+    highest_id = max([c.get("id", 0) for c in saved_conversations], default=0) + 1
+    todays_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    new_saved_conversation = {
+        "id": highest_id,
+        "filename": filename,
+        "date": todays_date,
+    }
+
+    saved_conversations.append(new_saved_conversation)
+
+    # Save the updated saved conversations list to j_saved_conversations.json
+    with open(saved_conversations_file, "w") as outfile:
+        json.dump(saved_conversations, outfile, indent=2)
+
+    # Copy the existing j_conversation_history.json to the new filename
+    with open(conversation_file, "r") as src_file, open(filename, "w") as dst_file:
+        json.dump(json.load(src_file), dst_file, indent=2)
+
+
+def generate_filename(assistant_response):
+    # Remove any punctuation and replace spaces with underscores
+    cleaned_response = "".join(
+        c if c.isalnum() else "_" if c.isspace() else "" for c in assistant_response
+    )
+
+    # Truncate the response to the first 5 words
+    words = cleaned_response.split("_")[:5]
+    truncated_response = "_".join(words)
+
+    # Generate the filename
+    filename = f"j_conv_{truncated_response}.json"
+
+    return filename
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

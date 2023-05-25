@@ -33,6 +33,10 @@ def print_commands():
         "add file <filename>": "adds file to system messages",
         "reset": "deletes j_conversation_history.json, j_loaded_files.json and empties system_messages.txt",
         "ignore": "ignore on a new line on it's own, tells the prompt to ignore everything typed before it",
+        "save": "save conversation",
+        "show conv": "show conversations",
+        "load conv <id>": "load conversation based on id",
+        "delete conv <id>": "delete conversation based on id",
     }
     print()
     max_command_len = max(len(command) for command in commands)
@@ -62,5 +66,5 @@ def load_json(file_path: str) -> Union[dict, list]:
 def write_to_file(filename, data):
     with open(filename, "a") as file:
         # file.write(f"\n-----------------------------------------------{helper_general.get_timestamp()}\n")
-        file.write("\n\n\n\n\n")
         file.write(data)
+        file.write("\n\n\n\n")
