@@ -32,7 +32,7 @@ def where_are_we(exchange_rate, max_spends_gbp):
     days_passed = (today - today.replace(day=1)).days + 1
     days_in_month = calendar.monthrange(today.year, today.month)[1]
     expected_spending = round((max_spends_gbp / days_in_month) * days_passed, 2)
-    buffer_spends = expected_spending - gbp_amount
+    buffer_spends = round(expected_spending - gbp_amount, 2)
 
     if gbp_amount <= expected_spending:
         print(
