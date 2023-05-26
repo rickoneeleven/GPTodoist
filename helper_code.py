@@ -1,5 +1,5 @@
-import module_call_counter
-import os, json
+import module_call_counter, helper_general
+import os, json, re
 
 
 def shrink_code(code):
@@ -58,6 +58,22 @@ def reset_all():
 
     # Empty system_messages.txt
     open("system_message.txt", "w").close()
+
+
+def extract_and_save_code_sections(assistant_message, output_filename="refactored.py"):
+    """
+    Extract code between triple backticks and write to the specified output file.
+
+    Args:
+        assistant_message (str): The message containing code sections.
+        output_filename (str, optional): The file to save the extracted code sections. Defaults to "refactored.py".
+    """
+    code_sections = re.findall(r"```(?:.*?)?(.*?)```", assistant_message, re.DOTALL)
+    if code_sections:
+        for i, code in enumerate(code_sections):
+            # Remove leading and trailing newlines and any mention of "python"
+            code = re.sub("python", "", code.strip())
+            helper_general.write_to_file("refactored.py", code)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

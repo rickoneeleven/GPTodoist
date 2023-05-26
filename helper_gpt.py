@@ -44,7 +44,7 @@ def where_are_we(exchange_rate, max_spends_gbp):
         )
 
 
-def get_assistant_response(messages, model_to_use, retries=5, backoff_factor=2):
+def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):
     messages = helper_messages.summarize_and_shorten_messages(messages)
     if model_to_use == "gpt-4":
         print("[red]USING BIG BRAIN GPT4!!!![/red]")
