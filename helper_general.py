@@ -34,7 +34,7 @@ def print_commands():
         "add file <filename>": "adds file to system messages",
         "reset": "deletes j_conversation_history.json, j_loaded_files.json and empties system_messages.txt",
         "ignore": "ignore on a new line on it's own, tells the prompt to ignore everything typed before it",
-        "save": "save conversation",
+        "save <filename>": "save food, would save the current conversation to a json called food",
         "show conv": "show conversations",
         "load conv <id>": "load conversation based on id",
         "delete conv <id>": "delete conversation based on id",

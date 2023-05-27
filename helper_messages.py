@@ -72,7 +72,7 @@ def print_conversation_history():
         print("\n\n")
 
 
-def save_conversation():
+def save_conversation(user_message):
     conversation_file = "j_conversation_history.json"
 
     if not os.path.exists(conversation_file):
@@ -80,12 +80,15 @@ def save_conversation():
         return
 
     messages = helper_general.load_json(conversation_file)
-    user_message = "can you reply with only 5 words, summarizing our conversation."
-    messages.append({"role": "user", "content": user_message})
-    assistant_message = helper_gpt.get_assistant_response(messages, "gpt-4")
 
     # Generate the filename
-    filename = generate_filename(assistant_message)
+    user_message_parts = user_message.split()
+    if len(user_message_parts) > 1:
+        filename = "_".join(user_message_parts[1:])
+    else:
+        filename = "default"
+
+    filename = f"j_conv_{filename}.json"
     print(f"Filename: {filename}")
 
     # Save to j_saved_conversations.json

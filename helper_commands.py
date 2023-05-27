@@ -61,8 +61,8 @@ def ifelse_commands(api, user_message):
     elif command == "commands":
         helper_general.print_commands()
         return True
-    elif command == "save":
-        helper_messages.save_conversation()
+    elif command.startswith("save"):
+        helper_messages.save_conversation(user_message)
         print("clearning console....")
         time.sleep(3)
         os.system("clear")
