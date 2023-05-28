@@ -1,4 +1,4 @@
-import module_call_counter, helper_general, helper_gpt, helper_messages
+import module_call_counter, helper_general, helper_messages, helper_code
 import tiktoken, os, json, datetime, shutil
 from rich import print
 
@@ -69,7 +69,8 @@ def print_conversation_history():
         conversation_history = helper_general.load_json(conversation_file)
         for message in conversation_history:
             print(f"{message['role'].capitalize()}: {message['content']}")
-        print("\n\n")
+            print("-------------------------------")
+            print()
 
 
 def save_conversation(user_message):
@@ -79,7 +80,7 @@ def save_conversation(user_message):
         print("j_conversation_history.json not found.")
         return
 
-    messages = helper_general.load_json(conversation_file)
+    helper_general.load_json(conversation_file)
 
     # Generate the filename
     user_message_parts = user_message.split()
@@ -228,7 +229,7 @@ def load_conversation(user_message):
         if os.path.exists(filename):
             # Delete the existing j_conversation_history.json if it exists
             if os.path.exists(conversation_file):
-                os.remove(conversation_file)
+                helper_code.fresh_session()
 
             # Move the looked up filename.json to j_conversation_history.json
             shutil.copy2(filename, conversation_file)

@@ -58,6 +58,10 @@ def ifelse_commands(api, user_message):
         os.system("clear")
         helper_code.reset_all()
         return True
+    elif command == "fresh":
+        os.system("clear")
+        helper_code.fresh_session()
+        return True
     elif command == "commands":
         helper_general.print_commands()
         return True

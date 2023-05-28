@@ -1,4 +1,4 @@
-import module_call_counter, helper_general
+import module_call_counter, helper_general, helper_messages
 import os, json, re
 
 
@@ -48,8 +48,35 @@ def add_file(user_message):
 
 
 def reset_all():
-    # Delete j_conversation_history.json if it exists
+    # Copy j_conv_DEFAULT.json over the current j_conversation_history.json
+    if os.path.isfile("j_conv_DEFAULT.json"):
+        with open("j_conv_DEFAULT.json", "r") as src_file, open(
+            "j_conversation_history.json", "w"
+        ) as dest_file:
+            dest_file.write(src_file.read())
+
+    # Delete j_loaded_files.json if it exists
+    if os.path.isfile("j_loaded_files.json"):
+        os.remove("j_loaded_files.json")
+
+    # Empty system_messages.txt
+    open("system_message.txt", "w").close()
+
+    helper_messages.print_conversation_history()
+
+
+def fresh_session():
+    # Check if j_conversation_history.json exists
     if os.path.isfile("j_conversation_history.json"):
+        # Read the contents of j_conversation_history.json
+        with open("j_conversation_history.json", "r") as src_file:
+            contents = src_file.read()
+
+        # Write the contents to j_conv_DEFAULT.json, overwriting its current contents
+        with open("j_conv_DEFAULT.json", "w") as dest_file:
+            dest_file.write(contents)
+
+        # Remove j_conversation_history.json
         os.remove("j_conversation_history.json")
 
     # Delete j_loaded_files.json if it exists
@@ -71,8 +98,8 @@ def extract_and_save_code_sections(assistant_message, output_filename="refactore
     code_sections = re.findall(r"```(?:.*?)?(.*?)```", assistant_message, re.DOTALL)
     if code_sections:
         for i, code in enumerate(code_sections):
-            # Remove leading and trailing newlines and any mention of "python"
-            code = re.sub("python", "", code.strip())
+            # Remove leading and trailing newlines and any mention of ""
+            code = re.sub("", "", code.strip())
             helper_general.write_to_file("refactored.py", code)
 
 
