@@ -30,7 +30,7 @@ def get_user_input():
         else:
             user_input += line + "\n"  # Add the current line to user_input
     user_input = user_input.rstrip("\n")
-    if user_input != "4":
+    if user_input not in ["4", "3"]:
         last_user_message = user_input
     return user_input
 
@@ -59,6 +59,15 @@ def handle_user_input(user_message, messages, api, timestamp):
     ):  # ooops, the last message we sent didn't have a bot prefix, so we're just sending a 4, and grabbing the last user message
         if last_user_message:
             user_message = "4 " + last_user_message
+        else:
+            print("No previous message to resubmit")
+            return
+
+    if (
+        user_message == "3"
+    ):  # ooops, the last message we sent didn't have a bot prefix, so we're just sending a 3, and grabbing the last user message
+        if last_user_message:
+            user_message = "3 " + last_user_message
         else:
             print("No previous message to resubmit")
             return
