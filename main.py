@@ -9,9 +9,11 @@ from todoist_api_python.api import TodoistAPI
 openai.api_key = os.environ["OPENAI_API_KEY"]
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
+last_user_message = ""
 
 
 def get_user_input():
+    global last_user_message
     print("You: ", end="")
     user_input = ""
     while True:
@@ -27,7 +29,16 @@ def get_user_input():
             break
         else:
             user_input += line + "\n"  # Add the current line to user_input
-    return user_input.rstrip("\n")  # Remove trailing newline
+    user_input = user_input.rstrip("\n")
+    if user_input != "4":
+        last_user_message = user_input
+    return user_input
+
+
+def resubmit_last_message():
+    global last_user_message
+    if last_user_message:
+        return "4 " + last_user_message
 
 
 def inject_system_message(messages, content):
@@ -36,11 +47,21 @@ def inject_system_message(messages, content):
 
 
 def handle_user_input(user_message, messages, api, timestamp):
+    global last_user_message
     timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
 
     # check the model to use based on the user's message
     model_to_use = "gpt-3.5-turbo"  # default model
     pass_to_bot = True  # flag to indicate whether the user message was pass_to_bot
+
+    if (
+        user_message == "4"
+    ):  # ooops, the last message we sent didn't have a bot prefix, so we're just sending a 4, and grabbing the last user message
+        if last_user_message:
+            user_message = "4 " + last_user_message
+        else:
+            print("No previous message to resubmit")
+            return
 
     if user_message.startswith("3 "):
         model_to_use = "gpt-3.5-turbo"
