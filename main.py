@@ -1,4 +1,4 @@
-import openai, os, json, re
+import openai, os, json
 import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general
 import helper_code, helper_messages
 from rich import print

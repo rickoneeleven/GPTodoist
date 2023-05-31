@@ -48,42 +48,26 @@ def add_file(user_message):
 
 
 def reset_all():
-    # Copy j_conv_DEFAULT.json over the current j_conversation_history.json
     if os.path.isfile("j_conv_DEFAULT.json"):
-        with open("j_conv_DEFAULT.json", "r") as src_file, open(
-            "j_conversation_history.json", "w"
-        ) as dest_file:
-            dest_file.write(src_file.read())
+        os.rename("j_conv_DEFAULT.json", "j_conversation_history.json")
 
-    # Delete j_loaded_files.json if it exists
     if os.path.isfile("j_loaded_files.json"):
         os.remove("j_loaded_files.json")
 
-    # Empty system_messages.txt
     open("system_message.txt", "w").close()
-
     helper_messages.print_conversation_history()
 
 
 def fresh_session():
-    # Check if j_conversation_history.json exists
     if os.path.isfile("j_conversation_history.json"):
-        # Read the contents of j_conversation_history.json
-        with open("j_conversation_history.json", "r") as src_file:
-            contents = src_file.read()
+        if not os.path.isfile("j_conv_DEFAULT.json"):
+            os.rename("j_conversation_history.json", "j_conv_DEFAULT.json")
+        else:
+            os.remove("j_conversation_history.json")
 
-        # Write the contents to j_conv_DEFAULT.json, overwriting its current contents
-        with open("j_conv_DEFAULT.json", "w") as dest_file:
-            dest_file.write(contents)
-
-        # Remove j_conversation_history.json
-        os.remove("j_conversation_history.json")
-
-    # Delete j_loaded_files.json if it exists
     if os.path.isfile("j_loaded_files.json"):
         os.remove("j_loaded_files.json")
 
-    # Empty system_messages.txt
     open("system_message.txt", "w").close()
 
 
