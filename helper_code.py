@@ -82,8 +82,7 @@ def extract_and_save_code_sections(assistant_message, output_filename="refactore
     code_sections = re.findall(r"```(?:.*?)?(.*?)```", assistant_message, re.DOTALL)
     if code_sections:
         for i, code in enumerate(code_sections):
-            # Remove leading and trailing newlines and any mention of ""
-            code = re.sub("", "", code.strip())
+            code = re.sub("python", "", code.strip())  # Remove any mention of "python"
             helper_general.write_to_file("refactored.py", code)
 
 
