@@ -47,6 +47,10 @@ def ifelse_commands(api, user_message):
         return True
     elif command.startswith("delete conv"):
         helper_messages.delete_conversation(user_message)
+        print("clearning console....")
+        time.sleep(3)
+        os.system("clear")
+        helper_messages.show_saved_conversations()
         return True
     elif command.startswith("load conv"):
         helper_messages.load_conversation(user_message)
