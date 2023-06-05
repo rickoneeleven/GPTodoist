@@ -39,6 +39,7 @@ def print_commands():
         "show conv": "show conversations",
         "load conv <id>": "load conversation based on id",
         "delete conv <id>": "delete conversation based on id",
+        "replay": "prints conversation history",
     }
     print()
     max_command_len = max(len(command) for command in commands)
