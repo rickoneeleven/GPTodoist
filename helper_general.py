@@ -84,8 +84,8 @@ def backup_json_files():
     else:
         print("Folder 'backups' already exists")
 
-    # Generate the current date string
-    today_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    # Generate the current date-time string
+    current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
 
     # Loop through all files in the current directory
     for filename in os.listdir("."):
@@ -93,7 +93,7 @@ def backup_json_files():
         if filename.endswith(".json"):
             # Backup the file to the 'backups' folder
             source_file = filename
-            backup_file = os.path.join(backups_dir, f"{today_date}-{filename}")
+            backup_file = os.path.join(backups_dir, f"{current_datetime}--{filename}")
 
             print(f"Backing up '{source_file}' to '{backup_file}'")
             shutil.copy2(source_file, backup_file)
