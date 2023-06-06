@@ -81,8 +81,6 @@ def backup_json_files():
     if not os.path.exists(backups_dir):
         print("Creating 'backups' folder...")
         os.makedirs(backups_dir)
-    else:
-        print("Folder 'backups' already exists")
 
     # Generate the current date-time string
     current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
@@ -106,7 +104,9 @@ def backup_json_files():
             os.path.getmtime(file_path)
         ) > datetime.timedelta(days=10):
             # Delete the file
+            print()
             print(f"Deleting old backup file '{file_path}'")
             os.remove(file_path)
 
-    print("Backup and cleanup completed")
+    print()
+    print("Backup and cleanup completed ;-)")
