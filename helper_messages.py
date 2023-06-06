@@ -99,11 +99,15 @@ def save_conversation(user_message):
             json.dump([], outfile, indent=2)
 
     saved_conversations = helper_general.load_json(saved_conversations_file)
-    highest_id = max([c.get("id", 0) for c in saved_conversations], default=0) + 1
+
+    # Find the lowest available ID
+    existing_ids = {c["id"] for c in saved_conversations}
+    next_id = next(i for i in range(1, len(existing_ids) + 2) if i not in existing_ids)
+
     todays_date = datetime.date.today().strftime("%Y-%m-%d")
 
     new_saved_conversation = {
-        "id": highest_id,
+        "id": next_id,
         "filename": filename,
         "date": todays_date,
     }
