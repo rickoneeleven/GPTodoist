@@ -1,10 +1,17 @@
-import openai, os, json
+import openai, os, json, signal, subprocess
 import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general
 import helper_code, helper_messages
 from rich import print
-
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
+
+
+def handle_sigint(signal_received, frame):
+    print("CTRL+C detected. Re-running main.py")
+    subprocess.call(["python", "main.py"])
+
+
+signal.signal(signal.SIGINT, handle_sigint)
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
