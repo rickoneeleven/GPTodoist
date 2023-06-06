@@ -2,7 +2,6 @@ import os, json, time
 import module_call_counter, helper_general
 
 
-
 def add_long_term_task(user_message):
     task_name = user_message[8:].strip()
     added = helper_general.get_timestamp()
