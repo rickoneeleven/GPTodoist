@@ -199,6 +199,7 @@ def delete_conversation(user_message):
 
 
 def load_conversation(user_message):
+    helper_general.backup_json_files()
     conversation_file = "j_conversation_history.json"
     saved_conversations_file = "j_saved_conversations.json"
 

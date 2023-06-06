@@ -1,4 +1,4 @@
-import datetime, os, pytz, json
+import datetime, os, pytz, json, shutil
 import helper_general
 from dateutil.parser import parse
 from typing import Any, Union
@@ -73,3 +73,38 @@ def write_to_file(filename, data):
         )
         file.write(data)
         file.write("\n\n")
+        
+
+def backup_json_files():
+    # Check if the 'backups' folder exists, and create it if it doesn't
+    backups_dir = 'backups'
+    if not os.path.exists(backups_dir):
+        print("Creating 'backups' folder...")
+        os.makedirs(backups_dir)
+    else:
+        print("Folder 'backups' already exists")
+
+    # Generate the current date string
+    today_date = datetime.datetime.now().strftime('%Y-%m-%d')
+
+    # Loop through all files in the current directory
+    for filename in os.listdir('.'):
+        # Check if the file has a '.json' extension
+        if filename.endswith('.json'):
+            # Backup the file to the 'backups' folder
+            source_file = filename
+            backup_file = os.path.join(backups_dir, f"{today_date}-{filename}")
+
+            print(f"Backing up '{source_file}' to '{backup_file}'")
+            shutil.copy2(source_file, backup_file)
+
+    # Loop through all files in the 'backups' directory
+    for filename in os.listdir(backups_dir):
+        file_path = os.path.join(backups_dir, filename)
+        # Check if the file is older than 10 days
+        if datetime.datetime.now() - datetime.datetime.fromtimestamp(os.path.getmtime(file_path)) > datetime.timedelta(days=10):
+            # Delete the file
+            print(f"Deleting old backup file '{file_path}'")
+            os.remove(file_path)
+
+    print("Backup and cleanup completed")

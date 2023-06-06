@@ -55,6 +55,7 @@ def reset_all():
         os.remove("j_loaded_files.json")
 
     open("system_message.txt", "w").close()
+    helper_general.backup_json_files()
     helper_messages.print_conversation_history()
 
 
@@ -69,6 +70,7 @@ def fresh_session():
         os.remove("j_loaded_files.json")
 
     open("system_message.txt", "w").close()
+    helper_general.backup_json_files()
 
 
 def extract_and_save_code_sections(assistant_message, output_filename="refactored.py"):

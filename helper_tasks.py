@@ -1,10 +1,6 @@
 import os, json, time
 import module_call_counter, helper_general
-import shutil
 
-
-def backup_file():
-    shutil.copy2("j_long_term_tasks.json", "x_bak_j_long_term_tasks.json")
 
 
 def add_long_term_task(user_message):
@@ -25,7 +21,7 @@ def add_long_term_task(user_message):
 
     with open("j_long_term_tasks.json", "w") as file:
         json.dump(tasks, file, indent=2)
-    backup_file()
+    helper_general.backup_json_files()
 
 
 def print_tasks() -> None:
@@ -100,7 +96,7 @@ def rename_long_task(user_message: str) -> None:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} renamed to '{new_name}'.")
-    backup_file()
+    helper_general.backup_json_files()
 
 
 def delete_long_task(user_message: str) -> None:
@@ -141,7 +137,7 @@ def delete_long_task(user_message: str) -> None:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} deleted.")
-    backup_file()
+    helper_general.backup_json_files()
     time.sleep(2)
 
 
