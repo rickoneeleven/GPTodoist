@@ -127,7 +127,7 @@ def main_loop():
             )  # to get correct tokkie count
         helper_messages.current_tokkies(messages)
         user_message = get_user_input()
-        print("processing...")
+        print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
 
         if helper_commands.ifelse_commands(api, user_message):
             continue
