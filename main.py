@@ -1,4 +1,4 @@
-import openai, os, json, signal, subprocess
+import openai, os, json, signal, subprocess, readline
 import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general
 import helper_code, helper_messages
 from rich import print
@@ -17,6 +17,9 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
 last_user_message = ""
+readline.set_auto_history(
+    True
+)  # fakenews, here to stop readlines import warning, we use readlines so input() supports left and right arrows
 
 
 def get_user_input():
@@ -24,7 +27,7 @@ def get_user_input():
     print("You: ", end="")
     user_input = ""
     while True:
-        line = input()  # No need to strip trailing whitespaces
+        line = input()
         if line == "ignore":
             # Ignore everything above
             user_input = ""
@@ -61,20 +64,12 @@ def handle_user_input(user_message, messages, api, timestamp):
     model_to_use = "gpt-3.5-turbo"  # default model
     pass_to_bot = True  # flag to indicate whether the user message was pass_to_bot
 
-    if (
-        user_message == "4"
-    ):  # ooops, the last message we sent didn't have a bot prefix, so we're just sending a 4, and grabbing the last user message
+    if user_message in (
+        "3",
+        "4",
+    ):  # ooops, the last message we sent didn't have a bot prefix, so we're just sending a 3 or a 4, and grabbing the last user message
         if last_user_message:
-            user_message = "4 " + last_user_message
-        else:
-            print("No previous message to resubmit")
-            return
-
-    if (
-        user_message == "3"
-    ):  # ooops, the last message we sent didn't have a bot prefix, so we're just sending a 3, and grabbing the last user message
-        if last_user_message:
-            user_message = "3 " + last_user_message
+            user_message = f"{user_message} {last_user_message}"
         else:
             print("No previous message to resubmit")
             return
