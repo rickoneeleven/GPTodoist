@@ -82,8 +82,13 @@ def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2)
                 print("Retry limit exceeded. Please try again later.")
                 return "[rate limit exceeded]"
         except Exception as e:
-            print(f"Error while getting assistant response: {e}")
-            return "[error occurred while getting assistant response]"
+            if retry < retries - 1:  # Check if there are retries left
+                sleep_time = backoff_factor**retry  # Exponential backoff
+                print(f"An error occurred: {e}. Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+            else:
+                print("Retry limit exceeded. Please try again later.")
+                return "[an error occurred while getting assistant response]"
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
