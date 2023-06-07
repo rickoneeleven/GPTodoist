@@ -1,4 +1,4 @@
-import openai, os, json, signal, subprocess, readline
+import openai, os, json, signal, readline, sys
 import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general
 import helper_code, helper_messages
 from rich import print
@@ -8,7 +8,7 @@ from todoist_api_python.api import TodoistAPI
 
 def handle_sigint(signal_received, frame):
     print("CTRL+C detected. Re-running main.py")
-    subprocess.call(["python", "main.py"])
+    os.execl(sys.executable, sys.executable, *sys.argv)
 
 
 signal.signal(signal.SIGINT, handle_sigint)
