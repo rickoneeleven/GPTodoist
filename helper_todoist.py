@@ -1,4 +1,4 @@
-import re, json, pytz, dateutil.parser, datetime
+import re, json, pytz, dateutil.parser, datetime, time
 import helper_parse, module_call_counter, helper_general, helper_regex
 from dateutil.parser import parse
 from datetime import date, timedelta
@@ -53,32 +53,44 @@ def add_todoist_task(api, task_name, task_time, task_day):
 
 
 def fetch_todoist_tasks(api):
-    try:
-        london_tz = pytz.timezone("Europe/London")
-        tasks = api.get_tasks(filter="(no due date | today | overdue) & !#Team Virtue")
+    retries = 0
+    max_retries = 5
+    backoff_factor = 2
 
-        tasks_with_due_dates = []
-        tasks_without_due_dates = []
+    while retries < max_retries:
+        try:
+            london_tz = pytz.timezone("Europe/London")
+            tasks = api.get_tasks(
+                filter="(no due date | today | overdue) & !#Team Virtue"
+            )
 
-        for task in tasks:
-            if task.due and task.due.datetime:
-                utc_dt = parse(task.due.datetime)
-                london_dt = utc_dt.astimezone(london_tz)
-                task.due.datetime = london_dt.isoformat()
-                tasks_with_due_dates.append(task)
-            else:
-                tasks_without_due_dates.append(task)
+            tasks_with_due_dates = []
+            tasks_without_due_dates = []
 
-        sorted_tasks_with_due_dates = sorted(
-            tasks_with_due_dates, key=lambda t: t.due.datetime
-        )
+            for task in tasks:
+                if task.due and task.due.datetime:
+                    utc_dt = parse(task.due.datetime)
+                    london_dt = utc_dt.astimezone(london_tz)
+                    task.due.datetime = london_dt.isoformat()
+                    tasks_with_due_dates.append(task)
+                else:
+                    tasks_without_due_dates.append(task)
 
-        # Combine tasks without due dates and tasks with due dates
-        sorted_tasks = tasks_without_due_dates + sorted_tasks_with_due_dates
+            sorted_tasks_with_due_dates = sorted(
+                tasks_with_due_dates, key=lambda t: t.due.datetime
+            )
 
-        return sorted_tasks
-    except Exception as error:
-        print(error)
+            # Combine tasks without due dates and tasks with due dates
+            sorted_tasks = tasks_without_due_dates + sorted_tasks_with_due_dates
+
+            return sorted_tasks
+        except Exception as error:
+            print(error)
+            time.sleep(backoff_factor * (2**retries))
+            retries += 1
+
+    print("Failed to fetch tasks after multiple retries")
+    return None
 
 
 def complete_todoist_task_by_id(api, task_id):

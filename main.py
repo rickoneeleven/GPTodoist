@@ -103,7 +103,7 @@ def handle_user_input(user_message, messages, api, timestamp):
 
 
 def process_loaded_files(messages, loaded_files):
-    system_txt = "be super short and concise with your answers, only showing functions if they have been refactored. "
+    system_txt = "be concise in your answers, not verbose. but at the same time, give enough information to help the user refactor their code correctly."
     for file in loaded_files:
         content = helper_general.read_file(file["filename"])
         system_txt += f"---\n\n{file['filename']}:\n{content}\n"
