@@ -12,6 +12,9 @@ git status
 read -n 1 -p "Continue? (y/n) " cont
 if [ "$cont" != "y" ]; then exit 1; fi
 
+echo
+echo
+
 git diff --cached -U0
 read -n 1 -p "Continue? (y/n) " cont
 if [ "$cont" != "y" ]; then exit 1; fi

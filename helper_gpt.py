@@ -35,13 +35,9 @@ def where_are_we(exchange_rate, max_spends_gbp):
     buffer_spends = round(expected_spending - gbp_amount, 2)
 
     if gbp_amount <= expected_spending:
-        print(
-            f"[light_sea_green]Let your crative juices flow. £{gbp_amount} (${dollar_amount}) spent this month, let's spend our buffer! £{buffer_spends} free credits available.[/light_sea_green]\n"
-        )
+        print(f"[green1]£{buffer_spends}  ;)[/green1]\n")
     else:
-        print(
-            f"[bright_magenta]Take your foot off the gas my-g, we're at £{gbp_amount} (${dollar_amount}) and want to be chillin at about £{expected_spending} for now.[/bright_magenta]\n"
-        )
+        print(f"[red]£{buffer_spends}  ;([/red]\n")
 
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):
