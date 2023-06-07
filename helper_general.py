@@ -83,7 +83,8 @@ def backup_json_files():
         os.makedirs(backups_dir)
 
     # Generate the current date-time string
-    current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
+    # current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
+    current_datetime = datetime.datetime.now().strftime("%Y-%m-%d")
 
     # Loop through all files in the current directory
     for filename in os.listdir("."):
@@ -107,6 +108,3 @@ def backup_json_files():
             print()
             print(f"Deleting old backup file '{file_path}'")
             os.remove(file_path)
-
-    print()
-    print("Backup and cleanup completed ;-)")
