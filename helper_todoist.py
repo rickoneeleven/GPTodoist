@@ -1,9 +1,10 @@
-import re, json, pytz, dateutil.parser, datetime, time
+import re, json, pytz, dateutil.parser, datetime, time, sys
 import helper_parse, module_call_counter, helper_general, helper_regex
 from dateutil.parser import parse
 from datetime import date, timedelta
 from pytz import timezone
 from rich import print
+from requests.exceptions import HTTPError
 
 
 def handle_special_commands(user_message, assistant_message, api):
@@ -84,12 +85,17 @@ def fetch_todoist_tasks(api):
             sorted_tasks = tasks_without_due_dates + sorted_tasks_with_due_dates
 
             return sorted_tasks
+        except HTTPError as http_error:
+            error_msg = f"An HTTP error occurred: {http_error}\nURL: {http_error.response.url}\nStatus code: {http_error.response.status_code}"
+            print(error_msg, file=sys.stderr)
+            time.sleep(backoff_factor * (2**retries))
+            retries += 1
         except Exception as error:
-            print(error)
+            print(f"An unexpected error occurred: {error}", file=sys.stderr)
             time.sleep(backoff_factor * (2**retries))
             retries += 1
 
-    print("Failed to fetch tasks after multiple retries")
+    print("Failed to fetch tasks after multiple retries", file=sys.stderr)
     return None
 
 
