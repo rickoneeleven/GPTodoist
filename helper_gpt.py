@@ -7,7 +7,7 @@ from rich import print
 def create_task_id_prompt(user_message):
     # Remove any 4-digit number at the end and everything after it
     user_message = re.sub(r"\b\d{4}.*$", "", user_message).strip()
-    prompt = f"{user_message}. What was the task ID of that task? Respond with [Task ID: X], in that format exactly, including the square brackets. never fabricate a task id. Then lets continue our conversation about my healthy lifestyle, eating and weight. Make it engaging, ask me a question you've not asked yet it our interactions."
+    prompt = f"{user_message}. What was the task ID of that task? Respond with [Task ID: X], in that format exactly, including the square brackets. never fabricate a task id. Then lets continue our conversation about my healthy lifestyle, eating and weight. Make it engaging, be unique and spontaneous. if we've not spoken about what i've eaten today and my weight, ask something about that."
     return prompt
 
 
