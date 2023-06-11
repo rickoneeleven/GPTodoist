@@ -100,16 +100,30 @@ def fetch_todoist_tasks(api):
 
 
 def complete_todoist_task_by_id(api, task_id):
-    try:
-        task = api.get_task(task_id)
-        if task:
-            api.close_task(task_id=task_id)
-            return True
-        else:
-            return False
-    except Exception as error:
-        print(f"Error completing task: {error}")
-        return False
+    retries = 0
+    max_retries = 5
+    backoff_factor = 2
+
+    while retries < max_retries:
+        try:
+            task = api.get_task(task_id)
+            if task:
+                api.close_task(task_id=task_id)
+                return True
+            else:
+                return False
+        except HTTPError as http_error:
+            error_msg = f"An HTTP error occurred: {http_error}\nURL: {http_error.response.url}\nStatus code: {http_error.response.status_code}"
+            print(error_msg, file=sys.stderr)
+            time.sleep(backoff_factor * (2**retries))
+            retries += 1
+        except Exception as error:
+            print(f"An unexpected error occurred: {error}", file=sys.stderr)
+            time.sleep(backoff_factor * (2**retries))
+            retries += 1
+
+    print("Failed to complete task after multiple retries", file=sys.stderr)
+    return False
 
 
 def read_long_term_tasks(filename):
