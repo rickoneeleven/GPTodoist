@@ -2,6 +2,7 @@ import datetime, os, pytz, json, shutil
 import helper_general
 from dateutil.parser import parse
 from typing import Any, Union
+from rich import print
 
 
 def convert_to_london_timezone(timestamp: str) -> str:
@@ -108,3 +109,12 @@ def backup_json_files():
             print()
             print(f"Deleting old backup file '{file_path}'")
             os.remove(file_path)
+
+
+def check_j_conv_default():
+    file_name = "j_conv_DEFAULT.json"
+
+    if os.path.exists(file_name):
+        print("[dark_khaki]Remember to save your conversation[/dark_khaki]")
+    else:
+        print("[dodger_blue1]On main branch[/dodger_blue1]")

@@ -128,6 +128,7 @@ def main_loop():
                 messages, loaded_files
             )  # to get correct tokkie count
         helper_messages.current_tokkies(messages)
+        helper_general.check_j_conv_default()
         user_message = get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
 
