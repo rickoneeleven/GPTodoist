@@ -103,7 +103,7 @@ def backup_json_files():
         file_path = os.path.join(backups_dir, filename)
         # Check if the file is older than 10 days
         if datetime.datetime.now() - datetime.datetime.fromtimestamp(
-            os.path.getmtime(file_path)
+            os.path.getctime(file_path)
         ) > datetime.timedelta(days=10):
             # Delete the file
             print()
