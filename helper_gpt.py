@@ -41,9 +41,13 @@ def where_are_we(exchange_rate, max_spends_gbp):
 
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):
-    messages = helper_messages.summarize_and_shorten_messages(messages)
     if model_to_use == "gpt-4":
         print("[red]USING BIG BRAIN GPT4!!!![/red]")
+        messages = helper_messages.summarize_and_shorten_messages(messages, 7000)
+    elif model_to_use == "gpt-3.5-turbo":
+        messages = helper_messages.summarize_and_shorten_messages(messages, 3000)
+    elif model_to_use == "gpt-3.5-turbo-16k":
+        messages = helper_messages.summarize_and_shorten_messages(messages, 15000)
 
     for retry in range(retries):
         try:

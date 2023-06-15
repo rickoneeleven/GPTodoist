@@ -75,7 +75,7 @@ def handle_user_input(user_message, messages, api, timestamp):
             return
 
     if user_message.startswith("3 "):
-        model_to_use = "gpt-3.5-turbo"
+        model_to_use = "gpt-3.5-turbo-16k"
         user_message = user_message[2:]  # remove the prefix
         user_message_with_time = f"{timestamp_hhmm}: {user_message}"
         messages.append({"role": "user", "content": user_message_with_time})
