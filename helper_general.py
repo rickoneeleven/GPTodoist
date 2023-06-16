@@ -31,7 +31,6 @@ def print_commands():
         "show long": "print list of long term tasks",
         "rename long": "renames long term task. rename long [id] [new task name]",
         "delete long": "deletes long term task. delete long [id]",
-        "weather": "show the weather for today",
         "add file <filename>": "adds file to system messages",
         "reset": "resets us back to default chat",
         "fresh": "starts a brand new chat session",

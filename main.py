@@ -1,5 +1,5 @@
 import openai, os, json, signal, readline, sys
-import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general
+import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general, module_weather
 import helper_code, helper_messages
 from rich import print
 from dateutil.parser import parse
@@ -118,6 +118,7 @@ helper_messages.print_conversation_history()
 def main_loop():
     while True:
         helper_gpt.where_are_we(1.24, 20)
+        module_weather.today()
         messages = helper_general.load_json("j_conversation_history.json")
         loaded_files = helper_general.load_json("j_loaded_files.json")
         if loaded_files:
