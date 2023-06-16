@@ -12,6 +12,7 @@ def create_task_id_prompt(user_message):
 
 
 def where_are_we(exchange_rate, max_spends_gbp):
+    print("[bright_black]getting costs....[/bright_black]")
     today = date.today()
     start_date = today.replace(day=1).strftime("%Y-%m-%d")
     end_date = (
@@ -41,6 +42,7 @@ def where_are_we(exchange_rate, max_spends_gbp):
 
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):
+    print("[bright_black]sending user messages to openai....[/bright_black]")
     if model_to_use == "gpt-4":
         print("[red]USING BIG BRAIN GPT4!!!![/red]")
         messages = helper_messages.summarize_and_shorten_messages(messages, 7000)
