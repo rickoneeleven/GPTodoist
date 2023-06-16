@@ -71,7 +71,7 @@ def today():
     ]
     if no_rain_periods:
         if len(no_rain_periods) == len(hourly_forecast):
-            description += "No rain for the time period."
+            description += "No rain for this time period."
         else:
             description += f"It won't rain between {no_rain_periods[0][0]:%H:%M} and {no_rain_periods[-1][0]:%H:%M}."
     else:
