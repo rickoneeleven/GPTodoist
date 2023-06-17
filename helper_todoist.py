@@ -146,7 +146,7 @@ def get_next_todoist_task(api):
 
         add_to_active_task_file(task_name, task_id, task_due)
 
-        print(f"[green]{task_name}[/green]")
+        print(f"                   [green]{task_name}[/green]")
         if task_due:
             task_due_london = helper_general.convert_to_london_timezone(task_due)
             task_due_london_datetime = datetime.datetime.strptime(
