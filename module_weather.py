@@ -1,4 +1,4 @@
-import pyowm
+import pyowm, pytz
 import datetime
 import os
 from rich import print
@@ -45,7 +45,8 @@ def get_hourly_forecast():
 
 
 def today():
-    current_time = datetime.datetime.now()
+    london_tz = pytz.timezone("Europe/London")
+    current_time = datetime.datetime.now(london_tz)
     wind_speed_mph, temperature_c, chance_of_rain = get_current_weather()
     hourly_forecast = get_hourly_forecast()
 
@@ -56,7 +57,6 @@ def today():
     max_temp_tuple = max(all_weather_data, key=lambda x: x[2])
     min_temp_tuple = min(all_weather_data, key=lambda x: x[2])
 
-    # Generate a human-readable description
     description = (
         f"Low:  {min_temp_tuple[2]:.1f}°C    ({min_temp_tuple[0]:%H:%M}) "
         f"    Wind: {min_temp_tuple[1]:.1f} mph\n"
@@ -66,18 +66,20 @@ def today():
         f"    Wind: {max_temp_tuple[1]:.1f} mph\n"
     )
 
-    no_rain_periods = [
+    no_rain_periods = [(current_time, chance_of_rain)] + [
         (time, rain) for time, wind, temp, rain in hourly_forecast if not rain
     ]
-    if no_rain_periods:
-        if len(no_rain_periods) == len(hourly_forecast):
-            description += "No rain for this time period."
-        else:
-            description += f"It won't rain between {no_rain_periods[0][0]:%H:%M} and {no_rain_periods[-1][0]:%H:%M}."
-    else:
-        min_rain_tuple = min(hourly_forecast, key=lambda x: x[3].get("3h", 100))
-        description += f"Rain today, best time to run between {min_rain_tuple[0]:%H:%M}, with a precipitation probability of {min_rain_tuple[3].get('3h',0)}%."
-    print(f"[medium_orchid3]{description}[/medium_orchid3]")
+
+    no_rain_start = no_rain_periods[0][0]
+
+    rain_periods = [(time, rain) for time, wind, temp, rain in hourly_forecast if rain]
+
+    first_rain_start = rain_periods[0][0]
+
+    description += (
+        f"It won't rain between {no_rain_start:%H:%M} and {first_rain_start:%H:%M}."
+    )
+    print(f"{description}")
 
 
 def today_old():

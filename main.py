@@ -103,7 +103,7 @@ def handle_user_input(user_message, messages, api, timestamp):
 
 
 def process_loaded_files(messages, loaded_files):
-    system_txt = "be concise in your answers, not verbose. but at the same time, give enough information to help the user refactor their code correctly."
+    system_txt = "General refactoring rules: 1. Never show full refactored file, only the function in question unless asked by the user. 2. Be concise and direct with your language. \nLatest version of file(s) for your consideration: "
     for file in loaded_files:
         content = helper_general.read_file(file["filename"])
         system_txt += f"---\n\n{file['filename']}:\n{content}\n"
@@ -157,6 +157,9 @@ def main_loop():
             messages = process_loaded_files(messages, loaded_files)
 
         if os.path.isfile("j_loaded_files.json"):
+            helper_messages.remove_old_code(
+                messages
+            )  # strip ass responses with code between triple ticks, older that 3 ass messages ago, so when suggesting refactors, it doesn't bring back old code
             with open("j_loaded_files.json", "r") as file:
                 loaded_files = json.load(file)
         else:

@@ -1,5 +1,5 @@
 import module_call_counter, helper_general, helper_messages, helper_code
-import tiktoken, os, json, datetime, shutil
+import tiktoken, os, json, datetime, shutil, re
 from rich import print
 
 
@@ -254,6 +254,21 @@ def load_conversation(user_message):
             print(f"The file {filename} does not exist.")
     else:
         print(f"Conversation with id {id} not found.")
+
+
+def remove_old_code(messages):
+    assistant_messages = [msg for msg in messages if msg["role"] == "assistant"]
+
+    for i, msg in enumerate(messages):
+        if msg["role"] == "assistant" and msg not in assistant_messages[-3:]:
+            msg["content"] = re.sub(
+                r"```.*?```",
+                "```<code removed to stop old code being refactored back into process, see later conversation to see where we are up to>```",
+                msg["content"],
+                flags=re.DOTALL,
+            )
+
+    return messages
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
