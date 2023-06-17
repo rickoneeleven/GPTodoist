@@ -57,7 +57,6 @@ def today():
     max_temp_tuple = max(all_weather_data, key=lambda x: x[2])
     min_temp_tuple = min(all_weather_data, key=lambda x: x[2])
 
-    # Add the "Now" line with current temperature and wind speed
     now_description = (
         f"Now:  {temperature_c:.1f}°C    ({current_time:%H:%M}) "
         f"    Wind: {wind_speed_mph:.1f} mph\n"
@@ -82,11 +81,13 @@ def today():
 
     first_rain_start = rain_periods[0][0]
 
-    description += (
-        f"No rain due between {no_rain_start:%H:%M} and {first_rain_start:%H:%M}."
-    )
+    if no_rain_start == current_time:
+        description += f"No rain due between now and {first_rain_start:%H:%M}."
+    else:
+        description += (
+            f"No rain due between {no_rain_start:%H:%M} and {first_rain_start:%H:%M}."
+        )
 
-    # Print the combined weather description including the "Now" line
     print(f"{now_description}{description}")
 
 
