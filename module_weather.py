@@ -77,7 +77,7 @@ def today():
     first_rain_start = rain_periods[0][0]
 
     description += (
-        f"It won't rain between {no_rain_start:%H:%M} and {first_rain_start:%H:%M}."
+        f"No rain due between {no_rain_start:%H:%M} and {first_rain_start:%H:%M}."
     )
     print(f"{description}")
 
