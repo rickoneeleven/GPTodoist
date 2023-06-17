@@ -43,6 +43,7 @@ def where_are_we(exchange_rate, max_spends_gbp):
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):
     print("[bright_black]sending user messages to openai....[/bright_black]")
+
     if model_to_use == "gpt-4":
         print("[red]USING BIG BRAIN GPT4!!!![/red]")
         messages = helper_messages.summarize_and_shorten_messages(messages, 7000)
@@ -60,30 +61,19 @@ def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2)
             response_chunks = []
             print()
 
-            try:
-                for chunk in response:
-                    content = chunk["choices"][0].get("delta", {}).get("content")
-                    if content is not None:
-                        response_chunks.append(content)
-                        print(content, end="")
+            for chunk in response:
+                content = chunk["choices"][0].get("delta", {}).get("content")
+                if content is not None:
+                    response_chunks.append(content)
+                    print(content, end="")
 
-                print("\n-------------------------------------------------")
+            print("\n-------------------------------------------------")
 
-                full_response = "".join(response_chunks)
+            full_response = "".join(response_chunks)
 
-                return full_response
-            except Exception as e:
-                print(f"Error while streaming response: {e}")
-                return "[error occurred during assistant response]"
-        except openai.error.RateLimitError:
-            if retry < retries - 1:  # Check if there are retries left
-                sleep_time = backoff_factor**retry  # Exponential backoff
-                print(f"Rate limit exceeded? Retrying in {sleep_time} seconds...")
-                time.sleep(sleep_time)
-            else:
-                print("Retry limit exceeded. Please try again later.")
-                return "[rate limit exceeded]"
-        except Exception as e:
+            return full_response
+
+        except Exception as e:  # Catch any exception, not just specific ones
             if retry < retries - 1:  # Check if there are retries left
                 sleep_time = backoff_factor**retry  # Exponential backoff
                 print(f"An error occurred: {e}. Retrying in {sleep_time} seconds...")
