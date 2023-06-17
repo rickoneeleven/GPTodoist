@@ -42,7 +42,8 @@ def where_are_we(exchange_rate, max_spends_gbp):
         else:
             print(f"[red1]£{buffer_spends}  ;([/red1]")
     except Exception as e:
-        print(f"An error occurred getting costs: {e}")
+        # print(f"An error occurred getting costs: {e}")
+        print("\U0001F972")
 
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):
