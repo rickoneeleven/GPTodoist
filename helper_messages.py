@@ -60,7 +60,7 @@ def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0301"):
 
 def current_tokkies(messages):
     tokkies = num_tokens_from_messages(messages)
-    print(f"current message tokkies: {tokkies}\n")
+    print(f"[grey37]Current message tokkies:[/grey37] {tokkies}\n")
 
 
 def print_conversation_history():
