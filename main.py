@@ -1,4 +1,4 @@
-import openai, os, json, signal, readline, sys
+import openai, os, json, signal, readline, sys, re
 import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general, module_weather
 import helper_code, helper_messages
 from rich import print
@@ -103,12 +103,22 @@ def handle_user_input(user_message, messages, api, timestamp):
 
 
 def process_loaded_files(messages, loaded_files):
-    system_txt = "General refactoring rules: 1. Never show full refactored file, only the function in question unless asked by the user. \nLatest version of file(s) for your consideration: "
+    system_txt = "General refactoring rules: 1. Never show full refactored file, only the function in question unless asked by the user.\nLatest version of file(s) for your consideration: "
+    function_pattern = re.compile(r"def\s+(\w+)\s*\(")
+
     for file in loaded_files:
         content = helper_general.read_file(file["filename"])
-        system_txt += f"---\n\n{file['filename']}:\n{content}\n"
-        system_message = {"role": "system", "content": system_txt}
-        messages.append(system_message)
+        functions = function_pattern.findall(content)
+        functions_formatted = "\n".join([f"{func}():" for func in functions])
+
+        print(f"[red]{file['filename']} loaded into memory...[/red]")  # Print filename
+        print(functions_formatted)  # Print function names
+
+        system_txt += f"\n\n---\n{file['filename']}:\n{functions_formatted}\n"
+
+    system_message = {"role": "system", "content": system_txt}
+    messages.append(system_message)
+
     return messages
 
 
@@ -123,9 +133,6 @@ def main_loop():
         messages = helper_general.load_json("j_conversation_history.json")
         loaded_files = helper_general.load_json("j_loaded_files.json")
         if loaded_files:
-            print(
-                f"[red]{', '.join([file['filename'] for file in loaded_files])} loaded into memory...[/red]"
-            )
             messages = process_loaded_files(
                 messages, loaded_files
             )  # to get correct tokkie count
