@@ -12,33 +12,37 @@ def create_task_id_prompt(user_message):
 
 
 def where_are_we(exchange_rate, max_spends_gbp):
-    print("[bright_black]getting costs....[/bright_black]")
-    today = date.today()
-    start_date = today.replace(day=1).strftime("%Y-%m-%d")
-    end_date = (
-        today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1)
-    ).strftime("%Y-%m-%d")
+    try:
+        print("[bright_black]getting costs....[/bright_black]")
+        today = date.today()
+        start_date = today.replace(day=1).strftime("%Y-%m-%d")
+        end_date = (
+            today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1)
+        ).strftime("%Y-%m-%d")
 
-    openai.api_key = os.environ["OPENAI_API_KEY"]
-    r = openai.api_requestor.APIRequestor()
-    resp_tuple = r.request(
-        "GET", f"/dashboard/billing/usage?end_date={end_date}&start_date={start_date}"
-    )
-    resp = resp_tuple[0]
-    resp_data = resp.data
-    dollar_amount = round(resp_data["total_usage"] / 100, 2)
+        openai.api_key = os.environ["OPENAI_API_KEY"]
+        r = openai.api_requestor.APIRequestor()
+        resp_tuple = r.request(
+            "GET",
+            f"/dashboard/billing/usage?end_date={end_date}&start_date={start_date}",
+        )
+        resp = resp_tuple[0]
+        resp_data = resp.data
+        dollar_amount = round(resp_data["total_usage"] / 100, 2)
 
-    gbp_amount = round(dollar_amount / exchange_rate, 2)
+        gbp_amount = round(dollar_amount / exchange_rate, 2)
 
-    days_passed = (today - today.replace(day=1)).days + 1
-    days_in_month = calendar.monthrange(today.year, today.month)[1]
-    expected_spending = round((max_spends_gbp / days_in_month) * days_passed, 2)
-    buffer_spends = round(expected_spending - gbp_amount, 2)
+        days_passed = (today - today.replace(day=1)).days + 1
+        days_in_month = calendar.monthrange(today.year, today.month)[1]
+        expected_spending = round((max_spends_gbp / days_in_month) * days_passed, 2)
+        buffer_spends = round(expected_spending - gbp_amount, 2)
 
-    if gbp_amount <= expected_spending:
-        print(f"[green1]£{buffer_spends}  ;)[/green1]")
-    else:
-        print(f"[red1]£{buffer_spends}  ;([/red1]")
+        if gbp_amount <= expected_spending:
+            print(f"[green1]£{buffer_spends}  ;)[/green1]")
+        else:
+            print(f"[red1]£{buffer_spends}  ;([/red1]")
+    except Exception as e:
+        print(f"An error occurred getting costs: {e}")
 
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):
