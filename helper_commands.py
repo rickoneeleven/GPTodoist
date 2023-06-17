@@ -8,7 +8,6 @@ def ifelse_commands(api, user_message):
     if command == "done":
         os.system("clear")
         helper_todoist.complete_active_todoist_task(api)
-        helper_todoist.get_next_todoist_task(api)
         return True
     elif command == "replay":
         os.system("clear")
@@ -16,11 +15,9 @@ def ifelse_commands(api, user_message):
         return True
     elif command.startswith("time"):
         helper_todoist.update_task_due_date(api, user_message, False)
-        helper_todoist.get_next_todoist_task(api)
         return True
     elif command == "delete":
         helper_todoist.delete_todoist_task(api)
-        helper_todoist.get_next_todoist_task(api)
         return True
     elif command == "all" or command == "show all":
         helper_todoist.display_todoist_tasks(api)
