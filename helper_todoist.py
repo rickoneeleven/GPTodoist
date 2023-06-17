@@ -176,7 +176,7 @@ def get_next_todoist_task(api):
             print()
 
     else:
-        print("Well done, comrade")
+        print("\u2705")
         print()
 
 
