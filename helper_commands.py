@@ -5,10 +5,7 @@ import helper_messages
 
 def ifelse_commands(api, user_message):
     command = user_message.lower()
-    if command == ".":
-        helper_todoist.get_next_todoist_task(api)
-        return True
-    elif command == "done":
+    if command == "done":
         os.system("clear")
         helper_todoist.complete_active_todoist_task(api)
         helper_todoist.get_next_todoist_task(api)

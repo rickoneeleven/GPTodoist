@@ -36,9 +36,9 @@ def where_are_we(exchange_rate, max_spends_gbp):
     buffer_spends = round(expected_spending - gbp_amount, 2)
 
     if gbp_amount <= expected_spending:
-        print(f"[green1]£{buffer_spends}  ;)[/green1]\n")
+        print(f"[green1]£{buffer_spends}  ;)[/green1]")
     else:
-        print(f"[red1]£{buffer_spends}  ;([/red1]\n")
+        print(f"[red1]£{buffer_spends}  ;([/red1]")
 
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):

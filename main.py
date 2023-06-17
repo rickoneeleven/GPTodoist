@@ -118,6 +118,7 @@ helper_messages.print_conversation_history()
 def main_loop():
     while True:
         helper_gpt.where_are_we(1.24, 20)
+        helper_todoist.get_next_todoist_task(api)
         module_weather.today()
         messages = helper_general.load_json("j_conversation_history.json")
         loaded_files = helper_general.load_json("j_loaded_files.json")
