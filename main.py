@@ -51,11 +51,6 @@ def resubmit_last_message():
         return "4 " + last_user_message
 
 
-def inject_system_message(messages, content):
-    system_message = {"role": "system", "content": content}
-    messages.append(system_message)
-
-
 def handle_user_input(user_message, messages, api, timestamp):
     global last_user_message
     timestamp_hhmm = parse(timestamp).strftime("%Y-%m-%d %I:%M %p")
@@ -131,11 +126,9 @@ def main_loop():
         helper_todoist.get_next_todoist_task(api)
         module_weather.today()
         messages = helper_general.load_json("j_conversation_history.json")
-        loaded_files = helper_general.load_json("j_loaded_files.json")
-        if loaded_files:
-            messages = process_loaded_files(
-                messages, loaded_files
-            )  # to get correct tokkie count
+        helper_messages.remove_old_code(
+            messages
+        )  # strip ass responses with code between triple ticks, older that 3 ass messages ago, so when suggesting refactors, it doesn't bring back old code
         helper_messages.current_tokkies(messages)
         helper_general.check_j_conv_default()
         user_message = get_user_input()
@@ -156,22 +149,6 @@ def main_loop():
         if not pass_to_bot:
             print("eh?\n")
             continue
-
-        for (
-            file
-        ) in (
-            loaded_files
-        ):  # we do this logic so the system message is after user message, bot responds well
-            messages = process_loaded_files(messages, loaded_files)
-
-        if os.path.isfile("j_loaded_files.json"):
-            helper_messages.remove_old_code(
-                messages
-            )  # strip ass responses with code between triple ticks, older that 3 ass messages ago, so when suggesting refactors, it doesn't bring back old code
-            with open("j_loaded_files.json", "r") as file:
-                loaded_files = json.load(file)
-        else:
-            loaded_files = []
 
         assistant_message = helper_gpt.get_assistant_response(messages, model_to_use)
         helper_todoist.handle_special_commands(user_message, assistant_message, api)

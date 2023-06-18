@@ -26,7 +26,8 @@ def ifelse_commands(api, user_message):
         os.system("clear")
         return True
     elif command == "weather":
-        module_weather.today_old()
+        # module_weather.today_old()
+        module_weather.pretty_print_weather_data()
         return True
     elif command.startswith("add long"):
         helper_tasks.add_long_term_task(user_message)

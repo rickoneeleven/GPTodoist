@@ -13,9 +13,19 @@ def get_current_weather():
 
     wind_speed_mph = weather.wind()["speed"] * 2.237  # Convert meters/sec to mph
     temperature_c = weather.temperature("celsius")["temp"]
-    chance_of_rain = weather.rain
+    weather_description = weather.detailed_status
 
-    return wind_speed_mph, temperature_c, chance_of_rain
+    return wind_speed_mph, temperature_c, weather_description
+
+
+def pretty_print_weather_data():
+    wind_speed_mph, temperature_c, weather_description = get_current_weather()
+
+    print("Weather Data:")
+    print(f"Location: Billinge, UK")
+    print(f"Weather: {weather_description}")
+    print(f"Temperature: {temperature_c:.2f}°C")
+    print(f"Wind Speed: {wind_speed_mph:.2f} mph")
 
 
 def get_hourly_forecast():
@@ -23,7 +33,6 @@ def get_hourly_forecast():
     forecast = forecaster.forecast
 
     hourly_forecast = []
-
     num_forecasts = 4  # Set the desired number of forecasts
 
     for weather in forecast:
@@ -36,9 +45,9 @@ def get_hourly_forecast():
 
         wind_speed_mph = weather.wind()["speed"] * 2.237
         temperature_c = weather.temperature("celsius")["temp"]
-        chance_of_rain = weather.rain
+        weather_description = weather.detailed_status
         hourly_forecast.append(
-            (local_time, wind_speed_mph, temperature_c, chance_of_rain)
+            (local_time, wind_speed_mph, temperature_c, weather_description)
         )
 
     return hourly_forecast
@@ -47,11 +56,11 @@ def get_hourly_forecast():
 def today():
     london_tz = pytz.timezone("Europe/London")
     current_time = datetime.datetime.now(london_tz)
-    wind_speed_mph, temperature_c, chance_of_rain = get_current_weather()
+    wind_speed_mph, temperature_c, weather_description = get_current_weather()
     hourly_forecast = get_hourly_forecast()
 
     all_weather_data = [
-        (current_time, wind_speed_mph, temperature_c, chance_of_rain)
+        (current_time, wind_speed_mph, temperature_c, weather_description)
     ] + hourly_forecast
 
     max_temp_tuple = max(all_weather_data, key=lambda x: x[2])
@@ -71,22 +80,14 @@ def today():
         f"    Wind: {max_temp_tuple[1]:.1f} mph\n"
     )
 
-    no_rain_periods = [(current_time, chance_of_rain)] + [
-        (time, rain) for time, wind, temp, rain in hourly_forecast if not rain
-    ]
+    # Print rain descriptions with timestamps
+    previous_description = weather_description
+    description += f"{current_time:%H:%M}: {weather_description}\n"
 
-    no_rain_start = no_rain_periods[0][0]
-
-    rain_periods = [(time, rain) for time, wind, temp, rain in hourly_forecast if rain]
-
-    first_rain_start = rain_periods[0][0]
-
-    if no_rain_start == current_time:
-        description += f"No rain due between now and {first_rain_start:%H:%M}."
-    else:
-        description += (
-            f"No rain due between {no_rain_start:%H:%M} and {first_rain_start:%H:%M}."
-        )
+    for forecast_time, wind_speed, temp, w_description in hourly_forecast:
+        if w_description != previous_description:
+            description += f"{forecast_time:%H:%M}: {w_description}\n"
+            previous_description = w_description
 
     print(f"{now_description}{description}")
 
