@@ -8,3 +8,5 @@ black
 pyowm
 todoist_api_python
 rich
+fuzzywuzzy
+levenshtein

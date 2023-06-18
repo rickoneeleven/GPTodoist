@@ -1,6 +1,8 @@
 import module_call_counter, helper_general, helper_messages, helper_code
 import tiktoken, os, json, datetime, shutil, re
 from rich import print
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
 
 
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
@@ -213,20 +215,38 @@ def load_conversation(user_message):
 
     saved_conversations = helper_general.load_json(saved_conversations_file)
 
-    # Extract the conversation ID from the user_message
+    # Extract the conversation ID or search string from the user_message
     parts = user_message.split()
-    if len(parts) < 3 or not parts[2].isdigit():
-        print("Invalid user_message format. It should be like 'load conv ID'.")
+    if len(parts) < 3:
+        print(
+            "Invalid user_message format. It should be like 'load conv ID' or 'load conv search_string'."
+        )
         return
 
-    id = int(parts[2])
+    query = parts[2]
 
-    # Find the conversation with the given id
-    conversation_to_load = None
-    for conversation in saved_conversations:
-        if conversation["id"] == id:
-            conversation_to_load = conversation
-            break
+    if query.isdigit():
+        id = int(query)
+        # Find the conversation with the given id
+        conversation_to_load = None
+        for conversation in saved_conversations:
+            if conversation["id"] == id:
+                conversation_to_load = conversation
+                break
+    else:
+        # Fuzzy search for filenames
+        filenames = [conv["filename"] for conv in saved_conversations]
+        best_match, match_score = process.extractOne(
+            query, filenames, scorer=fuzz.WRatio
+        )
+
+        if match_score >= 80:  # Adjust this threshold as needed for better accuracy
+            conversation_to_load = [
+                conv for conv in saved_conversations if conv["filename"] == best_match
+            ][0]
+        else:
+            print(f"No matching conversation found for '{query}'.")
+            return
 
     if conversation_to_load:
         filename = conversation_to_load["filename"]
