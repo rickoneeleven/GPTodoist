@@ -277,13 +277,22 @@ def load_conversation(user_message):
 
 
 def remove_old_code(messages):
-    assistant_messages = [msg for msg in messages if msg["role"] == "assistant"]
+    latest_messages = {
+        "user": [],
+        "assistant": [],
+    }
+
+    for msg in messages:
+        role = msg["role"]
+        if role in ["user", "assistant"]:
+            latest_messages[role].append(msg)
 
     for i, msg in enumerate(messages):
-        if msg["role"] == "assistant" and msg not in assistant_messages[-3:]:
+        role = msg["role"]
+        if role in ["user", "assistant"] and msg not in latest_messages[role][-3:]:
             msg["content"] = re.sub(
                 r"```.*?```",
-                "```<code removed to stop old code being refactored back into process, see later conversation to see where we are up to>```",
+                "```<code removed to stop old code being refactored back into process, see later conversation or ask user for the latest revision of code if required>```",
                 msg["content"],
                 flags=re.DOTALL,
             )

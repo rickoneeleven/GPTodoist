@@ -97,26 +97,6 @@ def handle_user_input(user_message, messages, api, timestamp):
     return messages, model_to_use, pass_to_bot
 
 
-def process_loaded_files(messages, loaded_files):
-    system_txt = "General refactoring rules: 1. Never show full refactored file, only the function in question unless asked by the user.\nLatest version of file(s) for your consideration: "
-    function_pattern = re.compile(r"def\s+(\w+)\s*\(")
-
-    for file in loaded_files:
-        content = helper_general.read_file(file["filename"])
-        functions = function_pattern.findall(content)
-        functions_formatted = "\n".join([f"{func}():" for func in functions])
-
-        print(f"[red]{file['filename']} loaded into memory...[/red]")  # Print filename
-        print(functions_formatted)  # Print function names
-
-        system_txt += f"\n\n---\n{file['filename']}:\n{functions_formatted}\n"
-
-    system_message = {"role": "system", "content": system_txt}
-    messages.append(system_message)
-
-    return messages
-
-
 helper_messages.print_conversation_history()
 
 

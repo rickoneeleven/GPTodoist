@@ -1,50 +1,21 @@
-logging.basicConfig(level=logging.ERROR)
-hf_logging.set_verbosity_error()
+def process_loaded_files(messages, loaded_files):
+    system_txt = "General refactoring rules: 1. Never show full refactored file, only the function in question unless asked by the user.\nLatest version of file(s) for your consideration: "
+    function_pattern = re.compile(r"def\s+(\w+)\s*\(")
 
-FILE_NAME = "fetched_urls.json"
-tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    for file in loaded_files:
+        content = helper_general.read_file(file["filename"])
+        functions = function_pattern.findall(content)
+        functions_formatted = "\n".join([f"{func}():" for func in functions])
 
+        print(f"[red]{file['filename']} loaded into memory...[/red]")  # Print filename
+        print(functions_formatted)  # Print function names
 
-def get_assistant_response(messages):
-    global stop_chatbot_response
-    stop_chatbot_response = False
+        system_txt += f"\n\n---\n{file['filename']}:\n{functions_formatted}\n"
 
-    messages = helper_messages.summarize_and_shorten_messages(messages)
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo", messages=messages, stream=True
-        )
-    except openai.error.RateLimitError as e:
-        print(e)
-        print()
-        print("Rate limit exceeded? Retrying in a few seconds...")
-        time.sleep(10)  # Wait for 10 seconds before retrying
-        return get_assistant_response(messages)  # Retry the function call
-    except Exception as e:
-        print(f"Error while getting assistant response: {e}")
-        return ""
+    system_message = {"role": "system", "content": system_txt}
+    messages.append(system_message)
 
-    response_chunks = []
-    print()
-
-    threading.Thread(target=listen_for_enter_key).start()
-    time.sleep(0.5)
-
-    try:
-        for chunk in response:
-            content = chunk["choices"][0].get("delta", {}).get("content")
-            if content is not None:
-                response_chunks.append(content)
-                print(content, end="")
-
-        print("\n-------------------------------------------------")
-
-        full_response = "".join(response_chunks)
-
-        return full_response
-    except KeyboardInterrupt:
-        print("\nStopping streaming response due to user command.")
-        return "[user cancelled assistant response]"
+    return messages
 
 
 def print_system_messages(messages):
