@@ -1,4 +1,4 @@
-import re, json, pytz, dateutil.parser, datetime, time, sys
+import re, json, pytz, dateutil.parser, datetime, time, sys, os
 import helper_parse, module_call_counter, helper_general, helper_regex
 from dateutil.parser import parse
 from datetime import date, timedelta
@@ -127,8 +127,13 @@ def complete_todoist_task_by_id(api, task_id):
 
 
 def read_long_term_tasks(filename):
+    if not os.path.exists(filename):
+        with open(filename, "w") as file:
+            json.dump([], file, indent=2)
+
     with open(filename, "r") as file:
         tasks = json.load(file)
+
     return tasks
 
 
