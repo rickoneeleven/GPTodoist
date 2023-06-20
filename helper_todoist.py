@@ -181,6 +181,16 @@ def get_next_todoist_task(api):
             next_task.due.datetime if next_task.due and next_task.due.datetime else None
         )
 
+        # Check if the task is recurring and add "(r) " to the task name
+        task = api.get_task(task_id)
+        is_recurring = False
+
+        if task and task.due:
+            is_recurring = task.due.is_recurring
+
+        if is_recurring:
+            task_name = "(r) " + task_name
+
         add_to_active_task_file(task_name, task_id, task_due)
 
         print(f"                   [green]{task_name}[/green]")
