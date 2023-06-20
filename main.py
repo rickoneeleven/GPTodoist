@@ -80,6 +80,7 @@ def handle_user_input(user_message, messages, api, timestamp):
         user_message_with_time = f"{timestamp_hhmm}: {user_message}"
         messages.append({"role": "user", "content": user_message_with_time})
     elif "~~~" in user_message.lower():
+        model_to_use = "gpt-3.5-turbo-16k"
         helper_todoist.insert_tasks_into_system_prompt(api, messages)
         task_id_prompt = helper_gpt.create_task_id_prompt(
             " ".join(user_message.split()[1:])
