@@ -53,17 +53,49 @@ def add_todoist_task(api, task_name, task_time, task_day):
         return None
 
 
+def get_active_filter():
+    filter_file_path = "j_todoist_filters.json"
+
+    if not os.path.exists(filter_file_path):
+        with open(filter_file_path, "w") as json_file:
+            mock_data = [
+                {
+                    "id": 1,
+                    "filter": "(no due date | today | overdue) & !#Team Virtue",
+                    "isActive": 1,
+                }
+            ]
+            json.dump(mock_data, json_file, indent=2)
+
+    with open(filter_file_path, "r") as json_file:
+        filters = json.load(json_file)
+
+    active_filter = None
+    for filter in filters:
+        if filter["isActive"]:
+            active_filter = filter["filter"]
+            break
+
+    return active_filter
+
+
 def fetch_todoist_tasks(api):
     retries = 0
     max_retries = 5
     backoff_factor = 2
 
+    active_filter = get_active_filter()
+
+    if not active_filter:
+        print(
+            "No active filters configured, see j_todoist_filters.json, add your filter and set to active and try again"
+        )
+        return
+
     while retries < max_retries:
         try:
             london_tz = pytz.timezone("Europe/London")
-            tasks = api.get_tasks(
-                filter="(no due date | today | overdue) & !#Team Virtue"
-            )
+            tasks = api.get_tasks(filter=active_filter)
 
             tasks_with_due_dates = []
             tasks_without_due_dates = []
