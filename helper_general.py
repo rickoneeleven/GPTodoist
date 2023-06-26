@@ -41,6 +41,7 @@ def print_commands():
         "delete conv <id>": "delete conversation based on id",
         "replay": "prints conversation history",
         "weather": "show detailed weather information",
+        "flip": "flips your active todoist filter. note: you can nly have two filters for this to work",
     }
     print()
     max_command_len = max(len(command) for command in commands)

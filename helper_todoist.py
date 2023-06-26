@@ -7,6 +7,23 @@ from rich import print
 from requests.exceptions import HTTPError
 
 
+def change_active_task():
+    # Load the JSON data
+    with open("j_todoist_filters.json", "r") as file:
+        task_data = json.load(file)
+
+    # Iterate through the tasks and switch the active status
+    for task in task_data:
+        if task["isActive"] == 1:
+            task["isActive"] = 0
+        else:
+            task["isActive"] = 1
+
+    # Save the updated JSON data
+    with open("j_todoist_filters.json", "w") as file:
+        json.dump(task_data, file)
+
+
 def handle_special_commands(user_message, assistant_message, api):
     if "~~~" in user_message.lower() and "Task ID" in assistant_message:
         task_id = helper_regex.extract_task_id_from_response(assistant_message)

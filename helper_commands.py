@@ -25,6 +25,9 @@ def ifelse_commands(api, user_message):
     elif command == "clear":
         os.system("clear")
         return True
+    elif command == "flip":
+        helper_todoist.change_active_task()
+        return True
     elif command == "weather":
         # module_weather.today_old()
         module_weather.pretty_print_weather_data()
