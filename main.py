@@ -131,7 +131,8 @@ def main_loop():
         )
 
         if not pass_to_bot:
-            print("eh?\n")
+            print()
+            print("[bold][wheat1]          eh?[/wheat1][/bold]\n")
             continue
 
         assistant_message = helper_gpt.get_assistant_response(messages, model_to_use)
