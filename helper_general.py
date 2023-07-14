@@ -1,4 +1,4 @@
-import datetime, os, pytz, json, shutil
+import datetime, os, pytz, json, shutil, time
 import helper_general
 from dateutil.parser import parse
 from typing import Any, Union
@@ -120,3 +120,20 @@ def check_j_conv_default():
         print("[dark_khaki]Remember to save your conversation[/dark_khaki]")
     else:
         print("[dodger_blue1]On main branch[/dodger_blue1]")
+        
+        
+def connectivity_check():
+    for i in range(6):
+        response = os.system("ping -c 1 8.8.4.4 > /dev/null 2>&1")
+        if response == 0:
+            return True
+        time.sleep(1)
+        print()
+        print()
+        print("[red]connection is sad face, retrying...[/red]")
+        print()
+        print()
+    print("[yellow]_____________ CONNECTION FAILED _____________[/yellow]")
+    print()
+    print()
+    return False
