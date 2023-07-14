@@ -39,7 +39,7 @@ def print_tasks() -> None:
 
     for first_word in sorted(grouped_tasks.keys()):
         tasks_with_same_first_word = sorted(
-            grouped_tasks[first_word], key=lambda task: task["task_name"]
+            grouped_tasks[first_word], key=lambda task: task["index"]
         )
 
         if len(tasks_with_same_first_word) > 1:
