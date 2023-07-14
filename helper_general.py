@@ -42,6 +42,7 @@ def print_commands():
         "replay": "prints conversation history",
         "weather": "show detailed weather information",
         "flip": "flips your active todoist filter. note: you can nly have two filters for this to work",
+        "ring": "advise the system you have eaten your last main meal of the day",
     }
     print()
     max_command_len = max(len(command) for command in commands)
