@@ -1,6 +1,6 @@
 import os, time
 import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code, helper_parse, helper_general
-import helper_messages
+import helper_messages, module_bell_ring
 
 
 def ifelse_commands(api, user_message):
@@ -18,6 +18,9 @@ def ifelse_commands(api, user_message):
         return True
     elif command == "delete":
         helper_todoist.delete_todoist_task(api)
+        return True
+    elif command == "ring":
+        module_bell_ring.ring()
         return True
     elif command == "all" or command == "show all":
         helper_todoist.display_todoist_tasks(api)

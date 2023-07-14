@@ -1,6 +1,6 @@
 import openai, os, json, signal, readline, sys, re
 import helper_todoist, helper_gpt, helper_commands, module_call_counter, helper_general, module_weather
-import helper_code, helper_messages
+import helper_code, helper_messages, module_bell_ring
 from rich import print
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
@@ -103,6 +103,7 @@ helper_messages.print_conversation_history()
 
 def main_loop():
     while True:
+        module_bell_ring.check_if_rang()
         helper_gpt.where_are_we(1.24, 20)
         helper_todoist.get_next_todoist_task(api)
         module_weather.today()
