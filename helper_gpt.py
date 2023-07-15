@@ -7,7 +7,11 @@ from rich import print
 def create_task_id_prompt(user_message):
     # Remove any 4-digit number at the end and everything after it
     user_message = re.sub(r"\b\d{4}.*$", "", user_message).strip()
-    prompt = f"{user_message}. What was the task ID of that task? Respond with [Task ID: X], in that format exactly, including the square brackets. never fabricate a task id. Then present me with an interesting fact. I'll tell you if I thought it was or not, to help guide you in the future."
+    prompt = f"""{user_message}. What was the task ID of that task? Respond with [Task ID: X], in that format exactly, including the square brackets. never fabricate a task id. Then present me with an interesting fact. I'll tell you if I thought it was or not, to help guide you in the future. Here is what an example answer would look like:
+    
+    The task ID for "kids dooties" is [Task ID: 6973484921].
+    
+    Interesting fact: blah"""
     return prompt
 
 

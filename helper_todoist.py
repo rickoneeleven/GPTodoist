@@ -446,7 +446,7 @@ def insert_tasks_into_system_prompt(api, messages):
         task_list = "\n".join(
             [f"- {task.content} [Task ID: {task.id}]" for task in tasks]
         )
-        todoist_tasks_message = f"My outstanding tasks today:\n{task_list}"
+        todoist_tasks_message = f"Here is a list of tasks and task IDs. Use them when asked to get a task ID:\n{task_list}"
         messages.append({"role": "system", "content": todoist_tasks_message})
     else:
         todoist_tasks_message = "Active Tasks:\n [All tasks complete!]"
