@@ -65,6 +65,9 @@ def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2)
         messages = helper_messages.summarize_and_shorten_messages(messages, 3000)
     elif model_to_use == "gpt-3.5-turbo-16k":
         messages = helper_messages.summarize_and_shorten_messages(messages, 15000)
+    elif model_to_use == "gpt-4-1k":
+        messages = helper_messages.summarize_and_shorten_messages(messages, 1000)
+        model_to_use = "gpt-4"
 
     for retry in range(retries):
         try:
