@@ -13,7 +13,6 @@ def create_task_id_prompt(user_message):
 
 def where_are_we(exchange_rate, max_spends_gbp):
     try:
-        print("[bright_black]getting costs....[/bright_black]")
         today = date.today()
         start_date = today.replace(day=1).strftime("%Y-%m-%d")
         end_date = (
@@ -45,7 +44,7 @@ def where_are_we(exchange_rate, max_spends_gbp):
         else:
             print(f"[red1]£{buffer_spends}  ;([/red1]")
     except requests.exceptions.Timeout:
-        print("[yellow1]Request timed out. Please try again later.[/yellow1]")
+        print("[yellow1]Request timed out getting costs...[/yellow1]")
         return False
     except Exception as e:
         print(f"[red1]An error occurred: {e}[/red1]")
