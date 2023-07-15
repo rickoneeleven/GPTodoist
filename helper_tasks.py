@@ -99,6 +99,17 @@ def rename_long_task(user_message: str) -> None:
     helper_general.backup_json_files()
 
 
+def reset_task_indices(tasks: list):
+    from datetime import datetime
+
+    # Sort tasks in-place in increasing order of "added" date
+    tasks.sort(key=lambda task: datetime.strptime(task["added"], "%Y-%m-%d %H:%M:%S"))
+
+    # Reset task indices
+    for i, task in enumerate(tasks):
+        task["index"] = i
+
+
 def delete_long_task(user_message: str) -> None:
     if not os.path.exists("j_long_term_tasks.json"):
         print("No tasks available to delete.")
@@ -130,8 +141,7 @@ def delete_long_task(user_message: str) -> None:
         return
 
     # Update task indices after deletion
-    for i, task in enumerate(tasks):
-        task["index"] = i
+    reset_task_indices(tasks)
 
     with open("j_long_term_tasks.json", "w") as file:
         json.dump(tasks, file, indent=2)
