@@ -65,6 +65,11 @@ def ifelse_commands(api, user_message):
     elif command.startswith("add file"):
         helper_code.add_file(user_message)
         return True
+    elif command.startswith("touch long"):
+        helper_tasks.touch_long_date(user_message)
+        subprocess.call("reset")
+        helper_tasks.print_tasks()
+        return True
     elif command == "reset":
         subprocess.call("reset")
         helper_code.reset_all()

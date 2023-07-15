@@ -1,5 +1,6 @@
 import os, json, time
 import module_call_counter, helper_general
+from datetime import datetime
 
 
 def add_long_term_task(user_message):
@@ -138,6 +139,28 @@ def delete_long_task(user_message: str) -> None:
     print(f"Task with index {id} deleted.")
     helper_general.backup_json_files()
     time.sleep(2)
+
+
+def touch_long_date(user_message):
+    # Extract the index from the message
+    index = int(user_message.split(" ")[-1])
+    # Load the json file
+    with open("j_long_term_tasks.json", "r") as f:
+        tasks = json.load(f)
+
+    # Get the max index and increase it by 1
+    max_index = max(task["index"] for task in tasks) + 1
+
+    # Update the index and timestamp of the task
+    for task in tasks:
+        if task["index"] == index:
+            task["index"] = max_index
+            task["added"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            break
+
+    # Write back to the json file
+    with open("j_long_term_tasks.json", "w") as f:
+        json.dump(tasks, f)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
