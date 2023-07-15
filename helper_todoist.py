@@ -1,4 +1,4 @@
-import re, json, pytz, dateutil.parser, datetime, time, sys, os
+import re, json, pytz, dateutil.parser, datetime, time, sys, os, signal
 import helper_parse, module_call_counter, helper_general, helper_regex
 from dateutil.parser import parse
 from datetime import date, timedelta
@@ -97,9 +97,10 @@ def get_active_filter():
 
 
 def fetch_todoist_tasks(api):
-    retries = 0
-    max_retries = 5
-    backoff_factor = 2
+    def handler(signum, frame):
+        raise Exception("end of time")
+
+    signal.signal(signal.SIGALRM, handler)
 
     active_filter = get_active_filter()
 
@@ -109,43 +110,36 @@ def fetch_todoist_tasks(api):
         )
         return
 
-    while retries < max_retries:
-        try:
-            london_tz = pytz.timezone("Europe/London")
-            tasks = api.get_tasks(filter=active_filter)
+    try:
+        signal.alarm(3)  # Set the signal to raise an Exception in 3 seconds
+        tasks = api.get_tasks(filter=active_filter)  # Perform API request
 
-            tasks_with_due_dates = []
-            tasks_without_due_dates = []
+        london_tz = pytz.timezone("Europe/London")
+        tasks_with_due_dates = []
+        tasks_without_due_dates = []
 
-            for task in tasks:
-                if task.due and task.due.datetime:
-                    utc_dt = parse(task.due.datetime)
-                    london_dt = utc_dt.astimezone(london_tz)
-                    task.due.datetime = london_dt.isoformat()
-                    tasks_with_due_dates.append(task)
-                else:
-                    tasks_without_due_dates.append(task)
+        for task in tasks:
+            if task.due and task.due.datetime:
+                utc_dt = parse(task.due.datetime)
+                london_dt = utc_dt.astimezone(london_tz)
+                task.due.datetime = london_dt.isoformat()
+                tasks_with_due_dates.append(task)
+            else:
+                tasks_without_due_dates.append(task)
 
-            sorted_tasks_with_due_dates = sorted(
-                tasks_with_due_dates, key=lambda t: t.due.datetime
-            )
+        sorted_tasks_with_due_dates = sorted(
+            tasks_with_due_dates, key=lambda t: t.due.datetime
+        )
 
-            # Combine tasks without due dates and tasks with due dates
-            sorted_tasks = tasks_without_due_dates + sorted_tasks_with_due_dates
+        # Combine tasks without due dates and tasks with due dates
+        sorted_tasks = tasks_without_due_dates + sorted_tasks_with_due_dates
 
-            return sorted_tasks
-        except HTTPError as http_error:
-            error_msg = f"An HTTP error occurred: {http_error}\nURL: {http_error.response.url}\nStatus code: {http_error.response.status_code}"
-            print(error_msg, file=sys.stderr)
-            time.sleep(backoff_factor * (2**retries))
-            retries += 1
-        except Exception as error:
-            print(f"An unexpected error occurred: {error}", file=sys.stderr)
-            time.sleep(backoff_factor * (2**retries))
-            retries += 1
+        signal.alarm(0)  # Disable the alarm
+        return sorted_tasks
 
-    print("Failed to fetch tasks after multiple retries", file=sys.stderr)
-    return None
+    except Exception:
+        print("failed to fetch, dog is broken")
+        return None
 
 
 def complete_todoist_task_by_id(api, task_id):
@@ -414,21 +408,22 @@ def display_todoist_tasks(api):
 
     london_tz = pytz.timezone("Europe/London")
 
-    # Add null check and use current datetime if no due date
-    max_due_time_length = max(
-        len(format_due_time(task.due.datetime if task.due else None, london_tz))
-        for task in tasks
-    )
-    tab_size = 8
-
-    for task in tasks:
+    if tasks:
         # Add null check and use current datetime if no due date
-        due_time_str = task.due.datetime if task.due else None
-        due_time = format_due_time(due_time_str, london_tz).ljust(
-            max_due_time_length + tab_size
+        max_due_time_length = max(
+            len(format_due_time(task.due.datetime if task.due else None, london_tz))
+            for task in tasks
         )
-        task_name = task.content
-        print(f"{due_time}{task_name}")
+        tab_size = 8
+
+        for task in tasks:
+            # Add null check and use current datetime if no due date
+            due_time_str = task.due.datetime if task.due else None
+            due_time = format_due_time(due_time_str, london_tz).ljust(
+                max_due_time_length + tab_size
+            )
+            task_name = task.content
+            print(f"{due_time}{task_name}")
 
 
 def format_due_time(due_time_str, timezone):

@@ -115,8 +115,8 @@ def main_loop():
         helper_general.check_j_conv_default()
         user_message = get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
-        if not helper_general.connectivity_check():
-            continue
+        # if not helper_general.connectivity_check():
+        #    continue
 
         if helper_commands.ifelse_commands(api, user_message):
             continue
