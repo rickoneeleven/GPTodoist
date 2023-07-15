@@ -120,8 +120,8 @@ def check_j_conv_default():
         print("[dark_khaki]Remember to save your conversation[/dark_khaki]")
     else:
         print("[dodger_blue1]On main branch[/dodger_blue1]")
-        
-        
+
+
 def connectivity_check():
     for i in range(6):
         response = os.system("ping -c 1 8.8.4.4 > /dev/null 2>&1")

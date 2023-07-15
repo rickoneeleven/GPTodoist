@@ -1,5 +1,5 @@
 import module_call_counter, helper_messages
-import re, openai, os, calendar, time
+import re, openai, os, calendar, time, requests
 from datetime import date, timedelta
 from rich import print
 
@@ -20,14 +20,17 @@ def where_are_we(exchange_rate, max_spends_gbp):
             today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1)
         ).strftime("%Y-%m-%d")
 
-        openai.api_key = os.environ["OPENAI_API_KEY"]
-        r = openai.api_requestor.APIRequestor()
-        resp_tuple = r.request(
-            "GET",
-            f"/dashboard/billing/usage?end_date={end_date}&start_date={start_date}",
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f'Bearer {os.getenv("OPENAI_API_KEY")}',
+        }
+        resp = requests.get(
+            f"https://api.openai.com/v1/dashboard/billing/usage?end_date={end_date}&start_date={start_date}",
+            headers=headers,
+            timeout=3,
         )
-        resp = resp_tuple[0]
-        resp_data = resp.data
+
+        resp_data = resp.json()
         dollar_amount = round(resp_data["total_usage"] / 100, 2)
 
         gbp_amount = round(dollar_amount / exchange_rate, 2)
@@ -41,9 +44,12 @@ def where_are_we(exchange_rate, max_spends_gbp):
             print(f"[green1]£{buffer_spends}  ;)[/green1]")
         else:
             print(f"[red1]£{buffer_spends}  ;([/red1]")
+    except requests.exceptions.Timeout:
+        print("[yellow1]Request timed out. Please try again later.[/yellow1]")
+        return False
     except Exception as e:
-        # print(f"An error occurred getting costs: {e}")
-        print("\U0001F972")
+        print(f"[red1]An error occurred: {e}[/red1]")
+        return False
 
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):

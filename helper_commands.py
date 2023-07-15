@@ -6,11 +6,11 @@ import helper_messages, module_bell_ring
 def ifelse_commands(api, user_message):
     command = user_message.lower()
     if command == "done":
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_todoist.complete_active_todoist_task(api)
         return True
     elif command == "replay":
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_messages.print_conversation_history()
         return True
     elif command.startswith("time"):
@@ -26,7 +26,7 @@ def ifelse_commands(api, user_message):
         helper_todoist.display_todoist_tasks(api)
         return True
     elif command == "clear":
-        subprocess.call('reset')
+        subprocess.call("reset")
         return True
     elif command == "flip":
         helper_todoist.change_active_task()
@@ -37,11 +37,11 @@ def ifelse_commands(api, user_message):
         return True
     elif command.startswith("add long"):
         helper_tasks.add_long_term_task(user_message)
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
     elif command.startswith("show long"):
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
     elif command.startswith("rename long"):
@@ -49,14 +49,14 @@ def ifelse_commands(api, user_message):
         return True
     elif command.startswith("delete long"):
         helper_tasks.delete_long_task(user_message)
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
     elif command.startswith("delete conv"):
         helper_messages.delete_conversation(user_message)
         print("clearning console....")
         time.sleep(3)
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_messages.show_saved_conversations()
         return True
     elif command.startswith("load conv"):
@@ -66,11 +66,11 @@ def ifelse_commands(api, user_message):
         helper_code.add_file(user_message)
         return True
     elif command == "reset":
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_code.reset_all()
         return True
     elif command == "fresh":
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_code.fresh_session()
         return True
     elif command == "commands":
@@ -80,7 +80,7 @@ def ifelse_commands(api, user_message):
         helper_messages.save_conversation(user_message)
         print("clearning console....")
         time.sleep(3)
-        subprocess.call('reset')
+        subprocess.call("reset")
         helper_code.reset_all()
         return True
     elif command == "show conv":
