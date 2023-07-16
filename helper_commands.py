@@ -62,9 +62,6 @@ def ifelse_commands(api, user_message):
     elif command.startswith("load conv"):
         helper_messages.load_conversation(user_message)
         return True
-    elif command.startswith("add file"):
-        helper_code.add_file(user_message)
-        return True
     elif command.startswith("touch long"):
         helper_tasks.touch_long_date(user_message)
         subprocess.call("reset")

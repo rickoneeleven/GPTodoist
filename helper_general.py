@@ -32,7 +32,6 @@ def print_commands():
         "rename long": "renames long term task. rename long [id] [new task name]",
         "delete long": "deletes long term task. delete long [id]",
         "touch long <id>": "reset the date of long task to today",
-        "add file <filename>": "adds file to system messages",
         "reset": "resets us back to default chat",
         "fresh": "starts a brand new chat session",
         "ignore": "ignore on a new line on it's own, tells the prompt to ignore everything typed before it",
