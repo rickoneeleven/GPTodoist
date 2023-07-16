@@ -138,7 +138,7 @@ def fetch_todoist_tasks(api):
         return sorted_tasks
 
     except Exception:
-        print("failed to fetch, dog is broken")
+        print("failed to fetch, dog is broken - [red]try CTRL+C?[/red]")
         return None
 
 
