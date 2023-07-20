@@ -47,5 +47,5 @@ def check_if_rang():
             )
             print("- eggs")
             print("- cheese")
-            print("- oats")
+            print("- bread toast")
             return
