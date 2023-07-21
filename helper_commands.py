@@ -19,6 +19,7 @@ def ifelse_commands(api, user_message):
         return True
     elif command.startswith("~~~"):
         helper_regex.complete_todoist_task_by_title(user_message)
+        helper_todoist.display_todoist_tasks(api)
         return True
     elif command == "delete":
         helper_todoist.delete_todoist_task(api)
