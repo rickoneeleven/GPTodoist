@@ -35,7 +35,7 @@ def get_costs(start_date, end_date):
     except FileNotFoundError:
         stored_costs = []
 
-    stored_costs_dict = {d["date"]: d["cost"] for d in stored_costs}
+    stored_costs_dict = {d["date"]: d for d in stored_costs}
 
     date_range = [
         start_date + datetime.timedelta(days=x)
@@ -86,21 +86,44 @@ def get_costs(start_date, end_date):
 
         return daily_cost
 
+    # Iterate over each date in the defined range
     for date in date_range:
         date_str = date.strftime("%Y-%m-%d")
 
-        if date_str != now.strftime("%Y-%m-%d") and date_str in stored_costs_dict:
-            total_cost += stored_costs_dict[date_str]
-            continue
+        # If the date already exists in stored data and it's either not today, or it was queried less than 60 seconds ago,
+        # add the stored cost to total_cost then proceed to the next date
+        if date_str in stored_costs_dict:
+            last_query_time = datetime.datetime.strptime(
+                stored_costs_dict[date_str]["query_time"], "%Y-%m-%dT%H:%M:%S.%f"
+            )
+            if date_str != now.strftime("%Y-%m-%d") or (
+                now - last_query_time
+            ) < datetime.timedelta(seconds=60):
+                total_cost += stored_costs_dict[date_str]["cost"]
+                continue
 
+        # If the date is today and doesn't exist in stored data or it was queried more than 60 seconds ago, retrieve the cost from the API
         daily_cost = get_daily_cost(date_str)
         if daily_cost is None:
             return None
 
-        stored_costs_dict[date_str] = daily_cost
+        # Record the current time when the API query is made
+        query_time = datetime.datetime.now()
+
+        # Update the stored cost data with the newly retrieved cost and query time
+        stored_costs_dict[date_str] = {
+            "cost": daily_cost,
+            "query_time": query_time.isoformat(),
+        }
         total_cost += daily_cost
 
-        stored_costs = [{"date": k, "cost": v} for k, v in stored_costs_dict.items()]
+        # Reformat the stored costs dictionary into a list of dictionaries for storing as JSON
+        stored_costs = [
+            {"date": k, "cost": v["cost"], "query_time": v["query_time"]}
+            for k, v in stored_costs_dict.items()
+        ]
+
+        # Write the updated stored costs data back into the JSON file
         with open("j_costs.json", "w") as file:
             json.dump(stored_costs, file, indent=2)
         # print(f"Successfully added {date_str} costs to j_costs.json")
