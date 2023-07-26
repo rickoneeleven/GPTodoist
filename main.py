@@ -79,12 +79,6 @@ def handle_user_input(user_message, messages, api, timestamp):
         user_message = user_message[2:]  # remove the prefix
         user_message_with_time = f"{timestamp_hhmm}: {user_message}"
         messages.append({"role": "user", "content": user_message_with_time})
-    elif user_message.lower().startswith("move task"):
-        helper_todoist.insert_tasks_into_system_prompt(api, messages)
-        task_id_prompt = helper_gpt.create_task_id_prompt(
-            " ".join(user_message.split()[2:])
-        )
-        messages.append({"role": "user", "content": task_id_prompt})
     else:
         pass_to_bot = False
 

@@ -232,37 +232,6 @@ def complete_active_todoist_task(api):
                 print()
                 print(f"[bright_red] {task_name} [/bright_red] complete")
                 print()
-                london_tz = timezone("Europe/London")
-                now = datetime.datetime.now(london_tz)
-                time_complete = now.isoformat()
-                update_todays_completed_tasks(task_name, task_id, time_complete)
-
-                todays_completed_tasks = get_todays_completed_tasks()
-
-                yesterday = date.today() - timedelta(days=1)
-                yesterday_tasks = [
-                    task
-                    for task in todays_completed_tasks
-                    if date.fromisoformat(task["time_complete"][:10]) == yesterday
-                ]
-
-                if yesterday_tasks:
-                    print(
-                        "Fantastic day yesterday, here are all the tasks you completed, go you!"
-                    )
-                    for task in yesterday_tasks:
-                        print(
-                            f"Task: {task['task_name']}, Completed Time: {task['time_complete']}"
-                        )
-
-                    todays_completed_tasks = [
-                        task
-                        for task in todays_completed_tasks
-                        if date.fromisoformat(task["time_complete"][:10]) != yesterday
-                    ]
-                    with open("j_todays_completed_tasks.json", "w") as outfile:
-                        json.dump(todays_completed_tasks, outfile, indent=2)
-
             else:
                 print(f"Error completing task {task_id}.")
     except FileNotFoundError:
@@ -271,23 +240,6 @@ def complete_active_todoist_task(api):
         print("Task ID not found in the active task file.")
     except Exception as error:
         print(f"Error completing active task: {error}")
-
-
-def update_todays_completed_tasks(task_name, task_id, time_complete):
-    completed_tasks = get_todays_completed_tasks()
-    completed_tasks.append(
-        {"task_name": task_name, "task_id": task_id, "time_complete": time_complete}
-    )
-    with open("j_todays_completed_tasks.json", "w") as outfile:
-        json.dump(completed_tasks, outfile, indent=2)
-
-
-def get_todays_completed_tasks():
-    try:
-        with open("j_todays_completed_tasks.json", "r") as infile:
-            return json.load(infile)
-    except FileNotFoundError:
-        return []
 
 
 def parse_update_due_date_command(user_message):
@@ -416,19 +368,6 @@ def format_due_time(due_time_str, timezone):
     localized_due_time = due_time.astimezone(timezone)
     friendly_due_time = localized_due_time.strftime("%Y-%m-%d %H:%M")
     return friendly_due_time
-
-
-def insert_tasks_into_system_prompt(api, messages):
-    tasks = fetch_todoist_tasks(api)
-    if tasks:
-        task_list = "\n".join(
-            [f"- {task.content} [Task ID: {task.id}]" for task in tasks]
-        )
-        todoist_tasks_message = f"Here is a list of tasks and task IDs. Use them when asked to get a task ID:\n{task_list}"
-        messages.append({"role": "system", "content": todoist_tasks_message})
-    else:
-        todoist_tasks_message = "Active Tasks:\n [All tasks complete!]"
-        messages.append({"role": "system", "content": todoist_tasks_message})
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
