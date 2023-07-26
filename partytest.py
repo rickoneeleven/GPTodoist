@@ -1,33 +1,39 @@
-import helper_todoist
-import os, pprint
-from todoist_api_python.api import TodoistAPI
-from fuzzywuzzy import process
+import module_call_counter, helper_messages
+import re, openai, os, calendar, time, requests
+from datetime import date, timedelta
+from rich import print
 
 
-# function definition
-def fuzzy_return_task_id(user_message, tasks):
-    # stripping "~~" from user_message
-    user_message = user_message.lstrip("~~").strip()
+def where_are_we():
+    try:
+        today = date.today()
+        start_date = today.replace(day=1).strftime("%Y-%m-%d")
+        end_date = (
+            today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1)
+        ).strftime("%Y-%m-%d")
 
-    # dictionary to hold tasks as key-value pairs of task content and id
-    tasks_dict = {task.content: task.id for task in tasks}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f'Bearer {os.getenv("OPENAI_API_KEY")}',
+        }
+        resp = requests.get(
+            f"https://api.openai.com/v1/dashboard/billing/usage?end_date={end_date}&start_date={start_date}",
+            headers=headers,
+            timeout=3,
+        )
 
-    # Fuzzy matching to get the closest match
-    highest = process.extractOne(user_message, tasks_dict.keys())
+        print("Response: ", resp)  # show the full response
+        print("Response status code: ", resp.status_code)  # show just the status code
 
-    if highest is not None:
-        return tasks_dict[highest[0]]
-    else:
-        print("NO MATCHES FOUND!!!!!111")
+        resp_data = resp.json()
+
+        print("Response data: ", resp_data)  # print the response data
+    except requests.exceptions.Timeout:
+        print("[yellow1]Request timed out getting costs...[/yellow1]")
+        return False
+    except Exception as e:
+        print(f"[red1]An error occurred: {e}[/red1]")
         return False
 
 
-api = TodoistAPI(os.environ["TODOIST_API_KEY"])
-
-tasks = helper_todoist.fetch_todoist_tasks(api)
-
-# usage
-user_message = "~~ omega and"
-print("task id is: ", fuzzy_return_task_id(user_message, tasks))
-
-# pprint.pprint(tasks)
+where_are_we()

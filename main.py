@@ -91,7 +91,7 @@ helper_messages.print_conversation_history()
 def main_loop():
     while True:
         module_bell_ring.check_if_rang()
-        helper_gpt.where_are_we(1.24, 20)
+        helper_gpt.where_are_we()
         helper_todoist.get_next_todoist_task(api)
         module_weather.today()
         messages = helper_general.load_json("j_conversation_history.json")

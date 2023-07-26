@@ -1,7 +1,111 @@
 import module_call_counter, helper_messages
-import re, openai, os, calendar, time, requests
+import re, openai, os, calendar, time, requests, datetime, json
 from datetime import date, timedelta
 from rich import print
+from rich.progress import Progress, BarColumn, TextColumn
+
+# billing api parameters
+url = "https://api.openai.com/v1/usage"
+api_key = os.getenv("OPENAI_API_KEY")
+headers = {"Authorization": f"Bearer {api_key}"}
+
+model_costs = {
+    "gpt-3.5-turbo-0301": {"context": 0.0015, "generated": 0.002},
+    "gpt-3.5-turbo-0613": {"context": 0.0015, "generated": 0.002},
+    "gpt-3.5-turbo-16k": {"context": 0.003, "generated": 0.004},
+    "gpt-3.5-turbo-16k-0613": {"context": 0.003, "generated": 0.004},
+    "gpt-4-0314": {"context": 0.03, "generated": 0.06},
+    "gpt-4-0613": {"context": 0.03, "generated": 0.06},
+    "gpt-4-32k": {"context": 0.06, "generated": 0.12},
+    "gpt-4-32k-0314": {"context": 0.06, "generated": 0.12},
+    "gpt-4-32k-0613": {"context": 0.06, "generated": 0.12},
+    "whisper-1": {
+        "context": 0.006 / 60,
+        "generated": 0,
+    },  # Cost is per second, so convert to minutes
+}
+# end billing api parameters
+
+
+def get_costs(start_date, end_date):
+    now = datetime.datetime.now()
+    try:
+        with open("j_costs.json", "r") as file:
+            stored_costs = json.load(file)
+    except FileNotFoundError:
+        stored_costs = []
+
+    stored_costs_dict = {d["date"]: d["cost"] for d in stored_costs}
+
+    date_range = [
+        start_date + datetime.timedelta(days=x)
+        for x in range((end_date - start_date).days + 1)
+    ]
+    total_cost = 0
+
+    def get_daily_cost(date):
+        params = {"date": date}
+        # print(f"Querying billing API for {date}")
+
+        while True:
+            try:
+                response = requests.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                usage_data = response.json()["data"]
+                whisper_data = response.json()["whisper_api_data"]
+                break
+            except requests.HTTPError as err:
+                if err.response.status_code == 429:
+                    print("[red]Rate limit exceeded. Sleeping for 69 seconds...[/red]")
+                    time.sleep(69)
+                    continue
+                print(f"Request failed: {err}")
+                return None
+            except KeyError as err:
+                print(f"Missing key in API response: {err}")
+                return None
+
+        daily_cost = 0
+        for data in usage_data + whisper_data:
+            model = data.get("model_id") or data.get("snapshot_id")
+            if model in model_costs:
+                if "num_seconds" in data:
+                    cost = data["num_seconds"] * model_costs[model]["context"]
+                else:
+                    context_tokens = data["n_context_tokens_total"]
+                    generated_tokens = data["n_generated_tokens_total"]
+                    cost = (context_tokens / 1000 * model_costs[model]["context"]) + (
+                        generated_tokens / 1000 * model_costs[model]["generated"]
+                    )
+                daily_cost += cost
+            else:
+                print(
+                    "[red]model not defined, please add model and associated costs to model_costs object[/red]"
+                )
+                return None
+
+        return daily_cost
+
+    for date in date_range:
+        date_str = date.strftime("%Y-%m-%d")
+
+        if date_str != now.strftime("%Y-%m-%d") and date_str in stored_costs_dict:
+            total_cost += stored_costs_dict[date_str]
+            continue
+
+        daily_cost = get_daily_cost(date_str)
+        if daily_cost is None:
+            return None
+
+        stored_costs_dict[date_str] = daily_cost
+        total_cost += daily_cost
+
+        stored_costs = [{"date": k, "cost": v} for k, v in stored_costs_dict.items()]
+        with open("j_costs.json", "w") as file:
+            json.dump(stored_costs, file, indent=2)
+        # print(f"Successfully added {date_str} costs to j_costs.json")
+
+    return total_cost
 
 
 def create_task_id_prompt(user_message):
@@ -15,44 +119,28 @@ def create_task_id_prompt(user_message):
     return prompt
 
 
-def where_are_we(exchange_rate, max_spends_gbp):
-    try:
-        today = date.today()
-        start_date = today.replace(day=1).strftime("%Y-%m-%d")
-        end_date = (
-            today.replace(month=today.month % 12 + 1, day=1) - timedelta(days=1)
-        ).strftime("%Y-%m-%d")
+def where_are_we():
+    start_date = datetime.datetime.now().replace(day=1)
+    end_date = datetime.datetime.now()
+    permitted_dollar_spends = 30
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f'Bearer {os.getenv("OPENAI_API_KEY")}',
-        }
-        resp = requests.get(
-            f"https://api.openai.com/v1/dashboard/billing/usage?end_date={end_date}&start_date={start_date}",
-            headers=headers,
-            timeout=3,
-        )
+    dollar_amount = round(get_costs(start_date, end_date), 2)
 
-        resp_data = resp.json()
-        dollar_amount = round(resp_data["total_usage"] / 100, 2)
+    days_passed = (end_date - end_date.replace(day=1)).days + 1
+    days_in_month = calendar.monthrange(end_date.year, end_date.month)[1]
+    expected_spending = round(
+        (permitted_dollar_spends / days_in_month) * days_passed, 2
+    )
 
-        gbp_amount = round(dollar_amount / exchange_rate, 2)
-
-        days_passed = (today - today.replace(day=1)).days + 1
-        days_in_month = calendar.monthrange(today.year, today.month)[1]
-        expected_spending = round((max_spends_gbp / days_in_month) * days_passed, 2)
-        buffer_spends = round(expected_spending - gbp_amount, 2)
-
-        if gbp_amount <= expected_spending:
-            print(f"[green1]£{buffer_spends}  ;)[/green1]")
-        else:
-            print(f"[red1]£{buffer_spends}  ;([/red1]")
-    except requests.exceptions.Timeout:
-        print("[yellow1]Request timed out getting costs...[/yellow1]")
-        return False
-    except Exception as e:
-        print(f"[red1]An error occurred: {e}[/red1]")
-        return False
+    progress = Progress(
+        TextColumn("API spends..."), BarColumn(), TextColumn(f"${dollar_amount}")
+    )
+    progress_percentage = round(
+        (dollar_amount / permitted_dollar_spends) * 100, 0
+    )  # as a percentage
+    with progress:
+        task = progress.add_task("[cyan]completion", total=100)
+        progress.update(task, completed=progress_percentage)
 
 
 def get_assistant_response(messages, model_to_use, retries=99, backoff_factor=2):
