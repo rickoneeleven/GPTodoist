@@ -1,5 +1,5 @@
 import datetime, os, pytz, json, shutil, time
-import helper_general
+import helper_general, helper_messages
 from dateutil.parser import parse
 from typing import Any, Union
 from rich import print
@@ -112,12 +112,13 @@ def backup_json_files():
             os.remove(file_path)
 
 
-def check_j_conv_default():
+def branch_check_and_actions(messages):
     file_name = "j_conv_DEFAULT.json"
 
     if os.path.exists(file_name):
         print("[dark_khaki]Remember to save your conversation[/dark_khaki]")
     else:
+        helper_messages.summarize_and_shorten_messages(messages, max_tokens=500)
         print("[dodger_blue1]On main branch[/dodger_blue1]")
 
 

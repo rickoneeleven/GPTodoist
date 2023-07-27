@@ -99,7 +99,7 @@ def main_loop():
             messages
         )  # strip ass responses with code between triple ticks, older that 3 ass messages ago, so when suggesting refactors, it doesn't bring back old code
         helper_messages.current_tokkies(messages)
-        helper_general.check_j_conv_default()
+        helper_general.branch_check_and_actions(messages)
         user_message = get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():
