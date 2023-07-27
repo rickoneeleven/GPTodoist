@@ -28,6 +28,7 @@ def ifelse_commands(api, user_message):
         module_bell_ring.ring()
         return True
     elif command == "all" or command == "show all":
+        subprocess.call("reset")
         helper_todoist.display_todoist_tasks(api)
         return True
     elif command == "clear":
