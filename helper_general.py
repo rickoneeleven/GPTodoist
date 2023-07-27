@@ -119,6 +119,7 @@ def branch_check_and_actions(messages):
         print("[dark_khaki]Remember to save your conversation[/dark_khaki]")
     else:
         helper_messages.summarize_and_shorten_messages(messages, max_tokens=1000)
+        helper_general.save_json("j_conversation_history.json", messages)
         print("[dodger_blue1]On main branch[/dodger_blue1]")
 
 
