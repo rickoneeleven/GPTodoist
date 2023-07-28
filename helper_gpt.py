@@ -145,7 +145,7 @@ def create_task_id_prompt(user_message):
 def where_are_we():
     start_date = datetime.datetime.now().replace(day=1)
     end_date = datetime.datetime.now()
-    permitted_dollar_spends = 30
+    permitted_dollar_spends = 10
 
     dollar_amount = round(get_costs(start_date, end_date), 2)
 
