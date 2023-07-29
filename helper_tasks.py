@@ -120,6 +120,7 @@ def delete_long_task(user_message: str) -> None:
         print("Invalid input format. Usage: 'delete long <index>'.")
         return
 
+    helper_general.backup_json_files()
     try:
         id = int(tokens[2])
     except ValueError:
@@ -147,7 +148,6 @@ def delete_long_task(user_message: str) -> None:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} deleted.")
-    helper_general.backup_json_files()
     time.sleep(2)
 
 

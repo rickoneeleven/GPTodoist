@@ -37,6 +37,9 @@ def ifelse_commands(api, user_message):
     elif command == "flip":
         helper_todoist.change_active_task()
         return True
+    elif command == "partytest":
+        helper_general.backup_json_files()
+        return True
     elif command == "weather":
         # module_weather.today_old()
         module_weather.pretty_print_weather_data()

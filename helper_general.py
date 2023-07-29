@@ -85,7 +85,6 @@ def backup_json_files():
         os.makedirs(backups_dir)
 
     # Generate the current date-time string
-    # current_datetime = datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
     current_datetime = datetime.datetime.now().strftime("%Y-%m-%d")
 
     # Loop through all files in the current directory
@@ -102,10 +101,14 @@ def backup_json_files():
     # Loop through all files in the 'backups' directory
     for filename in os.listdir(backups_dir):
         file_path = os.path.join(backups_dir, filename)
+        # Extract the date from the filename
+        file_date_str = filename.split("--")[0]
+        file_date = datetime.datetime.strptime(file_date_str, "%Y-%m-%d")
+
         # Check if the file is older than 10 days
-        if datetime.datetime.now() - datetime.datetime.fromtimestamp(
-            os.path.getctime(file_path)
-        ) > datetime.timedelta(days=10):
+        if datetime.datetime.now().date() - file_date.date() > datetime.timedelta(
+            days=10
+        ):
             # Delete the file
             print()
             print(f"Deleting old backup file '{file_path}'")
