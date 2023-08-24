@@ -264,13 +264,9 @@ def update_task_due_date(api, user_message, task_id=False):
                 print("loading j_active_task.json...")
                 active_task = json.load(infile)
                 task_id = active_task["task_id"]
-                task_name = active_task["task_name"]
+                content = active_task["task_name"]
             else:
-                (
-                    task_name,
-                    task_time,
-                    task_day,
-                ) = helper_parse.get_taskname_time_day_as_tuple(user_message)
+                content, task_time, task_day = helper_parse.get_taskname_time_day_as_tuple(user_message)
 
                 if task_time is None:
                     print("Invalid command belly")
@@ -290,9 +286,11 @@ def update_task_due_date(api, user_message, task_id=False):
 
                 if is_recurring:
                     api.close_task(task_id=task_id)  # Complete the recurring task
-                    api.add_task(
-                        task_name, due_string=due_date
-                    )  # Create a new task with the new due date
+                    # Check for a project ID and include it if present
+                    new_task_args = {"content": content, "due_string": due_date}
+                    if hasattr(task, "project_id") and task.project_id:
+                        new_task_args["project_id"] = task.project_id
+                    api.add_task(**new_task_args)  # Create a new task with the new due date
                     print(
                         "Task was a recurring task, so I've completed it for today, and created you a static task with your desired due time."
                     )
@@ -310,6 +308,7 @@ def update_task_due_date(api, user_message, task_id=False):
         print("Task ID not found in the active task file.")
     except Exception as error:
         print(f"Error updating active task due date: {error}")
+
 
 
 def delete_todoist_task(api):
