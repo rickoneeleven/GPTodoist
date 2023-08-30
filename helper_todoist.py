@@ -54,19 +54,27 @@ def add_todoist_task(api, task_name, task_time, task_day):
             task_params["project_id"] = project_id
             
         task = api.add_task(**task_params)
+
+        # Fetch current date and time
+        due_date = datetime.datetime.now()
         
-        if task_time:
-            due_date = datetime.datetime.now()
-            if task_day == "tomorrow":
-                due_date += datetime.timedelta(days=1)
-            due_date = due_date.strftime("%Y-%m-%d") + " " + task_time
-            api.update_task(task_id=task.id, due_string=due_date)
-            
+        # Check if task is for tomorrow
+        if task_day == "tomorrow":
+            due_date += datetime.timedelta(days=1)
+        
+        # If task_time is not provided, set it to current time
+        if not task_time:
+            task_time = due_date.strftime("%H:%M:%S")
+        
+        due_date_str = due_date.strftime("%Y-%m-%d") + "T" + task_time + "Z"
+        
+        # Update the task with due_date
+        api.update_task(task_id=task.id, due_string=due_date_str)
+        
         return task
     except Exception as error:
         print(f"Error adding task: {error}")
         return None
-
 
 
 def get_active_filter():
