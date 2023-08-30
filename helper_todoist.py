@@ -42,17 +42,31 @@ def add_to_active_task_file(task_name, task_id, task_due):
 
 def add_todoist_task(api, task_name, task_time, task_day):
     try:
-        task = api.add_task(task_name)
+        active_filter, project_id = get_active_filter()
+        
+        if not active_filter:
+            print("No active filters configured. Update j_todoist_filters.json.")
+            return None
+
+        task_params = {"content": task_name}
+        
+        if project_id and project_id.strip():
+            task_params["project_id"] = project_id
+            
+        task = api.add_task(**task_params)
+        
         if task_time:
             due_date = datetime.datetime.now()
             if task_day == "tomorrow":
                 due_date += datetime.timedelta(days=1)
             due_date = due_date.strftime("%Y-%m-%d") + " " + task_time
             api.update_task(task_id=task.id, due_string=due_date)
+            
         return task
     except Exception as error:
         print(f"Error adding task: {error}")
         return None
+
 
 
 def get_active_filter():
@@ -65,20 +79,16 @@ def get_active_filter():
                     "id": 1,
                     "filter": "(no due date | today | overdue) & !#Team Virtue",
                     "isActive": 1,
+                    "project_id": ""
                 }
             ]
             json.dump(mock_data, json_file, indent=2)
-
     with open(filter_file_path, "r") as json_file:
         filters = json.load(json_file)
+        for filter_data in filters:
+            if filter_data["isActive"]:
+                return filter_data["filter"], filter_data.get("project_id", None)
 
-    active_filter = None
-    for filter in filters:
-        if filter["isActive"]:
-            active_filter = filter["filter"]
-            break
-
-    return active_filter
 
 
 def fetch_todoist_tasks(api):
@@ -86,19 +96,17 @@ def fetch_todoist_tasks(api):
         raise Exception("end of time")
 
     signal.signal(signal.SIGALRM, handler)
-
-    active_filter = get_active_filter()
+    
+    active_filter, project_id = get_active_filter()
 
     if not active_filter:
-        print(
-            "No active filters configured, see j_todoist_filters.json, add your filter and set to active and try again"
-        )
+        print("No active filters configured. Update j_todoist_filters.json.")
         return
 
     try:
-        signal.alarm(3)  # Set the signal to raise an Exception in 3 seconds
-        tasks = api.get_tasks(filter=active_filter)  # Perform API request
-
+        signal.alarm(3)
+        tasks = api.get_tasks(filter=active_filter)
+        
         london_tz = pytz.timezone("Europe/London")
         tasks_with_due_dates = []
         tasks_without_due_dates = []
@@ -115,15 +123,13 @@ def fetch_todoist_tasks(api):
         sorted_tasks_with_due_dates = sorted(
             tasks_with_due_dates, key=lambda t: t.due.datetime
         )
-
-        # Combine tasks without due dates and tasks with due dates
         sorted_tasks = tasks_without_due_dates + sorted_tasks_with_due_dates
 
-        signal.alarm(0)  # Disable the alarm
+        signal.alarm(0)
         return sorted_tasks
 
     except Exception:
-        print("failed to fetch, dog is broken - [red]try CTRL+C?[/red]")
+        print("Failed to fetch tasks.")
         return None
 
 
