@@ -154,7 +154,7 @@ def complete_todoist_task_by_id(api, task_id):
         task_name = task.content
         if task:
             api.close_task(task_id=task_id)
-            print(f"[yellow]{task_name}[/yellow] has been successfully completed!")
+            print(f"[yellow]{task_name}[/yellow] completed")
             signal.alarm(0)  # Disable the alarm
             return True
         else:
@@ -254,8 +254,8 @@ def complete_active_todoist_task(api):
             task_name = active_task["task_name"]
 
             if complete_todoist_task_by_id(api, task_id):
-                print()
-                print(f"[bright_red] {task_name} [/bright_red] complete")
+                #print()
+                #print(f"[bright_red] {task_name} [/bright_red] complete")
                 print()
             else:
                 print(f"Error completing task {task_id}.")
