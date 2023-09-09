@@ -150,9 +150,11 @@ def complete_todoist_task_by_id(api, task_id):
         signal.alarm(3)  # set the signal to raise an Exception in 3 seconds
 
         task = api.get_task(task_id)
+        # print(dir(task))
+        task_name = task.content
         if task:
             api.close_task(task_id=task_id)
-            # print("Task has been successfully completed!")
+            print(f"[yellow]{task_name}[/yellow] has been successfully completed!")
             signal.alarm(0)  # Disable the alarm
             return True
         else:
