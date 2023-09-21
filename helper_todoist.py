@@ -111,7 +111,7 @@ def fetch_todoist_tasks(api):
         raise Exception("end of time")
 
     signal.signal(signal.SIGALRM, handler)
-
+    
     active_filter, project_id = get_active_filter()
 
     if not active_filter:
@@ -121,7 +121,7 @@ def fetch_todoist_tasks(api):
     try:
         signal.alarm(3)
         tasks = api.get_tasks(filter=active_filter)
-
+        
         london_tz = pytz.timezone("Europe/London")
         tasks_with_due_dates = []
         tasks_without_due_dates = []
@@ -146,8 +146,15 @@ def fetch_todoist_tasks(api):
         # Combine the two lists
         sorted_tasks = sorted_tasks_without_due_dates + sorted_tasks_with_due_dates
 
+        # Final sort by priority
+        sorted_final_tasks = sorted(
+            sorted_tasks,
+            key=lambda t: t.priority,
+            reverse=True
+        )
+
         signal.alarm(0)
-        return sorted_tasks
+        return sorted_final_tasks
 
     except Exception as e:
         print(f"[red]Failed to fetch tasks. Error: {e}[/red]")
