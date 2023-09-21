@@ -43,34 +43,34 @@ def add_to_active_task_file(task_name, task_id, task_due):
 def add_todoist_task(api, task_name, task_time, task_day):
     try:
         active_filter, project_id = get_active_filter()
-        
+
         if not active_filter:
             print("No active filters configured. Update j_todoist_filters.json.")
             return None
 
         task_params = {"content": task_name}
-        
+
         if project_id and project_id.strip():
             task_params["project_id"] = project_id
-            
+
         task = api.add_task(**task_params)
 
         # Fetch current date and time
         due_date = datetime.datetime.now()
-        
+
         # Check if task is for tomorrow
         if task_day == "tomorrow":
             due_date += datetime.timedelta(days=1)
-        
+
         # If task_time is not provided, set it to current time
         if not task_time:
             task_time = due_date.strftime("%H:%M:%S")
-        
+
         due_date_str = due_date.strftime("%Y-%m-%d") + "T" + task_time + "Z"
-        
+
         # Update the task with due_date
         api.update_task(task_id=task.id, due_string=due_date_str)
-        
+
         return task
     except Exception as error:
         print(f"Error adding task: {error}")
@@ -87,7 +87,7 @@ def get_active_filter():
                     "id": 1,
                     "filter": "(no due date | today | overdue) & !#Team Virtue",
                     "isActive": 1,
-                    "project_id": ""
+                    "project_id": "",
                 }
             ]
             json.dump(mock_data, json_file, indent=2)
@@ -98,13 +98,12 @@ def get_active_filter():
                 return filter_data["filter"], filter_data.get("project_id", None)
 
 
-
 def fetch_todoist_tasks(api):
     def handler(signum, frame):
         raise Exception("end of time")
 
     signal.signal(signal.SIGALRM, handler)
-    
+
     active_filter, project_id = get_active_filter()
 
     if not active_filter:
@@ -114,7 +113,7 @@ def fetch_todoist_tasks(api):
     try:
         signal.alarm(3)
         tasks = api.get_tasks(filter=active_filter)
-        
+
         london_tz = pytz.timezone("Europe/London")
         tasks_with_due_dates = []
         tasks_without_due_dates = []
@@ -158,9 +157,11 @@ def complete_todoist_task_by_id(api, task_id):
         signal.alarm(3)  # set the signal to raise an Exception in 3 seconds
 
         task = api.get_task(task_id)
+        # print(dir(task))
+        task_name = task.content
         if task:
             api.close_task(task_id=task_id)
-            # print("Task has been successfully completed!")
+            print(f"[yellow]{task_name}[/yellow] completed")
             signal.alarm(0)  # Disable the alarm
             return True
         else:
@@ -185,61 +186,71 @@ def read_long_term_tasks(filename):
 
 
 def get_next_todoist_task(api):
-    tasks = fetch_todoist_tasks(api)
-    long_term_tasks = read_long_term_tasks("j_long_term_tasks.json")
+    try:
+        tasks = fetch_todoist_tasks(api)
+        long_term_tasks = read_long_term_tasks("j_long_term_tasks.json")
 
-    if tasks:
-        next_task = tasks[0]
-        task_name = next_task.content
-        task_id = next_task.id
-        task_due = (
-            next_task.due.datetime if next_task.due and next_task.due.datetime else None
-        )
-
-        # Check if the task is recurring and add "(r) " to the task name
-        task = api.get_task(task_id)
-        is_recurring = False
-
-        if task and task.due:
-            is_recurring = task.due.is_recurring
-
-        if is_recurring:
-            task_name = "(r) " + task_name
-
-        add_to_active_task_file(task_name, task_id, task_due)
-
-        print(f"                   [green]{task_name}[/green]")
-        if task_due:
-            task_due_london = helper_general.convert_to_london_timezone(task_due)
-            task_due_london_datetime = datetime.datetime.strptime(
-                task_due_london, "%Y-%m-%d %H:%M:%S"
+        if tasks:
+            next_task = tasks[0]
+            task_name = next_task.content
+            task_id = next_task.id
+            task_due = (
+                next_task.due.datetime
+                if next_task.due and next_task.due.datetime
+                else None
             )
-            task_due_time = task_due_london_datetime.strftime("%H:%M")
-            task_due_date = task_due_london_datetime.date()
 
-            if task_due_date < date.today():
-                task_due_str = task_due_london_datetime.strftime("%Y-%m-%d %H:%M")
-            else:
-                task_due_str = task_due_time
+            # Check if the task is recurring and add "(r) " to the task name
+            task = api.get_task(task_id)
+            is_recurring = False
 
-            print(f"Task Due: {task_due_str}")
-        print()
+            if task and task.due:
+                is_recurring = task.due.is_recurring
 
-        x_tasks = [
-            lt_task
-            for lt_task in long_term_tasks
-            if lt_task["task_name"].startswith("x ")
-        ]
+            if is_recurring:
+                task_name = "(r) " + task_name
 
-        if x_tasks:
-            print("[bright_black]Spare time focus:[/bright_black]")
-            for x_task in x_tasks:
-                print(f"[bright_black]{x_task['task_name']}[/bright_black]")
+            add_to_active_task_file(task_name, task_id, task_due)
+
+            print(f"                   [green]{task_name}[/green]")
+            if task_due:
+                task_due_london = helper_general.convert_to_london_timezone(task_due)
+                task_due_london_datetime = datetime.datetime.strptime(
+                    task_due_london, "%Y-%m-%d %H:%M:%S"
+                )
+                task_due_time = task_due_london_datetime.strftime("%H:%M")
+                task_due_date = task_due_london_datetime.date()
+
+                if task_due_date < date.today():
+                    task_due_str = task_due_london_datetime.strftime("%Y-%m-%d %H:%M")
+                else:
+                    task_due_str = task_due_time
+
+                print(f"Task Due: {task_due_str}")
             print()
 
-    else:
-        print("\u2705")
-        print()
+            x_tasks = [
+                lt_task
+                for lt_task in long_term_tasks
+                if lt_task["task_name"].startswith("x ")
+            ]
+
+            if x_tasks:
+                print("[bright_black]Spare time focus:[/bright_black]")
+                for x_task in x_tasks:
+                    print(f"[bright_black]{x_task['task_name']}[/bright_black]")
+                print()
+
+        else:
+            print("\u2705")
+            print()
+
+    except Exception as e:
+        if "end of time" in str(e):
+            print("An end of time exception occurred.")
+            return None
+        else:
+            raise e
 
 
 def complete_active_todoist_task(api):
@@ -250,8 +261,8 @@ def complete_active_todoist_task(api):
             task_name = active_task["task_name"]
 
             if complete_todoist_task_by_id(api, task_id):
-                print()
-                print(f"[bright_red] {task_name} [/bright_red] complete")
+                #print()
+                #print(f"[bright_red] {task_name} [/bright_red] complete")
                 print()
             else:
                 print(f"Error completing task {task_id}.")
@@ -287,7 +298,11 @@ def update_task_due_date(api, user_message, task_id=False):
                 task_id = active_task["task_id"]
                 content = active_task["task_name"]
             else:
-                content, task_time, task_day = helper_parse.get_taskname_time_day_as_tuple(user_message)
+                (
+                    content,
+                    task_time,
+                    task_day,
+                ) = helper_parse.get_taskname_time_day_as_tuple(user_message)
 
                 if task_time is None:
                     print("Invalid command belly")
@@ -311,7 +326,9 @@ def update_task_due_date(api, user_message, task_id=False):
                     new_task_args = {"content": content, "due_string": due_date}
                     if hasattr(task, "project_id") and task.project_id:
                         new_task_args["project_id"] = task.project_id
-                    api.add_task(**new_task_args)  # Create a new task with the new due date
+                    api.add_task(
+                        **new_task_args
+                    )  # Create a new task with the new due date
                     print(
                         "Task was a recurring task, so I've completed it for today, and created you a static task with your desired due time."
                     )
@@ -329,7 +346,6 @@ def update_task_due_date(api, user_message, task_id=False):
         print("Task ID not found in the active task file.")
     except Exception as error:
         print(f"Error updating active task due date: {error}")
-
 
 
 def delete_todoist_task(api):
