@@ -127,18 +127,25 @@ def fetch_todoist_tasks(api):
                 tasks_with_due_dates.append(task)
             else:
                 tasks_without_due_dates.append(task)
-
+        
+        # Sort tasks by priority first, then by due date
         sorted_tasks_with_due_dates = sorted(
-            tasks_with_due_dates, key=lambda t: t.due.datetime
+            tasks_with_due_dates, key=lambda t: (t.priority, t.due.datetime if t.due and t.due.datetime else None)
         )
-        sorted_tasks = tasks_without_due_dates + sorted_tasks_with_due_dates
+        sorted_tasks_without_due_dates = sorted(
+            tasks_without_due_dates, key=lambda t: t.priority, reverse=True
+        )
+
+        # Combine the two lists
+        sorted_tasks = sorted_tasks_without_due_dates + sorted_tasks_with_due_dates
 
         signal.alarm(0)
         return sorted_tasks
 
-    except Exception:
-        print("Failed to fetch tasks.")
+    except Exception as e:
+        print(f"[red]Failed to fetch tasks. Error: {e}[/red]")
         return None
+
 
 
 def complete_todoist_task_by_id(api, task_id):
