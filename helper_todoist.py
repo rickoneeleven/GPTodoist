@@ -50,6 +50,14 @@ def add_todoist_task(api, task_name, task_time, task_day):
 
         task_params = {"content": task_name}
 
+        # Check for priority flags in task_name and set priority
+        if 'p1' in task_name.lower():
+            task_params['priority'] = 4
+        elif 'p2' in task_name.lower():
+            task_params['priority'] = 3
+        elif 'p3' in task_name.lower():
+            task_params['priority'] = 2
+
         if project_id and project_id.strip():
             task_params["project_id"] = project_id
 
