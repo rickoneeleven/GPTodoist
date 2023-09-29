@@ -33,6 +33,7 @@ def get_costs(start_date, end_date):
         with open("j_costs.json", "r") as file:
             stored_costs = json.load(file)
     except FileNotFoundError:
+        # Make sure this is the intended behavior
         stored_costs = []
 
     stored_costs_dict = {d["date"]: d for d in stored_costs}
@@ -45,8 +46,7 @@ def get_costs(start_date, end_date):
 
     def get_daily_cost(date):
         params = {"date": date}
-        # print(f"Querying billing API for {date}")
-
+        
         while True:
             try:
                 response = requests.get(url, headers=headers, params=params)
@@ -147,7 +147,12 @@ def where_are_we():
     end_date = datetime.datetime.now()
     permitted_dollar_spends = 10
 
-    dollar_amount = round(get_costs(start_date, end_date), 2)
+    dollar_amount = get_costs(start_date, end_date)
+    if dollar_amount is not None:
+        dollar_amount = round(dollar_amount, 2)
+    else:
+        print("Failed to get dollar amount.")
+        return
 
     days_passed = (end_date - end_date.replace(day=1)).days + 1
     days_in_month = calendar.monthrange(end_date.year, end_date.month)[1]
