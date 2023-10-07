@@ -241,7 +241,8 @@ def get_next_todoist_task(api):
                 else:
                     task_due_str = task_due_time
 
-                print(f"Task Due: {task_due_str}")
+                #print(f"Task Due: {task_due_str}")
+                print(f"Task Due: when you're ready")
             print()
 
             x_tasks = [
