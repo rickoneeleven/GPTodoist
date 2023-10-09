@@ -106,6 +106,7 @@ def get_active_filter():
                 return filter_data["filter"], filter_data.get("project_id", None)
 
 
+# Version 1.8
 def fetch_todoist_tasks(api):
     def handler(signum, frame):
         raise Exception("end of time")
@@ -119,38 +120,34 @@ def fetch_todoist_tasks(api):
         return
 
     try:
-        signal.alarm(3)
+        signal.alarm(5)
         tasks = api.get_tasks(filter=active_filter)
         
         london_tz = pytz.timezone("Europe/London")
-        tasks_with_due_dates = []
-        tasks_without_due_dates = []
+        all_tasks = []
+
+        # Capture current time in London timezone
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        now_london = now_utc.astimezone(london_tz).isoformat()
 
         for task in tasks:
             if task.due and task.due.datetime:
                 utc_dt = parse(task.due.datetime)
                 london_dt = utc_dt.astimezone(london_tz)
                 task.due.datetime = london_dt.isoformat()
-                tasks_with_due_dates.append(task)
             else:
-                tasks_without_due_dates.append(task)
-        
-        # Sort tasks by priority first, then by due date
-        sorted_tasks_with_due_dates = sorted(
-            tasks_with_due_dates, key=lambda t: (t.priority, t.due.datetime if t.due and t.due.datetime else None)
-        )
-        sorted_tasks_without_due_dates = sorted(
-            tasks_without_due_dates, key=lambda t: t.priority, reverse=True
-        )
+                task.due = type('Due', (object,), {'datetime': now_london})()  # Artificially set the due date
 
-        # Combine the two lists
-        sorted_tasks = sorted_tasks_without_due_dates + sorted_tasks_with_due_dates
+            all_tasks.append(task)
 
-        # Final sort by priority
+        # Sort tasks by priority, due date, then creation date
         sorted_final_tasks = sorted(
-            sorted_tasks,
-            key=lambda t: t.priority,
-            reverse=True
+            all_tasks,
+            key=lambda t: (
+                -t.priority,  # reverse priority to have higher numbers first
+                t.due.datetime if t.due and hasattr(t.due, 'datetime') else now_london,  # sort by due date
+                t.created if hasattr(t, 'created') else ''  # sort by creation date
+            )
         )
 
         signal.alarm(0)
@@ -159,6 +156,7 @@ def fetch_todoist_tasks(api):
     except Exception as e:
         print(f"[red]Failed to fetch tasks. Error: {e}[/red]")
         return None
+
 
 
 
