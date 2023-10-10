@@ -106,57 +106,64 @@ def get_active_filter():
                 return filter_data["filter"], filter_data.get("project_id", None)
 
 
-# Version 1.8
+
 def fetch_todoist_tasks(api):
     def handler(signum, frame):
         raise Exception("end of time")
 
     signal.signal(signal.SIGALRM, handler)
-    
+
     active_filter, project_id = get_active_filter()
 
     if not active_filter:
         print("No active filters configured. Update j_todoist_filters.json.")
         return
 
-    try:
-        signal.alarm(5)
-        tasks = api.get_tasks(filter=active_filter)
-        
-        london_tz = pytz.timezone("Europe/London")
-        all_tasks = []
+    retries = 0
+    while retries < 10:
+        try:
+            signal.alarm(5)
+            tasks = api.get_tasks(filter=active_filter)
 
-        # Capture current time in London timezone
-        now_utc = datetime.datetime.now(datetime.timezone.utc)
-        now_london = now_utc.astimezone(london_tz).isoformat()
+            london_tz = pytz.timezone("Europe/London")
+            all_tasks = []
 
-        for task in tasks:
-            if task.due and task.due.datetime:
-                utc_dt = parse(task.due.datetime)
-                london_dt = utc_dt.astimezone(london_tz)
-                task.due.datetime = london_dt.isoformat()
-            else:
-                task.due = type('Due', (object,), {'datetime': now_london})()  # Artificially set the due date
+            # Capture current time in London timezone
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            now_london = now_utc.astimezone(london_tz).isoformat()
 
-            all_tasks.append(task)
+            for task in tasks:
+                if task.due and task.due.datetime:
+                    utc_dt = parse(task.due.datetime)
+                    london_dt = utc_dt.astimezone(london_tz)
+                    task.due.datetime = london_dt.isoformat()
+                else:
+                    task.due = type('Due', (object,), {'datetime': now_london})()
 
-        # Sort tasks by priority, due date, then creation date
-        sorted_final_tasks = sorted(
-            all_tasks,
-            key=lambda t: (
-                -t.priority,  # reverse priority to have higher numbers first
-                t.due.datetime if t.due and hasattr(t.due, 'datetime') else now_london,  # sort by due date
-                t.created if hasattr(t, 'created') else ''  # sort by creation date
+                all_tasks.append(task)
+
+            # Sort tasks by priority, due date, then creation date
+            sorted_final_tasks = sorted(
+                all_tasks,
+                key=lambda t: (
+                    -t.priority,
+                    t.due.datetime if t.due and hasattr(t.due, 'datetime') else now_london,
+                    t.created if hasattr(t, 'created') else ''
+                )
             )
-        )
 
-        signal.alarm(0)
-        return sorted_final_tasks
+            signal.alarm(0)
+            return sorted_final_tasks
 
-    except Exception as e:
-        print(f"[red]Failed to fetch tasks. Error: {e}[/red]")
-        return None
+        except Exception as e:
+            retries += 1
+            print(f"Attempt {retries}: Failed to fetch tasks. Error: {e}")
 
+            if retries == 10:
+                print("[red]Failed to fetch tasks after 10 retries. Exiting with 'end of time'[/red]")
+                return None
+
+            time.sleep(1)  # Add a 1-second delay before retrying
 
 
 
