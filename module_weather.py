@@ -2,7 +2,6 @@ import pyowm, pytz
 import datetime
 import os
 from rich import print
-from pyowm.commons.exceptions import OWMError
 
 owm = pyowm.OWM(os.environ["OPEN_WEATHER_MAP_API"])
 mgr = owm.weather_manager()
@@ -20,7 +19,7 @@ def get_current_weather():
             weather_description = weather.detailed_status
 
             return wind_speed_mph, temperature_c, weather_description
-        except OWMError:  # Catch all OWM errors
+        except Exception:  # Catch all exceptions
             continue  # Try again
     # Return default values if both attempts fail
     return 0, 0, "Weather API query failed"
