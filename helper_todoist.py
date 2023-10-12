@@ -167,7 +167,7 @@ def fetch_todoist_tasks(api):
 
 
 
-def complete_todoist_task_by_id_v1(api, task_id):
+def complete_todoist_task_by_id(api, task_id):
     def handler(signum, frame):
         raise Exception("end of time")
 
