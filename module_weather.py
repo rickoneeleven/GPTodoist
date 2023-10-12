@@ -2,31 +2,27 @@ import pyowm, pytz
 import datetime
 import os
 from rich import print
-from pyowm.commons.exceptions import InvalidSSLCertificateError
 
 owm = pyowm.OWM(os.environ["OPEN_WEATHER_MAP_API"])
 mgr = owm.weather_manager()
 
 
 def get_current_weather():
-    try:
-        # First attempt to fetch weather data
-        observation = mgr.weather_at_place("Billinge, UK")
-        weather = observation.weather
-    except InvalidSSLCertificateError:
+    for _ in range(2):  # Two attempts
         try:
-            # Second attempt to fetch weather data if the first attempt fails
+            # Attempt to fetch weather data
             observation = mgr.weather_at_place("Billinge, UK")
             weather = observation.weather
-        except InvalidSSLCertificateError:
-            # Return default values if both attempts fail
-            return 0, 0, "Weather API query failed"
+            
+            wind_speed_mph = weather.wind()["speed"] * 2.237  # Convert meters/sec to mph
+            temperature_c = weather.temperature("celsius")["temp"]
+            weather_description = weather.detailed_status
 
-    wind_speed_mph = weather.wind()["speed"] * 2.237  # Convert meters/sec to mph
-    temperature_c = weather.temperature("celsius")["temp"]
-    weather_description = weather.detailed_status
-
-    return wind_speed_mph, temperature_c, weather_description
+            return wind_speed_mph, temperature_c, weather_description
+        except Exception:  # Catch all exceptions
+            continue  # Try again
+    # Return default values if both attempts fail
+    return 0, 0, "Weather API query failed"
 
 
 def pretty_print_weather_data():
