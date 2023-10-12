@@ -167,31 +167,34 @@ def fetch_todoist_tasks(api):
 
 
 
-def complete_todoist_task_by_id(api, task_id):
+def complete_todoist_task_by_id_v1(api, task_id):
     def handler(signum, frame):
         raise Exception("end of time")
 
     signal.signal(signal.SIGALRM, handler)
 
-    try:
-        signal.alarm(3)  # set the signal to raise an Exception in 3 seconds
+    for attempt in range(5):  # 5 retries before exception
+        try:
+            signal.alarm(5)  # set the signal to raise an Exception in 5 seconds
 
-        task = api.get_task(task_id)
-        # print(dir(task))
-        task_name = task.content
-        if task:
-            api.close_task(task_id=task_id)
-            print(f"[yellow]{task_name}[/yellow] completed")
-            signal.alarm(0)  # Disable the alarm
-            return True
-        else:
-            print("No task was found with the given id.")
-            signal.alarm(0)  # Disable the alarm
-            return False
+            task = api.get_task(task_id)
+            task_name = task.content
+            if task:
+                api.close_task(task_id=task_id)
+                print(f"[yellow]{task_name}[/yellow] completed")
+                signal.alarm(0)  # Disable the alarm
+                return True
+            else:
+                print("No task was found with the given id.")
+                signal.alarm(0)  # Disable the alarm
+                return False
 
-    except Exception as error:
-        print(f"Jizzy cock cock: {error}", file=sys.stderr)
-        return False
+        except Exception as error:
+            if attempt < 4:  # Print "retrying to complete task..." only if it's not the last attempt
+                print("retrying to complete task...")
+            else:
+                print(f"Error: {error}", file=sys.stderr)
+                return False
 
 
 def read_long_term_tasks(filename):
