@@ -190,7 +190,7 @@ def complete_todoist_task_by_id(api, task_id):
                 return False
 
         except Exception as error:
-            if attempt < 4:  # Print "retrying to complete task..." only if it's not the last attempt
+            if attempt < 99:  # Print "retrying to complete task..." only if it's not the last attempt
                 print("retrying to complete task...")
             else:
                 print(f"Error: {error}", file=sys.stderr)
