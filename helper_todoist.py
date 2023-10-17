@@ -120,7 +120,7 @@ def fetch_todoist_tasks(api):
         return
 
     retries = 0
-    while retries < 10:
+    while retries < 99:
         try:
             signal.alarm(5)
             tasks = api.get_tasks(filter=active_filter)
@@ -159,7 +159,7 @@ def fetch_todoist_tasks(api):
             retries += 1
             print(f"Attempt {retries}: Failed to fetch tasks. Error: {e}")
 
-            if retries == 10:
+            if retries == 99:
                 print("[red]Failed to fetch tasks after 10 retries. Exiting with 'end of time'[/red]")
                 return None
 
