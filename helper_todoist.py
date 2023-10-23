@@ -62,6 +62,10 @@ def add_todoist_task(api, task_name, task_time, task_day):
             task_params["project_id"] = project_id
 
         task = api.add_task(**task_params)
+        if task:
+            print(f"[purple]Task '{task.content}' successfully added.[/purple]")
+        else:
+            print("Failed to add task.")
 
         # Fetch current date and time
         due_date = datetime.datetime.now()

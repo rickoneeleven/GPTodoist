@@ -102,11 +102,7 @@ def ifelse_commands(api, user_message):
         task_data = helper_parse.get_taskname_time_day_as_tuple(user_message)
         if task_data:
             task_name, task_time, task_day = task_data
-            task = helper_todoist.add_todoist_task(api, task_name, task_time, task_day)
-            if task:
-                print(f"Task '{task.content}' successfully added.")
-            else:
-                print("Failed to add task.")
+            helper_todoist.add_todoist_task(api, task_name, task_time, task_day)
         return True
 
     return False
