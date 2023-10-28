@@ -179,7 +179,7 @@ def complete_todoist_task_by_id(api, task_id):
 
     for attempt in range(99):  # 5 retries before exception
         try:
-            signal.alarm(5)  # set the signal to raise an Exception in 5 seconds
+            signal.alarm(15)  # set the signal to raise an Exception in 5 seconds
 
             task = api.get_task(task_id)
             task_name = task.content
