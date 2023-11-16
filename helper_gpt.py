@@ -46,7 +46,7 @@ def get_costs(start_date, end_date):
 
     def get_daily_cost(date):
         params = {"date": date}
-        
+
         while True:
             try:
                 response = requests.get(url, headers=headers, params=params)

@@ -51,12 +51,12 @@ def add_todoist_task(api, task_name, task_time, task_day):
         task_params = {"content": task_name}
 
         # Check for priority flags in task_name and set priority
-        if 'p1' in task_name.lower():
-            task_params['priority'] = 4
-        elif 'p2' in task_name.lower():
-            task_params['priority'] = 3
-        elif 'p3' in task_name.lower():
-            task_params['priority'] = 2
+        if "p1" in task_name.lower():
+            task_params["priority"] = 4
+        elif "p2" in task_name.lower():
+            task_params["priority"] = 3
+        elif "p3" in task_name.lower():
+            task_params["priority"] = 2
 
         if project_id and project_id.strip():
             task_params["project_id"] = project_id
@@ -110,7 +110,6 @@ def get_active_filter():
                 return filter_data["filter"], filter_data.get("project_id", None)
 
 
-
 def fetch_todoist_tasks(api):
     def handler(signum, frame):
         raise Exception("end of time")
@@ -142,7 +141,7 @@ def fetch_todoist_tasks(api):
                     london_dt = utc_dt.astimezone(london_tz)
                     task.due.datetime = london_dt.isoformat()
                 else:
-                    task.due = type('Due', (object,), {'datetime': now_london})()
+                    task.due = type("Due", (object,), {"datetime": now_london})()
 
                 all_tasks.append(task)
 
@@ -151,9 +150,11 @@ def fetch_todoist_tasks(api):
                 all_tasks,
                 key=lambda t: (
                     -t.priority,
-                    t.due.datetime if t.due and hasattr(t.due, 'datetime') else now_london,
-                    t.created if hasattr(t, 'created') else ''
-                )
+                    t.due.datetime
+                    if t.due and hasattr(t.due, "datetime")
+                    else now_london,
+                    t.created if hasattr(t, "created") else "",
+                ),
             )
 
             signal.alarm(0)
@@ -164,11 +165,12 @@ def fetch_todoist_tasks(api):
             print(f"Attempt {retries}: Failed to fetch tasks. Error: {e}")
 
             if retries == 99:
-                print("[red]Failed to fetch tasks after 10 retries. Exiting with 'end of time'[/red]")
+                print(
+                    "[red]Failed to fetch tasks after 10 retries. Exiting with 'end of time'[/red]"
+                )
                 return None
 
             time.sleep(1)  # Add a 1-second delay before retrying
-
 
 
 def complete_todoist_task_by_id(api, task_id):
@@ -176,12 +178,12 @@ def complete_todoist_task_by_id(api, task_id):
         raise Exception("end of time")
 
     signal.signal(signal.SIGALRM, handler)
-    
+
     # Set the signal to raise an Exception in 30 seconds
-    #removed retry logic, as when it was "timing out" to complete task, it actually had complete it 
-    #in a lot of instances, then when it was retrying, it would complete the recurring task a few times too
-    signal.alarm(30)  
-    
+    # removed retry logic, as when it was "timing out" to complete task, it actually had complete it
+    # in a lot of instances, then when it was retrying, it would complete the recurring task a few times too
+    signal.alarm(30)
+
     try:
         task = api.get_task(task_id)
         task_name = task.content
@@ -252,7 +254,7 @@ def get_next_todoist_task(api):
                 else:
                     task_due_str = task_due_time
 
-                #print(f"Task Due: {task_due_str}")
+                # print(f"Task Due: {task_due_str}")
             print()
 
             x_tasks = [
@@ -287,8 +289,8 @@ def complete_active_todoist_task(api):
             task_name = active_task["task_name"]
 
             if complete_todoist_task_by_id(api, task_id):
-                #print()
-                #print(f"[bright_red] {task_name} [/bright_red] complete")
+                # print()
+                # print(f"[bright_red] {task_name} [/bright_red] complete")
                 print()
             else:
                 print(f"Error completing task {task_id}.")

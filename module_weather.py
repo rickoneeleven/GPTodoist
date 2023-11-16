@@ -13,8 +13,10 @@ def get_current_weather():
             # Attempt to fetch weather data
             observation = mgr.weather_at_place("Billinge, UK")
             weather = observation.weather
-            
-            wind_speed_mph = weather.wind()["speed"] * 2.237  # Convert meters/sec to mph
+
+            wind_speed_mph = (
+                weather.wind()["speed"] * 2.237
+            )  # Convert meters/sec to mph
             temperature_c = weather.temperature("celsius")["temp"]
             weather_description = weather.detailed_status
 
