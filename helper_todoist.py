@@ -293,7 +293,7 @@ def complete_active_todoist_task(api):
                 # print(f"[bright_red] {task_name} [/bright_red] complete")
                 print()
             else:
-                print(f"Error completing task {task_id}.")
+                print(f"[red]DO A MANUAL qq, DON'T TRUST NEXT TASK - Error completing task {task_id}.[/red]")
     except FileNotFoundError:
         print("Active task file not found.")
     except KeyError:
