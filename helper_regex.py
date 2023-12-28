@@ -17,7 +17,7 @@ def complete_todoist_task_by_title(user_message):
     task_id = fuzzy_return_task_id(user_message, tasks)
     if task_id:
         helper_todoist.complete_todoist_task_by_id(api, task_id)
-        print(f"[green]Task ID: {task_id} complete[/green]")
+        #print(f"[green]Task ID: {task_id} complete[/green]")
 
 
 def fuzzy_return_task_id(user_message, tasks):
