@@ -5,14 +5,6 @@ from rich import print
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
 
-
-def handle_sigint(signal_received, frame):
-    print("CTRL+C detected. Re-running main.py")
-    os.execl(sys.executable, sys.executable, *sys.argv)
-
-
-signal.signal(signal.SIGINT, handle_sigint)
-
 openai.api_key = os.environ["OPENAI_API_KEY"]
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
 api = TodoistAPI(TODOIST_API_KEY)
@@ -93,12 +85,13 @@ def main_loop():
         module_bell_ring.check_if_rang()
         helper_gpt.where_are_we()
         helper_todoist.get_next_todoist_task(api)
-        module_weather.today()
+        #module_weather.today()
+        helper_todoist.print_completed_tasks_count()
         messages = helper_general.load_json("j_conversation_history.json")
         helper_messages.remove_old_code(
             messages
         )  # strip ass responses with code between triple ticks, older that 3 ass messages ago, so when suggesting refactors, it doesn't bring back old code
-        helper_messages.current_tokkies(messages)
+        #helper_messages.current_tokkies(messages)
         helper_general.branch_check_and_actions(messages)
         user_message = get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")

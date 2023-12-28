@@ -1,10 +1,8 @@
 import re, json, pytz, dateutil.parser, datetime, time, sys, os, signal
 import helper_parse, module_call_counter, helper_general, helper_regex
 from dateutil.parser import parse
-from datetime import date, timedelta
-from pytz import timezone
+from datetime import date
 from rich import print
-from requests.exceptions import HTTPError
 
 
 def change_active_task():
@@ -289,9 +287,25 @@ def complete_active_todoist_task(api):
             task_name = active_task["task_name"]
 
             if complete_todoist_task_by_id(api, task_id):
-                # print()
-                # print(f"[bright_red] {task_name} [/bright_red] complete")
-                print()
+                # Update the j_number_of_todays_completed_tasks.json logic
+                completed_tasks_file = "j_number_of_todays_completed_tasks.json"
+                today_str = datetime.date.today().isoformat()
+
+                if not os.path.exists(completed_tasks_file):
+                    with open(completed_tasks_file, "w") as outfile:
+                        json.dump({"total_today": 0, "todays_date": today_str}, outfile, indent=2)
+
+                with open(completed_tasks_file, "r+") as file:
+                    data = json.load(file)
+                    if data["todays_date"] == today_str:
+                        data["total_today"] += 1
+                    else:
+                        data["total_today"] = 1
+                        data["todays_date"] = today_str
+
+                    file.seek(0)
+                    file.truncate()
+                    json.dump(data, file, indent=2)
             else:
                 print(f"[red]DO A MANUAL qq, DON'T TRUST NEXT TASK - Error completing task {task_id}.[/red]")
     except FileNotFoundError:
@@ -432,6 +446,18 @@ def format_due_time(due_time_str, timezone):
     localized_due_time = due_time.astimezone(timezone)
     friendly_due_time = localized_due_time.strftime("%Y-%m-%d %H:%M")
     return friendly_due_time
+
+def print_completed_tasks_count():
+    try:
+        with open("j_number_of_todays_completed_tasks.json", "r") as file:
+            data = json.load(file)
+            print(f"Tasks completed today: {data['total_today']}")
+    except FileNotFoundError:
+        print("No tasks completed today.")
+    except json.JSONDecodeError:
+        print("Error reading the task count file.")
+    except KeyError:
+        print("Error retrieving task count data.")
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
