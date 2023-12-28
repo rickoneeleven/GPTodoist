@@ -187,7 +187,7 @@ def complete_todoist_task_by_id(api, task_id):
         task_name = task.content
         if task:
             api.close_task(task_id=task_id)
-            print(f"[yellow]{task_name}[/yellow] completed")
+            print(f"[yellow]{task_name} completed[/yellow]")
         else:
             print("No task was found with the given id.")
             return False
