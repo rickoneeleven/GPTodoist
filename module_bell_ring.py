@@ -45,6 +45,5 @@ def check_if_rang():
                 f'+-+-+-+-+-+-+-+-+-+-+-+- BELL RANG AT {time.strftime("%H:%M")} +-+-+-+-+-+-+-+-+-+-+-+-',
                 style="bold underline red",
             )
-            print("all you can eat now, my child is: ")
-            print(" - - - CHEESE ANd CRACKERS!!!!! - - - ")
+            print("you've got this ")
             return
