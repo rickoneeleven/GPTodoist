@@ -248,11 +248,15 @@ def get_next_todoist_task(api):
 
                 if task_due_date < date.today():
                     task_due_str = task_due_london_datetime.strftime("%Y-%m-%d %H:%M")
+                    task_name = task_name + " | " + task_due_str
                 else:
                     task_due_str = task_due_time
+                    task_name = task_name + " | " + task_due_str
 
                 # print(f"Task Due: {task_due_str}")
-            task_name = task_name + " | " + task_due_str
+            else:
+                task_name = task_name + " | No due date"
+            
             print(f"                   [green]{task_name}[/green]")
             print()
 
