@@ -1,4 +1,4 @@
-import time, subprocess
+import subprocess
 import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code, helper_parse, helper_general
 import helper_regex
 import module_bell_ring
