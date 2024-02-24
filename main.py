@@ -43,15 +43,12 @@ def main_loop():
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():
             continue
-
         if helper_commands.ifelse_commands(api, user_message):
             continue
-
-        pass_to_bot = False
-        if not pass_to_bot:
-            print()
-            print("[bold][wheat1]          eh?[/wheat1][/bold]\n")
-            continue
+        # didn't match any ifelse_commands
+        print()
+        print("[bold][wheat1]          eh?[/wheat1][/bold]\n")
+        continue
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
