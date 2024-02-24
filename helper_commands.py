@@ -1,7 +1,6 @@
 import subprocess
-import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code, helper_parse, helper_general
+import helper_todoist, module_call_counter, helper_tasks, helper_code, helper_parse, helper_general
 import helper_regex
-import module_bell_ring
 
 
 def ifelse_commands(api, user_message):
@@ -20,9 +19,6 @@ def ifelse_commands(api, user_message):
     elif command == "delete":
         helper_todoist.delete_todoist_task(api)
         return True
-    elif command == "ring":
-        module_bell_ring.ring()
-        return True
     elif command == "all" or command == "show all":
         subprocess.call("reset")
         helper_todoist.display_todoist_tasks(api)
@@ -35,10 +31,6 @@ def ifelse_commands(api, user_message):
         return True
     elif command == "partytest":
         helper_general.backup_json_files()
-        return True
-    elif command == "weather":
-        # module_weather.today_old()
-        module_weather.pretty_print_weather_data()
         return True
     elif command.startswith("add long"):
         helper_tasks.add_long_term_task(user_message)

@@ -1,5 +1,5 @@
-import module_call_counter, helper_general, helper_messages
-import os, json, re
+import module_call_counter, helper_general
+import os, re
 
 
 def shrink_code(code):
@@ -7,18 +7,6 @@ def shrink_code(code):
     condensed_code = "\n".join(line.strip() for line in code.split("\n"))
 
     return condensed_code
-
-
-def reset_all():
-    if os.path.isfile("j_conv_DEFAULT.json"):
-        os.rename("j_conv_DEFAULT.json", "j_conversation_history.json")
-
-    if os.path.isfile("j_loaded_files.json"):
-        os.remove("j_loaded_files.json")
-
-    open("system_message.txt", "w").close()
-    helper_general.backup_json_files()
-    helper_messages.print_conversation_history()
 
 
 def fresh_session():
