@@ -16,40 +16,6 @@ def get_timestamp():
     london_tz = pytz.timezone("Europe/London")
     return datetime.datetime.now(london_tz).strftime("%Y-%m-%d %H:%M:%S")
 
-
-def print_commands():
-    commands = {
-        "add task": "add task [task name]/[task name 1800]/[task name 1800 tomorrow]",
-        "~~~": "~~~ anywhere in message asks the bot to try and mark the task complete on todoist",
-        "done": "queries the todoist api direct to complete the active task in j_active_task.json",
-        "time": "updates task's due time. [time 1800] -> 1800 today, [time 1800 tomorrow] -> you guessed it!",
-        "delete": "deletes the active task from todoist, doesn't add to completed json file",
-        "all": "show all tasks",
-        "clear": "clear the screen",
-        "add long": "add long [task name] to add task to j_long_term_tasks.json",
-        "show long": "print list of long term tasks",
-        "rename long": "renames long term task. rename long [id] [new task name]",
-        "delete long": "deletes long term task. delete long [id]",
-        "touch long <id>": "reset the date of long task to today",
-        "reset": "resets us back to default chat",
-        "fresh": "starts a brand new chat session",
-        "ignore": "ignore on a new line on it's own, tells the prompt to ignore everything typed before it",
-        "save <filename>": "save food, would save the current conversation to a json called food",
-        "show conv": "show conversations",
-        "load conv <id>": "load conversation based on id",
-        "delete conv <id>": "delete conversation based on id",
-        "replay": "prints conversation history",
-        "weather": "show detailed weather information",
-        "flip": "flips your active todoist filter. note: you can nly have two filters for this to work",
-        "ring": "advise the system you have eaten your last main meal of the day",
-    }
-    print()
-    max_command_len = max(len(command) for command in commands)
-    for command, description in commands.items():
-        print(f"{command.ljust(max_command_len)}   -   {description}")
-    print()
-
-
 def read_file(file_path: str) -> str:
     with open(file_path, "r") as f:
         return f.read()

@@ -1,5 +1,5 @@
 import subprocess
-import helper_todoist, module_call_counter, helper_tasks, helper_parse, helper_general
+import helper_todoist, module_call_counter, helper_tasks, helper_parse
 import helper_regex
 
 
@@ -27,10 +27,8 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         return True
     elif command == "flip":
+        subprocess.call("reset")
         helper_todoist.change_active_task()
-        return True
-    elif command == "partytest":
-        helper_general.backup_json_files()
         return True
     elif command.startswith("add long"):
         helper_tasks.add_long_term_task(user_message)
@@ -54,10 +52,6 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
-    elif command == "commands":
-        helper_general.print_commands()
-        return True
-
     elif command.startswith("add task"):
         task_data = helper_parse.get_taskname_time_day_as_tuple(user_message)
         if task_data:
