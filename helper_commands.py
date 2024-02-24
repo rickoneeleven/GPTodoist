@@ -1,5 +1,5 @@
 import subprocess
-import helper_todoist, module_call_counter, helper_tasks, helper_code, helper_parse, helper_general
+import helper_todoist, module_call_counter, helper_tasks, helper_parse, helper_general
 import helper_regex
 
 
@@ -53,14 +53,6 @@ def ifelse_commands(api, user_message):
         helper_tasks.touch_long_date(user_message)
         subprocess.call("reset")
         helper_tasks.print_tasks()
-        return True
-    elif command == "reset":
-        subprocess.call("reset")
-        helper_code.reset_all()
-        return True
-    elif command == "fresh":
-        subprocess.call("reset")
-        helper_code.fresh_session()
         return True
     elif command == "commands":
         helper_general.print_commands()
