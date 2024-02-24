@@ -1,6 +1,5 @@
 import os, readline
 import helper_todoist, helper_commands, module_call_counter, helper_general
-import helper_messages
 from rich import print
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
@@ -30,9 +29,6 @@ def get_user_input():
             user_input += line + "\n"  # Add the current line to user_input
     user_input = user_input.rstrip("\n")
     return user_input
-
-
-helper_messages.print_conversation_history()
 
 
 def main_loop():

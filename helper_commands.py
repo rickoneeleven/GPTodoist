@@ -1,7 +1,7 @@
 import time, subprocess
 import helper_todoist, module_call_counter, helper_tasks, module_weather, helper_code, helper_parse, helper_general
 import helper_regex
-import helper_messages, module_bell_ring
+import module_bell_ring
 
 
 def ifelse_commands(api, user_message):
@@ -9,10 +9,6 @@ def ifelse_commands(api, user_message):
     if command == "done":
         subprocess.call("reset")
         helper_todoist.complete_active_todoist_task(api)
-        return True
-    elif command == "replay":
-        subprocess.call("reset")
-        helper_messages.print_conversation_history()
         return True
     elif command.startswith("time"):
         helper_todoist.update_task_due_date(api, user_message, False)
@@ -61,16 +57,6 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
-    elif command.startswith("delete conv"):
-        helper_messages.delete_conversation(user_message)
-        print("clearning console....")
-        time.sleep(3)
-        subprocess.call("reset")
-        helper_messages.show_saved_conversations()
-        return True
-    elif command.startswith("load conv"):
-        helper_messages.load_conversation(user_message)
-        return True
     elif command.startswith("touch long"):
         helper_tasks.touch_long_date(user_message)
         subprocess.call("reset")
@@ -86,16 +72,6 @@ def ifelse_commands(api, user_message):
         return True
     elif command == "commands":
         helper_general.print_commands()
-        return True
-    elif command.startswith("save"):
-        helper_messages.save_conversation(user_message)
-        print("clearning console....")
-        time.sleep(3)
-        subprocess.call("reset")
-        helper_code.reset_all()
-        return True
-    elif command == "show conv":
-        helper_messages.show_saved_conversations()
         return True
 
     elif command.startswith("add task"):

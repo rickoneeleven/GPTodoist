@@ -7,11 +7,6 @@ from todoist_api_python.api import TodoistAPI
 api = TodoistAPI(os.environ["TODOIST_API_KEY"])
 
 
-def extract_task_id_from_response(response_text):  # think this is redundant now?
-    match = re.search(r"Task ID: (\d+)", response_text, re.IGNORECASE)
-    return int(match.group(1)) if match else None
-
-
 def complete_todoist_task_by_title(user_message):
     tasks = helper_todoist.fetch_todoist_tasks(api)
     task_id = fuzzy_return_task_id(user_message, tasks)
