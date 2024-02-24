@@ -22,16 +22,6 @@ def change_active_task():
         json.dump(task_data, file)
 
 
-def handle_special_commands(user_message, assistant_message, api):
-    if user_message.lower().startswith("move task") and "Task ID" in assistant_message:
-        task_id = helper_regex.extract_task_id_from_response(assistant_message)
-        if task_id is not None:
-            update_task_due_date(api, user_message, task_id)
-            get_next_todoist_task(api)
-        else:
-            print("Failed to move the task.")
-
-
 def add_to_active_task_file(task_name, task_id, task_due):
     active_task = {"task_name": task_name, "task_id": task_id, "task_due": task_due}
     with open("j_active_task.json", "w") as outfile:
