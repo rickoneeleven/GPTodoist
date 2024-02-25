@@ -499,6 +499,18 @@ def graft(api, user_message):
         print(f"An error occurred: {e}")
 
 
+def check_if_grafting(api):
+    graft_file_path = "j_grafted_tasks.json"
+    if os.path.exists(graft_file_path):
+        with open(graft_file_path, "r") as file:
+            grafted_tasks = json.load(file)
+            print(f"[red]YOU'RE IN GRAFT MODE BABY, LETS GOOOOoooooooooo![/red]")
+            for task in grafted_tasks:
+                print(f"{task['index']}. {task['task_name']}")
+        return True
+    else:
+        return False
+
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
