@@ -1,5 +1,5 @@
 import re, json, pytz, dateutil.parser, datetime, time, sys, os, signal
-import helper_parse, module_call_counter, helper_general, helper_regex
+import helper_parse, module_call_counter, helper_general
 from dateutil.parser import parse
 from datetime import date
 from rich import print
@@ -453,6 +453,52 @@ def print_completed_tasks_count():
         print("Error reading the task count file.")
     except KeyError:
         print("Error retrieving task count data.")
+
+
+def graft(api, user_message):
+    try:
+        if user_message.strip().lower() == "graft":
+            if os.path.exists("j_grafted_tasks.json"):
+                print("You're already grafting. Would you like to reset current graft and pick again? (y/n): ")
+                response = input().strip().lower()
+                if response != "y":
+                    print("Continuing with current graft.")
+                    return
+            tasks = fetch_todoist_tasks(api)
+            if tasks:
+                for index, task in enumerate(tasks, start=1):
+                    print(f"{index}. {task.content}")
+                print("Please type the numbers of the 3 hardest tasks in order of difficulty (e.g., 4,7,9): ")
+                selected_indexes = input()
+                selected_indexes = [int(i) for i in selected_indexes.split(',')]
+                selected_tasks = [tasks[i-1] for i in selected_indexes]
+                grafted_tasks = [{"task_name": task.content, "task_id": task.id, "index": i} for i, task in enumerate(selected_tasks, start=1)]
+                with open("j_grafted_tasks.json", "w") as file:
+                    json.dump(grafted_tasks, file, indent=2)
+            else:
+                print("No tasks available to graft.")
+        elif user_message.startswith("graft "):
+            index_to_complete = int(user_message.split()[1])
+            with open("j_grafted_tasks.json", "r") as file:
+                grafted_tasks = json.load(file)
+            task_to_complete = next((task for task in grafted_tasks if task["index"] == index_to_complete), None)
+            if task_to_complete:
+                if complete_todoist_task_by_id(api, task_to_complete["task_id"]):
+                    grafted_tasks.remove(task_to_complete)
+                    if grafted_tasks:
+                        with open("j_grafted_tasks.json", "w") as file:
+                            json.dump(grafted_tasks, file, indent=2)
+                    else:
+                        os.remove("j_grafted_tasks.json")
+                    print(f"Task {task_to_complete['task_name']} completed and removed from grafted tasks.")
+                else:
+                    print("Failed to complete the task with Todoist API.")
+            else:
+                print("Task index not found in grafted tasks.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

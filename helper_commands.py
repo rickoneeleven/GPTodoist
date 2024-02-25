@@ -12,6 +12,9 @@ def ifelse_commands(api, user_message):
     elif command.startswith("time"):
         helper_todoist.update_task_due_date(api, user_message, False)
         return True
+    elif command.startswith("graft"):
+        helper_todoist.graft(api, user_message)
+        return True
     elif command.startswith("~~~"):
         helper_regex.complete_todoist_task_by_title(user_message)
         helper_todoist.display_todoist_tasks(api)
