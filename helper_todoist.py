@@ -1,4 +1,4 @@
-import re, json, pytz, dateutil.parser, datetime, time, sys, os, signal
+import re, json, pytz, dateutil.parser, datetime, time, sys, os, signal, subprocess
 import helper_parse, module_call_counter, helper_general
 from dateutil.parser import parse
 from datetime import date
@@ -504,6 +504,7 @@ def check_if_grafting(api):
     if os.path.exists(graft_file_path):
         with open(graft_file_path, "r") as file:
             grafted_tasks = json.load(file)
+            subprocess.call("reset")
             print(f"[red]YOU'RE IN GRAFT MODE BABY, LETS GOOOOoooooooooo![/red]")
             for task in grafted_tasks:
                 print(f"{task['index']}. {task['task_name']}")

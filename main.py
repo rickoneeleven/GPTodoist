@@ -35,8 +35,7 @@ def main_loop():
     while True:
         helper_todoist.get_next_todoist_task(api)
         helper_todoist.print_completed_tasks_count()
-        if helper_todoist.check_if_grafting(api):
-            subprocess.call("reset")
+        helper_todoist.check_if_grafting(api)
         user_message = get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():
