@@ -1,4 +1,4 @@
-import os, readline
+import os, readline, subprocess
 import helper_todoist, helper_commands, module_call_counter, helper_general
 from rich import print
 from dateutil.parser import parse
@@ -35,7 +35,8 @@ def main_loop():
     while True:
         helper_todoist.get_next_todoist_task(api)
         helper_todoist.print_completed_tasks_count()
-        helper_todoist.check_if_grafting(api)
+        if helper_todoist.check_if_grafting(api):
+            subprocess.call("reset")
         user_message = get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():
