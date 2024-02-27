@@ -1,9 +1,14 @@
 import re, json, pytz, dateutil.parser, datetime, time, sys, os, signal, subprocess
+import pyfiglet
 import helper_parse, module_call_counter, helper_general
 from dateutil.parser import parse
 from datetime import date
 from rich import print
 
+
+def print_beast_mode_complete():
+    ascii_banner = pyfiglet.figlet_format("BEAST MODE COMPLETE")
+    print(ascii_banner)
 
 def change_active_task():
     # Load the JSON data
@@ -490,7 +495,8 @@ def graft(api, user_message):
                             json.dump(grafted_tasks, file, indent=2)
                     else:
                         os.remove("j_grafted_tasks.json")
-                    print(f"Task {task_to_complete['task_name']} completed and removed from grafted tasks.")
+                        subprocess.call("reset")
+                        print_beast_mode_complete()
                 else:
                     print("Failed to complete the task with Todoist API.")
             else:
