@@ -8,3 +8,4 @@ todoist_api_python>=2.0.2
 rich
 fuzzywuzzy
 levenshtein
+pyfiglet
