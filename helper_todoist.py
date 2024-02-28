@@ -482,6 +482,12 @@ def graft(api, user_message):
                     json.dump(grafted_tasks, file, indent=2)
             else:
                 print("No tasks available to graft.")
+        elif user_message.strip().lower() == "graft delete":
+            if os.path.exists("j_grafted_tasks.json"):
+                os.remove("j_grafted_tasks.json")
+                print("Grafting process reset successfully.")
+            else:
+                print("No grafting process found to reset.")
         elif user_message.startswith("graft "):
             index_to_complete = int(user_message.split()[1])
             with open("j_grafted_tasks.json", "r") as file:
