@@ -252,7 +252,9 @@ def get_next_todoist_task(api):
             else:
                 task_name = task_name + " | No due date"
             
-            print(f"                   [green]{task_name}[/green]")
+            # Prefix the task priority
+            priority_prefix = f"p{5 - task.priority}" if task.priority else ""
+            print(f"                   [green]{[priority_prefix]} {task_name}[/green]")
             print()
 
             x_tasks = [
