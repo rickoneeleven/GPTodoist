@@ -252,9 +252,9 @@ def get_next_todoist_task(api):
             else:
                 task_name = task_name + " | No due date"
             
-            # Prefix the task priority
-            priority_prefix = f"p{5 - task.priority}" if task.priority else ""
-            print(f"                   [green]{[priority_prefix]} {task_name}[/green]")
+            #show priority for tasks other than p4 (normal). the api stores the tasks in reverse order, this the bit below corrects it
+            priority_prefix = f"p{5 - task.priority}" if task.priority and task.priority > 1 else ""
+            print(f"                   [green]{priority_prefix} {task_name}[/green]")
             print()
 
             x_tasks = [
