@@ -525,5 +525,72 @@ def check_if_grafting(api):
         return False
 
 
+def rename_todoist_task(api, user_message):
+    try:
+        # Extract the new task name from the user message
+        new_task_name = user_message[len("rename "):].strip()
+
+        # Load the current active task from the JSON file
+        with open("j_active_task.json", "r") as infile:
+            active_task = json.load(infile)
+            task_id = active_task["task_id"]
+
+        # Fetch the task to be renamed using the Todoist API
+        task = api.get_task(task_id)
+        if task:
+            # Update the task with the new name
+            api.update_task(task_id=task_id, content=new_task_name)
+            print(f"Task renamed to: {new_task_name}")
+            return True
+        else:
+            print(f"Task with ID {task_id} not found.")
+            return False
+    except FileNotFoundError:
+        print("Active task file not found.")
+        return False
+    except KeyError:
+        print("Task ID not found in the active task file.")
+        return False
+    except Exception as error:
+        print(f"Error renaming task: {error}")
+        return False
+
+
+def change_active_task_priority(api, user_message):
+    try:
+        # Extract the priority level from the user message
+        priority_level = user_message.split()[-1]  # Assumes the last word is the priority level
+        if priority_level not in ["1", "2", "3", "4"]:
+            print("Invalid priority level. Please choose between 1, 2, 3, or 4.")
+            return False
+
+        # Load the current active task from the JSON file
+        with open("j_active_task.json", "r") as infile:
+            active_task = json.load(infile)
+            task_id = active_task["task_id"]
+
+        # Map the priority level to Todoist's priority system
+        todoist_priority = 5 - int(priority_level)  # Todoist's priority levels are 1 (normal) to 4 (urgent)
+
+        # Fetch the task to be updated using the Todoist API
+        task = api.get_task(task_id)
+        if task:
+            # Update the task with the new priority
+            api.update_task(task_id=task_id, priority=todoist_priority)
+            print(f"Task priority updated to p{priority_level}.")
+            return True
+        else:
+            print(f"Task with ID {task_id} not found.")
+            return False
+    except FileNotFoundError:
+        print("Active task file not found.")
+        return False
+    except KeyError:
+        print("Task ID not found in the active task file.")
+        return False
+    except Exception as error:
+        print(f"Error updating task priority: {error}")
+        return False
+
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

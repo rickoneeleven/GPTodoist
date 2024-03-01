@@ -42,6 +42,14 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
+    elif command.startswith("rename"):
+        subprocess.call("reset")
+        helper_todoist.rename_todoist_task(api, user_message)
+        return True
+    elif command.startswith("priority"):
+        subprocess.call("reset")
+        helper_todoist.change_active_task_priority(api, user_message)
+        return True
     elif command.startswith("rename long"):
         helper_tasks.rename_long_task(user_message)
         return True
