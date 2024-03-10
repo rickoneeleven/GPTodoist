@@ -331,20 +331,13 @@ def parse_update_due_date_command(user_message):
     return task_time, task_day
 
 
-def update_task_due_date(api, user_message, task_id=False):
-    print(f"Received user message: {user_message}")
+def update_task_due_date(api, user_message):
     try:
-        if not task_id:
-            print("No task_id provided, attempting to load from j_active_task.json...")
-            with open("j_active_task.json", "r") as infile:
-                active_task = json.load(infile)
-                task_id = active_task["task_id"]
-                content = active_task["task_name"]
-                print(f"Loaded task_id: {task_id}, content: {content}")
-        else:
-            print(f"Using provided task_id: {task_id}")
-            content, _, _ = helper_parse.get_taskname_time_day_as_tuple(user_message)
-            print(f"Extracted content: {content}")
+        with open("j_active_task.json", "r") as infile:
+            active_task = json.load(infile)
+            task_id = active_task["task_id"]
+            content = active_task["task_name"]
+            print(f"Loaded task_id: {task_id}, content: {content}")
 
         print(f"Fetching task with ID: {task_id}")
         task = api.get_task(task_id)
