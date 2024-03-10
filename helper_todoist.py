@@ -429,6 +429,7 @@ def print_completed_tasks_count():
 
 def graft(api, user_message):
     try:
+        subprocess.call("reset")
         if user_message.strip().lower() == "graft":
             if os.path.exists("j_grafted_tasks.json"):
                 print("You're already grafting. Would you like to reset current graft and pick again? (y/n): ")
@@ -483,10 +484,13 @@ def check_if_grafting(api):
     if os.path.exists(graft_file_path):
         with open(graft_file_path, "r") as file:
             grafted_tasks = json.load(file)
-            subprocess.call("reset")
             print(f"[red]YOU'RE IN GRAFT MODE BABY, LETS GOOOOoooooooooo![/red]")
+            print()
+            print()
             for task in grafted_tasks:
                 print(f"{task['index']}. {task['task_name']}")
+            print()
+            print()
         return True
     else:
         return False

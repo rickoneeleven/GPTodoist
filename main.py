@@ -1,5 +1,5 @@
 import os, readline, subprocess
-import helper_todoist, helper_commands, module_call_counter, helper_general
+import helper_todoist, helper_commands, module_call_counter, helper_general, helper_parse
 from rich import print
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
@@ -11,32 +11,12 @@ readline.set_auto_history(
 )  # fakenews, here to stop readlines import warning, we use readlines so input() supports left and right arrows
 
 
-def get_user_input():
-    print("You: ", end="")
-    user_input = ""
-    while True:
-        line = input()
-        if line == "ignore":
-            # Ignore everything above
-            user_input = ""
-        elif line == "!!":
-            # Submit everything above and ignore "!!"
-            break
-        elif line.endswith("qq"):  # User input ended
-            user_input += line[:-2]  # Add the current line without the trailing "qq"
-            break
-        else:
-            user_input += line + "\n"  # Add the current line to user_input
-    user_input = user_input.rstrip("\n")
-    return user_input
-
-
 def main_loop():
     while True:
         helper_todoist.get_next_todoist_task(api)
         helper_todoist.print_completed_tasks_count()
         helper_todoist.check_if_grafting(api)
-        user_message = get_user_input()
+        user_message = helper_parse.get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():
             continue
