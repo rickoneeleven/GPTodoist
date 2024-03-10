@@ -318,19 +318,6 @@ def complete_active_todoist_task(api):
         print(f"Error completing active task: {error}")
 
 
-def parse_update_due_date_command(user_message):
-    parts = user_message.lower().split()
-    if len(parts) < 2 or parts[0] != "time":
-        return None
-    task_time, task_day = None, None
-    for part in parts[1:]:
-        if re.match(r"\d{4}", part):
-            task_time = part
-        elif part in ["today", "tomorrow"]:
-            task_day = part
-    return task_time, task_day
-
-
 def update_task_due_date(api, user_message):
     try:
         with open("j_active_task.json", "r") as infile:
