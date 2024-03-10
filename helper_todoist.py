@@ -324,17 +324,17 @@ def update_task_due_date(api, user_message):
             active_task = json.load(infile)
             task_id = active_task["task_id"]
             content = active_task["task_name"]
-            print(f"Loaded task_id: {task_id}, content: {content}")
+            #print(f"Loaded task_id: {task_id}, content: {content}")
 
-        print(f"Fetching task with ID: {task_id}")
+        #print(f"Fetching task with ID: {task_id}")
         task = api.get_task(task_id)
         if task:
-            print(f"Task found: {task.content}")
+            #print(f"Task found: {task.content}")
             due_string = user_message.replace("time ", "", 1)
-            print(f"Extracted due_string: '{due_string}'")
+            #print(f"Extracted due_string: '{due_string}'")
             if due_string:
                 if task.due and task.due.is_recurring:
-                    print("Task is recurring, completing current instance and creating a new task.")
+                    #print("Task is recurring, completing current instance and creating a new task.")
                     api.close_task(task_id=task_id)
                     new_task_args = {"content": content, "due_string": due_string}
                     if hasattr(task, "project_id") and task.project_id:
@@ -342,7 +342,7 @@ def update_task_due_date(api, user_message):
                     new_task = api.add_task(**new_task_args)
                     print(f"New task '{new_task.content}' created with due date '{due_string}'.")
                 else:
-                    print("Updating due date of non-recurring task.")
+                    #print("Updating due date of non-recurring task.")
                     api.update_task(task_id=task.id, due_string=due_string)
                     print(f"Due date updated to '{due_string}'. Your next task is:")
             else:
