@@ -332,58 +332,43 @@ def parse_update_due_date_command(user_message):
 
 
 def update_task_due_date(api, user_message, task_id=False):
-    print(user_message)
+    print(f"Received user message: {user_message}")
     try:
-        with open("j_active_task.json", "r") as infile:
-            if not task_id:
-                task_time, task_day = parse_update_due_date_command(user_message)
-                print("loading j_active_task.json...")
+        if not task_id:
+            print("No task_id provided, attempting to load from j_active_task.json...")
+            with open("j_active_task.json", "r") as infile:
                 active_task = json.load(infile)
                 task_id = active_task["task_id"]
                 content = active_task["task_name"]
-            else:
-                (
-                    content,
-                    task_time,
-                    task_day,
-                ) = helper_parse.get_taskname_time_day_as_tuple(user_message)
+                print(f"Loaded task_id: {task_id}, content: {content}")
+        else:
+            print(f"Using provided task_id: {task_id}")
+            content, _, _ = helper_parse.get_taskname_time_day_as_tuple(user_message)
+            print(f"Extracted content: {content}")
 
-                if task_time is None:
-                    print("Invalid command belly")
-                    return
-
-            task = api.get_task(task_id)
-            if task:
-                if task.due is not None:
-                    is_recurring = task.due.is_recurring
-                else:
-                    is_recurring = False
-
-                due_date = datetime.datetime.now()
-                if task_day == "tomorrow":
-                    due_date += datetime.timedelta(days=1)
-                due_date = due_date.strftime("%Y-%m-%d") + " " + task_time
-
-                if is_recurring:
-                    api.close_task(task_id=task_id)  # Complete the recurring task
-                    # Check for a project ID and include it if present
-                    new_task_args = {"content": content, "due_string": due_date}
+        print(f"Fetching task with ID: {task_id}")
+        task = api.get_task(task_id)
+        if task:
+            print(f"Task found: {task.content}")
+            due_string = user_message.replace("time ", "", 1)
+            print(f"Extracted due_string: '{due_string}'")
+            if due_string:
+                if task.due and task.due.is_recurring:
+                    print("Task is recurring, completing current instance and creating a new task.")
+                    api.close_task(task_id=task_id)
+                    new_task_args = {"content": content, "due_string": due_string}
                     if hasattr(task, "project_id") and task.project_id:
                         new_task_args["project_id"] = task.project_id
-                    api.add_task(
-                        **new_task_args
-                    )  # Create a new task with the new due date
-                    print(
-                        "Task was a recurring task, so I've completed it for today, and created you a static task with your desired due time."
-                    )
+                    new_task = api.add_task(**new_task_args)
+                    print(f"New task '{new_task.content}' created with due date '{due_string}'.")
                 else:
-                    api.update_task(task_id=task.id, due_string=due_date)
-
-                    print()
-                    print("Due date updated, your next task is: ")
-                    print()
+                    print("Updating due date of non-recurring task.")
+                    api.update_task(task_id=task.id, due_string=due_string)
+                    print(f"Due date updated to '{due_string}'. Your next task is:")
             else:
-                print(f"Task {task_id} not found.")
+                print("No due date provided.")
+        else:
+            print(f"Task {task_id} not found.")
     except FileNotFoundError:
         print("Active task file not found.")
     except KeyError:
