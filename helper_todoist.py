@@ -63,7 +63,7 @@ def add_todoist_task(api, task_name, task_time, task_day):
         # Fetch current date and time
         due_date = datetime.datetime.now()
 
-        # Check if task is for tomorrow
+    # Check if task is for tomorrow
         if task_day == "tomorrow":
             due_date += datetime.timedelta(days=1)
 
@@ -72,7 +72,7 @@ def add_todoist_task(api, task_name, task_time, task_day):
             task_time = due_date.strftime("%H:%M:%S")
 
         due_date_str = due_date.strftime("%Y-%m-%d") + "T" + task_time + "Z"
-
+        
         # Update the task with due_date
         api.update_task(task_id=task.id, due_string=due_date_str)
 

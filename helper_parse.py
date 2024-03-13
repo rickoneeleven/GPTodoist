@@ -22,14 +22,14 @@ def get_user_input():
     return user_input
 
 
-def get_taskname_time_day_as_tuple(
-    user_message,
-):  # takes two messages before parse, i.e add task, move task
+def get_taskname_time_day_as_tuple(user_message):
     parts = user_message.lower().split()
     task_name, task_time, task_day = [], None, None
     for part in parts[2:]:
-        if re.match(r"\d{4}", part):
+        if re.match(r"\d{2}:\d{2}", part):  # Correct HH:MM format
             task_time = part
+        elif re.match(r"\d{4}", part):  # Incorrect HHMM format without colon
+            return "bad time format", None, None  # Indicate bad time format
         elif part in ["today", "tomorrow"]:
             task_day = part
         else:

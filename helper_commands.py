@@ -65,7 +65,10 @@ def ifelse_commands(api, user_message):
         return True
     elif command.startswith("add task"):
         task_data = helper_parse.get_taskname_time_day_as_tuple(user_message)
-        if task_data:
+        if task_data[0] == "bad time format":
+            print("Bad time format, task not added")
+            return False  # Or handle it as needed
+        elif task_data:
             task_name, task_time, task_day = task_data
             helper_todoist.add_todoist_task(api, task_name, task_time, task_day)
         return True
