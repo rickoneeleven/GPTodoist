@@ -28,7 +28,7 @@ def get_taskname_time_day_as_tuple(
     parts = user_message.lower().split()
     task_name, task_time, task_day = [], None, None
     for part in parts[2:]:
-        if re.match(r"\d{4}", part):
+        if re.match(r"\d{2}:\d{2}", part):  # Updated regex to match HH:MM format
             task_time = part
         elif part in ["today", "tomorrow"]:
             task_day = part
