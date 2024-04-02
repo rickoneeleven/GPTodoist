@@ -134,7 +134,15 @@ def fetch_todoist_tasks(api):
                     london_dt = utc_dt.astimezone(london_tz)
                     task.due.datetime = london_dt.isoformat()
                 else:
-                    task.due = type("Due", (object,), {"datetime": now_london})()
+                    # If the task is due yesterday or earlier without a specific time, set it to the end of that day
+                    if task.due and task.due.date:
+                        due_date = parse(task.due.date).date()
+                        end_of_due_day = datetime.datetime.combine(due_date, datetime.time(23, 59), tzinfo=london_tz)
+                        task.due.datetime = end_of_due_day.isoformat()
+                    else:
+                        # If no due date is provided, use the current time in London
+                        task.due = type("Due", (object,), {"datetime": now_london})()
+
 
                 all_tasks.append(task)
 
@@ -236,19 +244,37 @@ def get_next_todoist_task(api):
             add_to_active_task_file(task_name, task_id, task_due)
 
             if task_due:
+                # Debug output: Initial due time
+                print("Initial due time:", task_due)
+
                 task_due_london = helper_general.convert_to_london_timezone(task_due)
+                # Debug output: After conversion to London timezone
+                print("After conversion to London timezone:", task_due_london)
+
                 task_due_london_datetime = datetime.datetime.strptime(
                     task_due_london, "%Y-%m-%d %H:%M:%S"
                 )
+                # Debug output: After parsing to datetime
+                print("After parsing to datetime:", task_due_london_datetime)
+
                 task_due_time = task_due_london_datetime.strftime("%H:%M")
+                # Debug output: Extracted due time
+                print("Extracted due time:", task_due_time)
+
                 task_due_date = task_due_london_datetime.date()
+                # Debug output: Extracted due date
+                print("Extracted due date:", task_due_date)
 
                 if task_due_date < date.today():
                     task_due_str = task_due_london_datetime.strftime("%Y-%m-%d %H:%M")
                     task_name = task_name + " | " + task_due_str
+                    # Debug output: Task name and due string for past due dates
+                    print("Task name and due string for past due dates:", task_name)
                 else:
                     task_due_str = task_due_time
                     task_name = task_name + " | " + task_due_str
+                    # Debug output: Task name and due string for current or future dates
+                    print("Task name and due string for current or future dates:", task_name)
 
                 # print(f"Task Due: {task_due_str}")
             else:
