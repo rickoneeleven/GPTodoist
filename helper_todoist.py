@@ -224,12 +224,14 @@ def get_next_todoist_task(api):
             # Check if the task is recurring and add "(r) " to the task name
             task = api.get_task(task_id)
             is_recurring = False
+            recurring_prefix = ""
 
             if task and task.due:
                 is_recurring = task.due.is_recurring
 
             if is_recurring:
                 task_name = "(r) " + task_name
+                recurring_prefix = "(r)"
 
             add_to_active_task_file(task_name, task_id, task_due)
 
@@ -254,7 +256,7 @@ def get_next_todoist_task(api):
             
             #show priority for tasks other than p4 (normal). the api stores the tasks in reverse order, this the bit below corrects it
             priority_prefix = f"\[p{5 - task.priority}]" if task.priority and task.priority > 1 else ""
-            print(f"                   [green]{priority_prefix} {task_name}[/green]")
+            print(f"                   [green]{priority_prefix} {recurring_prefix}{task_name}[/green]")
             print()
 
             x_tasks = [
