@@ -137,7 +137,7 @@ def fetch_todoist_tasks(api):
                     # If the task is due yesterday or earlier without a specific time, set it to the end of that day
                     if task.due and task.due.date:
                         due_date = parse(task.due.date).date()
-                        end_of_due_day = datetime.datetime.combine(due_date, datetime.time(23, 59), tzinfo=london_tz)
+                        end_of_due_day = datetime.datetime.combine(due_date, datetime.time(6, 59), tzinfo=london_tz)
                         task.due.datetime = end_of_due_day.isoformat()
                     else:
                         # If no due date is provided, use the current time in London
