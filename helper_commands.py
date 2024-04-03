@@ -1,7 +1,7 @@
 import subprocess
 import helper_todoist, module_call_counter, helper_tasks, helper_parse
 import helper_regex
-
+from rich import print
 
 def ifelse_commands(api, user_message):
     command = user_message.lower()
@@ -66,7 +66,7 @@ def ifelse_commands(api, user_message):
     elif command.startswith("add task"):
         task_data = helper_parse.get_taskname_time_day_as_tuple(user_message)
         if task_data[0] == "bad time format":
-            print("Bad time format, task not added")
+            print("[red]Bad time format, task not added[/red]")
             return False  # Or handle it as needed
         elif task_data:
             task_name, task_time, task_day = task_data
