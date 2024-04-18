@@ -269,7 +269,7 @@ def get_next_todoist_task(api):
             x_tasks = [
                 lt_task
                 for lt_task in long_term_tasks
-                if lt_task["task_name"].startswith("x ")
+                if lt_task["task_name"].startswith("x_")
             ]
 
             if x_tasks:
