@@ -4,23 +4,29 @@ from datetime import datetime
 
 
 def add_long_term_task(user_message):
-    task_name = user_message[8:].strip()
-    added = helper_general.get_timestamp()
+    task_name = user_message[8:].strip()  # Extracts the task name from the message
+    added = helper_general.get_timestamp()  # Gets the current timestamp
 
     if os.path.exists("j_long_term_tasks.json"):
         with open("j_long_term_tasks.json", "r") as file:
             tasks = json.load(file)
-            index = len(tasks)
+            # Find the maximum index currently in use and increment by 1
+            if tasks:  # Ensure the list is not empty
+                max_index = max(task["index"] for task in tasks) + 1
+            else:
+                max_index = 0
     else:
         tasks = []
-        index = 0
+        max_index = 0  # Start from 0 if no tasks exist yet
 
-    task = {"index": index, "task_name": task_name, "added": added}
-
+    # Create the new task with a unique index
+    task = {"index": max_index, "task_name": task_name, "added": added}
     tasks.append(task)
 
+    # Save the updated tasks list back to the JSON file
     with open("j_long_term_tasks.json", "w") as file:
         json.dump(tasks, file, indent=2)
+    
     helper_general.backup_json_files()
 
 
