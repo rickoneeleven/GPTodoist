@@ -33,7 +33,7 @@ def add_to_active_task_file(task_name, task_id, task_due):
         json.dump(active_task, outfile)
 
 
-def add_todoist_task(api, task_name, task_time, task_day):
+def add_todoist_task(api, task_name):
     try:
         active_filter, project_id = get_active_filter()
 
@@ -41,7 +41,28 @@ def add_todoist_task(api, task_name, task_time, task_day):
             print("No active filters configured. Update j_todoist_filters.json.")
             return None
 
+        # Remove the "add task " prefix from the task name
+        task_name = task_name.replace("add task ", "").strip()
+        print(f"Original task name: {task_name}")  # Debug output
+
+        # Adjust regex to handle the format, focusing specifically on capturing the time "XX:XX" and all following text
+        time_day_pattern = re.compile(r"(.*) (\d{2}:\d{2}) (.+)$")
+        match = time_day_pattern.match(task_name)
+        if match:
+            pre_time_text = match.group(1).strip()
+            task_time = match.group(2).strip()
+            task_day = match.group(3).strip()
+            task_name = pre_time_text  # Update the task name to exclude time and day
+            print(f"Extracted pre-time text: '{pre_time_text}', time: '{task_time}', post-time text: '{task_day}'")  # Debug output
+        else:
+            task_time = None
+            task_day = None
+            print("No time pattern found.")  # Debug output
+
         task_params = {"content": task_name}
+
+        # Debug output to verify task name after removal of time and day
+        print(f"Task name after processing: '{task_name}'")
 
         # Check for priority flags in task_name and set priority
         if "p1" in task_name.lower():
@@ -54,27 +75,22 @@ def add_todoist_task(api, task_name, task_time, task_day):
         if project_id and project_id.strip():
             task_params["project_id"] = project_id
 
+        # Create the task initially without a due date
         task = api.add_task(**task_params)
         if task:
             print(f"[purple]Task '{task.content}' successfully added.[/purple]")
         else:
             print("Failed to add task.")
+            return None
 
-        # Fetch current date and time
-        due_date = datetime.datetime.now()
+        # Construct due_string using the extracted time and day
+        due_string = f"{task_time} {task_day}" if task_time and task_day else None
+        print(f"Due string to be set: '{due_string}'")  # Debug output
 
-    # Check if task is for tomorrow
-        if task_day == "tomorrow":
-            due_date += datetime.timedelta(days=1)
-
-        # If task_time is not provided, set it to current time
-        if not task_time:
-            task_time = due_date.strftime("%H:%M:%S")
-
-        due_date_str = due_date.strftime("%Y-%m-%d") + "T" + task_time + "Z"
-        
-        # Update the task with due_date
-        api.update_task(task_id=task.id, due_string=due_date_str)
+        # Update the task with due_string if it's specified
+        if due_string:
+            api.update_task(task_id=task.id, due_string=due_string)
+            print(f"Task due date set to '{due_string}'.")
 
         return task
     except Exception as error:
