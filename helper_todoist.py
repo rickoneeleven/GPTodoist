@@ -1,8 +1,7 @@
 import re, json, pytz, dateutil.parser, datetime, time, sys, os, signal, subprocess
 import pyfiglet
-import helper_parse, module_call_counter, helper_general
+import module_call_counter, helper_general
 from dateutil.parser import parse
-from datetime import date
 from rich import print
 
 
@@ -234,6 +233,7 @@ def get_next_todoist_task(api):
     try:
         tasks = fetch_todoist_tasks(api)
         long_term_tasks = read_long_term_tasks("j_long_term_tasks.json")
+        today = datetime.date.today()
 
         if tasks:
             next_task = tasks[0]
@@ -268,7 +268,7 @@ def get_next_todoist_task(api):
                 task_due_time = task_due_london_datetime.strftime("%H:%M")
                 task_due_date = task_due_london_datetime.date()
 
-                if task_due_date < date.today():
+                if task_due_date < today:
                     task_due_str = task_due_london_datetime.strftime("%Y-%m-%d %H:%M")
                     task_name = task_name + " | " + task_due_str
                 else:
@@ -277,8 +277,8 @@ def get_next_todoist_task(api):
             else:
                 task_name = task_name + " | No due date"
             
-            #show priority for tasks other than p4 (normal). the api stores the tasks in reverse order, this the bit below corrects it
-            priority_prefix = f"\[p{5 - task.priority}]" if task.priority and task.priority > 1 else ""
+            # Show priority for tasks other than p4 (normal). The API stores the tasks in reverse order, thus the bit below corrects it.
+            priority_prefix = f"[p{5 - task.priority}]" if task.priority and task.priority > 1 else ""
             print(f"                   [green]{priority_prefix} {recurring_prefix}{task_name}[/green]")
             print()
 
@@ -289,8 +289,24 @@ def get_next_todoist_task(api):
             ]
 
             if x_tasks:
+                print("Complete in your own time:")
                 for x_task in x_tasks:
                     print(f"[{x_task['index']}][dodger_blue1] {x_task['task_name']}[/dodger_blue1]")
+                print()
+
+            y_tasks = [
+                lt_task
+                for lt_task in long_term_tasks
+                if lt_task["task_name"].startswith("y_") and datetime.datetime.strptime(lt_task["added"], "%Y-%m-%d %H:%M:%S").date() < today
+            ]
+
+            if y_tasks:
+                print("Daily tasks:")
+                for y_task in y_tasks:
+                    print(f"[{y_task['index']}][dodger_blue1] {y_task['task_name']}[/dodger_blue1]")
+                print()
+            else:
+                print("All daily tasks complete, great job.")
                 print()
 
         else:
@@ -303,6 +319,7 @@ def get_next_todoist_task(api):
             return None
         else:
             raise e
+
 
 
 def complete_active_todoist_task(api):
