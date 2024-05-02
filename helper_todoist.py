@@ -282,35 +282,35 @@ def get_next_todoist_task(api):
             print(f"                   [green]{priority_prefix} {recurring_prefix}{task_name}[/green]")
             print()
 
-            x_tasks = [
+        else:
+            print("\u2705")
+            print()
+            
+        x_tasks = [
                 lt_task
                 for lt_task in long_term_tasks
                 if lt_task["task_name"].startswith("x_")
             ]
 
-            if x_tasks:
-                print("Complete in your own time:")
-                for x_task in x_tasks:
-                    print(f"[{x_task['index']}][dodger_blue1] {x_task['task_name']}[/dodger_blue1]")
-                print()
+        if x_tasks:
+            print("Complete in your own time:")
+            for x_task in x_tasks:
+                print(f"[{x_task['index']}][dodger_blue1] {x_task['task_name']}[/dodger_blue1]")
+            print()
 
-            y_tasks = [
-                lt_task
-                for lt_task in long_term_tasks
-                if lt_task["task_name"].startswith("y_") and datetime.datetime.strptime(lt_task["added"], "%Y-%m-%d %H:%M:%S").date() < today
-            ]
+        y_tasks = [
+            lt_task
+            for lt_task in long_term_tasks
+            if lt_task["task_name"].startswith("y_") and datetime.datetime.strptime(lt_task["added"], "%Y-%m-%d %H:%M:%S").date() < today
+        ]
 
-            if y_tasks:
-                print("Daily tasks:")
-                for y_task in y_tasks:
-                    print(f"[{y_task['index']}][dodger_blue1] {y_task['task_name']}[/dodger_blue1]")
-                print()
-            else:
-                print("All daily tasks complete, great job.")
-                print()
-
+        if y_tasks:
+            print("Daily tasks:")
+            for y_task in y_tasks:
+                print(f"[{y_task['index']}][dodger_blue1] {y_task['task_name']}[/dodger_blue1]")
+            print()
         else:
-            print("\u2705")
+            print("All daily tasks complete, great job.")
             print()
 
     except Exception as e:
