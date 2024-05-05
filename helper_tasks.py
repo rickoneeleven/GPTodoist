@@ -1,11 +1,13 @@
 import os, json, time
 import module_call_counter, helper_general
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def add_long_term_task(user_message):
     task_name = user_message[8:].strip()  # Extracts the task name from the message
-    added = helper_general.get_timestamp()  # Gets the current timestamp
+    timestamp_str = helper_general.get_timestamp()  # Gets the current timestamp as a string
+    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")  # Convert timestamp string to datetime object
+    added = timestamp - timedelta(days=1)  # Subtract 1 day from the timestamp
 
     if os.path.exists("j_long_term_tasks.json"):
         with open("j_long_term_tasks.json", "r") as file:
@@ -20,7 +22,7 @@ def add_long_term_task(user_message):
         max_index = 0  # Start from 0 if no tasks exist yet
 
     # Create the new task with a unique index
-    task = {"index": max_index, "task_name": task_name, "added": added}
+    task = {"index": max_index, "task_name": task_name, "added": added.strftime("%Y-%m-%d %H:%M:%S")}
     tasks.append(task)
 
     # Save the updated tasks list back to the JSON file
