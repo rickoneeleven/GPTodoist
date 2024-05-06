@@ -303,6 +303,9 @@ def get_next_todoist_task(api):
             for lt_task in long_term_tasks
             if lt_task["task_name"].startswith("y_") and datetime.datetime.strptime(lt_task["added"], "%Y-%m-%d %H:%M:%S").date() < today
         ]
+        
+        # Sort y_tasks based on the added date in ascending order
+        y_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
 
         if y_tasks:
             print("Daily tasks:")
