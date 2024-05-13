@@ -244,20 +244,19 @@ def get_next_todoist_task(api):
                 if next_task.due and next_task.due.datetime
                 else None
             )
-
-            # Check if the task is recurring and add "(r) " to the task name
+            
+            # Fetch the task again to check for recurrence
             task = api.get_task(task_id)
             is_recurring = False
-            recurring_prefix = ""
+            recurrence_info = ""
 
             if task and task.due:
                 is_recurring = task.due.is_recurring
+                if is_recurring and task.due.string:
+                    recurrence_info = task.due.string + " | "  # Includes the recurrence pattern
 
-            if is_recurring:
-                task_name = "(r) " + task_name
-                recurring_prefix = "(r)"
-
-            add_to_active_task_file(task_name, task_id, task_due)
+            task_name = recurrence_info + task_name  # Prepend recurrence info to task name
+            add_to_active_task_file("postponed recurring - " + task_name, task_id, task_due)
 
             if task_due:
                 task_due_london = helper_general.convert_to_london_timezone(task_due)
@@ -270,16 +269,16 @@ def get_next_todoist_task(api):
 
                 if task_due_date < today:
                     task_due_str = task_due_london_datetime.strftime("%Y-%m-%d %H:%M")
-                    task_name = task_name + " | " + task_due_str
+                    task_name += " | " + task_due_str
                 else:
                     task_due_str = task_due_time
-                    task_name = task_name + " | " + task_due_str
+                    task_name += " | " + task_due_str
             else:
-                task_name = task_name + " | No due date"
+                task_name += " | No due date"
             
-            # Show priority for tasks other than p4 (normal). The API stores the tasks in reverse order, thus the bit below corrects it.
+            # Show priority for tasks other than p4
             priority_prefix = f"[p{5 - task.priority}]" if task.priority and task.priority > 1 else ""
-            print(f"                   [green]{priority_prefix} {recurring_prefix}{task_name}[/green]")
+            print(f"                   [green]{priority_prefix} {task_name}[/green]")
             print()
 
         else:
