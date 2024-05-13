@@ -42,7 +42,7 @@ def add_todoist_task(api, task_name):
 
         # Remove the "add task " prefix from the task name
         task_name = task_name.replace("add task ", "").strip()
-        print(f"Original task name: {task_name}")  # Debug output
+        #print(f"Original task name: {task_name}")  # Debug output
 
         # Adjust regex to handle the format, focusing specifically on capturing the time "XX:XX" and all following text
         time_day_pattern = re.compile(r"(.*) (\d{2}:\d{2}) (.+)$")
@@ -52,7 +52,7 @@ def add_todoist_task(api, task_name):
             task_time = match.group(2).strip()
             task_day = match.group(3).strip()
             task_name = pre_time_text  # Update the task name to exclude time and day
-            print(f"Extracted pre-time text: '{pre_time_text}', time: '{task_time}', post-time text: '{task_day}'")  # Debug output
+            #print(f"Extracted pre-time text: '{pre_time_text}', time: '{task_time}', post-time text: '{task_day}'")  # Debug output
         else:
             task_time = None
             task_day = None
@@ -61,7 +61,7 @@ def add_todoist_task(api, task_name):
         task_params = {"content": task_name}
 
         # Debug output to verify task name after removal of time and day
-        print(f"Task name after processing: '{task_name}'")
+        #print(f"Task name after processing: '{task_name}'")
 
         # Check for priority flags in task_name and set priority
         if "p1" in task_name.lower():
