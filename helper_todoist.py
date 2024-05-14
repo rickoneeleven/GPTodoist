@@ -386,10 +386,10 @@ def update_task_due_date(api, user_message):
                     if hasattr(task, "project_id") and task.project_id:
                         new_task_args["project_id"] = task.project_id
                     new_task = api.add_task(**new_task_args)
-                    print(f"New task '{new_task.content}' created with due date '{due_string}'.")
+                    #print(f"New task '{new_task.content}' created with due date '{due_string}'.")
                 else:
                     api.update_task(task_id=task.id, due_string=due_string)
-                    print(f"Due date updated to '{due_string}'. Your next task is:")
+                    #print(f"Due date updated to '{due_string}'. Your next task is:")
             else:
                 print("No due date provided.")
         else:
