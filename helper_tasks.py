@@ -7,7 +7,7 @@ def add_long_term_task(user_message):
     task_name = user_message[8:].strip()  # Extracts the task name from the message
     timestamp_str = helper_general.get_timestamp()  # Gets the current timestamp as a string
     timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")  # Convert timestamp string to datetime object
-    added = timestamp - timedelta(days=1)  # Subtract 1 day from the timestamp
+    added = timestamp - timedelta(days=365)  # Subtract 1 year from the timestamp
 
     if os.path.exists("j_long_term_tasks.json"):
         with open("j_long_term_tasks.json", "r") as file:
@@ -38,34 +38,18 @@ def print_tasks() -> None:
     with open(filename, "r") as f:
         tasks = json.load(f)
 
-    grouped_tasks = {}
-    for task in tasks:
-        first_word = task["task_name"].split()[0]
-        if first_word not in grouped_tasks:
-            grouped_tasks[first_word] = []
+    # Filter out tasks starting with "x_" or "y_"
+    filtered_tasks = [task for task in tasks if not (task["task_name"].startswith("x_") or task["task_name"].startswith("y_"))]
 
-        grouped_tasks[first_word].append(task)
+    # Sort tasks by 'added' date in ascending order
+    sorted_tasks = sorted(filtered_tasks, key=lambda task: datetime.strptime(task["added"], "%Y-%m-%d %H:%M:%S"))
 
-    for first_word in sorted(grouped_tasks.keys()):
-        tasks_with_same_first_word = sorted(
-            grouped_tasks[first_word], key=lambda task: task["index"]
-        )
-
-        if len(tasks_with_same_first_word) > 1:
-            print(f"{'':8}{first_word}:")
-
-        for task in tasks_with_same_first_word:
-            index = f"[{task['index']}]".ljust(6)
-            task_name = task["task_name"].ljust(90)
-            added = helper_general.convert_to_london_timezone(task["added"])
-
-            if task_name.strip().lower().startswith("x"):
-                print(f"  {index} \033[31m{task_name}\033[0m {added}")
-            else:
-                print(f"  {index} {task_name} {added}")
-
-        if len(tasks_with_same_first_word) > 1:
-            print()
+    # Print the sorted list
+    for task in sorted_tasks:
+        index = f"[{task['index']}]".ljust(6)
+        task_name = task["task_name"].ljust(90)
+        added = task["added"]
+        print(f"{index} {task_name} {added}")
 
 
 def rename_long_task(user_message: str) -> None:
@@ -180,5 +164,26 @@ def touch_long_date(user_message):
     with open("j_long_term_tasks.json", "w") as f:
         json.dump(tasks, f)
 
+def untouch_long_date(user_message):
+    # Extract the index from the message
+    index = int(user_message.split(" ")[-1])
+    # Load the json file
+    with open("j_long_term_tasks.json", "r") as f:
+        tasks = json.load(f)
+
+    # Get the max index and increase it by 1
+    max_index = max(task["index"] for task in tasks) + 1
+
+    # Update the index and timestamp of the task
+    for task in tasks:
+        if task["index"] == index:
+            task["index"] = max_index
+            one_year_ago = datetime.now() - timedelta(days=365)
+            task["added"] = one_year_ago.strftime("%Y-%m-%d %H:%M:%S")
+            break
+
+    # Write back to the json file
+    with open("j_long_term_tasks.json", "w") as f:
+        json.dump(tasks, f)
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

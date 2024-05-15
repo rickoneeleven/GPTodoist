@@ -63,6 +63,11 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
+    elif command.startswith("untouch long"):
+        helper_tasks.untouch_long_date(user_message)
+        subprocess.call("reset")
+        helper_tasks.print_tasks()
+        return True
     elif command.startswith("add task"):
         helper_todoist.add_todoist_task(api, user_message)
         return True
