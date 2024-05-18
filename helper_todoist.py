@@ -42,26 +42,21 @@ def add_todoist_task(api, task_name):
 
         # Remove the "add task " prefix from the task name
         task_name = task_name.replace("add task ", "").strip()
-        #print(f"Original task name: {task_name}")  # Debug output
 
-        # Adjust regex to handle the format, focusing specifically on capturing the time "XX:XX" and all following text
-        time_day_pattern = re.compile(r"(.*) (\d{2}:\d{2}) (.+)$")
+        # Regex to handle the format, capturing the time "XX:XX" and all following text, if any
+        time_day_pattern = re.compile(r"^(.*?)(\d{2}:\d{2})(.*)$")
         match = time_day_pattern.match(task_name)
         if match:
-            pre_time_text = match.group(1).strip()
-            task_time = match.group(2).strip()
-            task_day = match.group(3).strip()
-            task_name = pre_time_text  # Update the task name to exclude time and day
-            #print(f"Extracted pre-time text: '{pre_time_text}', time: '{task_time}', post-time text: '{task_day}'")  # Debug output
+            pre_time_text = match.group(1).strip() if match.group(1) else ''
+            task_time = match.group(2).strip() if match.group(2) else None
+            task_day = match.group(3).strip() if match.group(3) else None
+            task_name = pre_time_text
         else:
             task_time = None
             task_day = None
-            print("No time pattern found.")  # Debug output
+            print("No time pattern found.")
 
         task_params = {"content": task_name}
-
-        # Debug output to verify task name after removal of time and day
-        #print(f"Task name after processing: '{task_name}'")
 
         # Check for priority flags in task_name and set priority
         if "p1" in task_name.lower():
@@ -83,8 +78,14 @@ def add_todoist_task(api, task_name):
             return None
 
         # Construct due_string using the extracted time and day
-        due_string = f"{task_time} {task_day}" if task_time and task_day else None
-        print(f"Due string to be set: '{due_string}'")  # Debug output
+        if task_time:
+            if task_day:  # Only add task_day if it is not None and not an empty string
+                due_string = f"{task_time} {task_day}".strip()
+            else:
+                due_string = task_time.strip()  # Use just the time if no day is specified
+        else:
+            due_string = None
+        print(f"Due string to be set: '{due_string}'")
 
         # Update the task with due_string if it's specified
         if due_string:
