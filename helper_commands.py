@@ -12,6 +12,9 @@ def ifelse_commands(api, user_message):
     elif command.startswith("time"):
         helper_todoist.update_task_due_date(api, user_message)
         return True
+    elif command.startswith("postpone"):
+        helper_todoist.postpone_due_date(api, user_message)
+        return True
     elif command.startswith("graft"):
         helper_todoist.graft(api, user_message)
         return True

@@ -364,7 +364,7 @@ def complete_active_todoist_task(api):
         print(f"Error completing active task: {error}")
 
 
-def update_task_due_date(api, user_message):
+def postpone_due_date(api, user_message):
     try:
         with open("j_active_task.json", "r") as infile:
             active_task = json.load(infile)
@@ -373,7 +373,7 @@ def update_task_due_date(api, user_message):
 
         task = api.get_task(task_id)
         if task:
-            due_string = user_message.replace("time ", "", 1)
+            due_string = user_message.replace("postpone ", "", 1)
             # Check if due_string is in HHMM format
             if due_string.isdigit() and len(due_string) == 4:
                 print("[red]bad time format[/red]")
@@ -394,6 +394,41 @@ def update_task_due_date(api, user_message):
                 print("No due date provided.")
         else:
             print(f"Task {task_id} not found.")
+    except FileNotFoundError:
+        print("Active task file not found.")
+    except KeyError:
+        print("Task ID not found in the active task file.")
+    except Exception as error:
+        print(f"Error updating active task due date: {error}")
+        
+def update_task_due_date(api, user_message):
+    try:
+        # Load the current active task details
+        with open("j_active_task.json", "r") as infile:
+            active_task = json.load(infile)
+            task_id = active_task["task_id"]
+            content = active_task["task_name"]
+
+        # Retrieve the task from Todoist
+        task = api.get_task(task_id)
+        if not task:
+            print(f"Task {task_id} not found.")
+            return
+
+        # Extract and validate the due date string
+        due_string = user_message.replace("time ", "", 1)
+        if due_string.isdigit() and len(due_string) == 4:
+            print("[red]bad time format[/red]")
+            return
+
+        if not due_string:
+            print("No due date provided.")
+            return
+
+        # Update the task with new due date
+        api.update_task(task_id=task.id, due_string=due_string)
+        print(f"Due date updated to '{due_string}'.")
+
     except FileNotFoundError:
         print("Active task file not found.")
     except KeyError:
