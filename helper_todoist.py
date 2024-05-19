@@ -85,7 +85,6 @@ def add_todoist_task(api, task_name):
                 due_string = task_time.strip()  # Use just the time if no day is specified
         else:
             due_string = None
-        print(f"Due string to be set: '{due_string}'")
 
         # Update the task with due_string if it's specified
         if due_string:
