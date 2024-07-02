@@ -1,17 +1,13 @@
-built on replit, expects secrets:
-{
+pip3 install -r requirements.txt
+
+vim ~/.bashrc
   "OPENAI_API_KEY": "sk-x",
   "TODOIST_API_KEY": "x",
-  "OPEN_WEATHER_MAP_API": "x"
-}
+  :wq
 
-python repo, pip install requirements.txt - maybe you can use pyproject.toml?
+python3 main.py
+CTRL+C
 
-change weather location, search for code: observation = mgr.weather_at_place('Billinge, UK')
-
-use:
-  i have replit set to "python3 main.py" when "Run" is pressed
-  it starts a console, which is generally a gpt3.5 chatbot
-  type "commands" to see what you can do
-
-i commit changes with ./blueberryballs.sh as it formats code and sets some git parameters that you end up repeating on replit
+vim j_todoist_filters.json
+  [{"id": 1, "filter": "(no due date | today | overdue) & #Inbox", "isActive": 0, "project_id": ""}, {"id": 1, "filter": "(today | overdue | no due date) & #Team Virtue", "isActive": 1, "project_id": "2294289600"}]
+  :wq
