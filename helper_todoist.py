@@ -315,7 +315,7 @@ def get_next_todoist_task(api):
                 print(f"[{y_task['index']}][dodger_blue1] {y_task['task_name']}[/dodger_blue1]")
             print()
         else:
-            print("All daily tasks complete, great job.")
+            print("you've completed all of your daily, nib, nibs. Well done \o/")
             print()
 
     except Exception as e:
