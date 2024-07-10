@@ -257,24 +257,6 @@ def get_next_todoist_task(api):
 
             task_name = recurrence_info + task_name  # Prepend recurrence info to task name
             add_to_active_task_file("postponed recurring - " + task_name, task_id, task_due)
-
-            if task_due:
-                task_due_london = helper_general.convert_to_london_timezone(task_due)
-                task_due_london_datetime = datetime.datetime.strptime(
-                    task_due_london, "%Y-%m-%d %H:%M:%S"
-                )
-
-                task_due_time = task_due_london_datetime.strftime("%H:%M")
-                task_due_date = task_due_london_datetime.date()
-
-                if task_due_date < today:
-                    task_due_str = task_due_london_datetime.strftime("%Y-%m-%d %H:%M")
-                    task_name += " | " + task_due_str
-                else:
-                    task_due_str = task_due_time
-                    task_name += " | " + task_due_str
-            else:
-                task_name += " | No due date"
             
             # Show priority for tasks other than p4
             priority_prefix = f"[p{5 - task.priority}]" if task.priority and task.priority > 1 else ""
