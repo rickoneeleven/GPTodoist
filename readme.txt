@@ -1,9 +1,9 @@
 pip3 install -r requirements.txt
 
 vim ~/.bashrc
-  "OPENAI_API_KEY": "sk-x",
-  "TODOIST_API_KEY": "x",
-  :wq
+export OPENAI_API_KEY=sk-x
+export TODOIST_API_KEY=9x
+:wq
 
 python3 main.py
 CTRL+C
