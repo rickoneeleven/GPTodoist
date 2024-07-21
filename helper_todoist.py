@@ -93,7 +93,7 @@ def add_todoist_task(api, task_name):
 
         return task
     except Exception as error:
-        print(f"Error adding task: {error}")
+        print(f"[red] SDSFDSFSDFFF 0088 ++ Error adding task: {error} |||||  SDSFDSFSDFFF 0088 ++ [/red]")
         return None
 
 
