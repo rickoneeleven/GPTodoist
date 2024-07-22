@@ -40,6 +40,8 @@ def print_tasks() -> None:
 
     # Filter out tasks starting with "x_" or "y_"
     filtered_tasks = [task for task in tasks if not (task["task_name"].startswith("x_") or task["task_name"].startswith("y_"))]
+    #actually don't filter out tasks starting with x_ and y_
+    filtered_tasks = [task for task in tasks]
 
     # Sort tasks by 'added' date in ascending order
     sorted_tasks = sorted(filtered_tasks, key=lambda task: datetime.strptime(task["added"], "%Y-%m-%d %H:%M:%S"))
