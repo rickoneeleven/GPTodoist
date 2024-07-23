@@ -29,6 +29,10 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         helper_todoist.display_todoist_tasks(api)
         return True
+    elif command == "complete" or command == "show complete":
+        subprocess.call("reset")
+        helper_tasks.display_completed_tasks()
+        return True
     elif command == "clear":
         subprocess.call("reset")
         return True

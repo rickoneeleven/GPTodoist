@@ -1,5 +1,5 @@
 import os, json, time
-import module_call_counter, helper_general
+import module_call_counter, helper_general, helper_todoist
 from datetime import datetime, timedelta
 
 
@@ -52,6 +52,21 @@ def print_tasks() -> None:
         task_name = task["task_name"].ljust(90)
         added = task["added"]
         print(f"{index} {task_name} {added}")
+
+
+def display_completed_tasks():
+    completed_tasks_file = "j_todays_completed_tasks.json"
+
+    # Check if the file exists
+    if not os.path.exists(completed_tasks_file):
+        print("No completed tasks found for today.")
+        return
+
+    # Read the tasks from the file and print them
+    with open(completed_tasks_file, "r") as file:
+        completed_tasks = json.load(file)
+        for task in completed_tasks:
+            print(f"{task['datetime']} - {task['task_name']}")
 
 
 def rename_long_task(user_message: str) -> None:
@@ -160,6 +175,7 @@ def touch_long_date(user_message):
         if task["index"] == index:
             task["index"] = max_index
             task["added"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            helper_todoist.log_completed_task(task["task_name"])
             break
 
     # Write back to the json file

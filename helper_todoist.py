@@ -205,6 +205,7 @@ def complete_todoist_task_by_id(api, task_id):
         task_name = task.content
         if task:
             api.close_task(task_id=task_id)
+            log_completed_task(task_name)
             print(f"[yellow]{task_name} completed[/yellow]")
         else:
             print("No task was found with the given id.")
@@ -623,6 +624,32 @@ def change_active_task_priority(api, user_message):
     except Exception as error:
         print(f"Error updating task priority: {error}")
         return False
+
+
+def log_completed_task(task_name):
+    # Define the file path for storing completed tasks
+    completed_tasks_file = "j_todays_completed_tasks.json"
+    today = datetime.date.today()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Human-readable format
+
+    # Check if the file exists and read existing data; if not, initialize with an empty list
+    try:
+        with open(completed_tasks_file, "r") as file:
+            completed_tasks = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        completed_tasks = []
+
+    # Check if existing tasks are from today or earlier
+    if completed_tasks and completed_tasks[0]['datetime'].split()[0] != str(today):
+        # If the tasks are from a previous day, clear the list
+        completed_tasks = []
+
+    # Append the new task with the current datetime
+    completed_tasks.append({"datetime": now, "task_name": task_name})
+
+    # Write the updated list back to the file
+    with open(completed_tasks_file, "w") as file:
+        json.dump(completed_tasks, file, indent=2)
 
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
