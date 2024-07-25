@@ -67,6 +67,7 @@ def display_completed_tasks():
         completed_tasks = json.load(file)
         for task in completed_tasks:
             print(f"{task['datetime']} - {task['task_name']}")
+    print(" +++++++++ END FINISHED TASKS +++++++++")
 
 
 def rename_long_task(user_message: str) -> None:
