@@ -1,7 +1,8 @@
 import re, json, pytz, dateutil.parser, datetime, time, sys, os, signal, subprocess
 import pyfiglet
-import module_call_counter, helper_general
+import module_call_counter
 from dateutil.parser import parse
+from datetime import timedelta
 from rich import print
 
 
@@ -639,10 +640,10 @@ def log_completed_task(task_name):
     except (FileNotFoundError, json.JSONDecodeError):
         completed_tasks = []
 
-    # Check if existing tasks are from today or earlier
-    if completed_tasks and completed_tasks[0]['datetime'].split()[0] != str(today):
-        # If the tasks are from a previous day, clear the list
-        completed_tasks = []
+    # Get the current date
+    current_date = datetime.datetime.now().date()
+    # Filter tasks, only keep those from the last two days
+    completed_tasks = [task for task in completed_tasks if parse(task['datetime']).date() > current_date - timedelta(days=2)]
 
     # Append the new task with the current datetime
     completed_tasks.append({"datetime": now, "task_name": task_name})
