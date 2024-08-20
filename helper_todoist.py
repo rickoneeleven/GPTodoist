@@ -394,6 +394,13 @@ def update_task_due_date(api, user_message):
             task_id = active_task["task_id"]
             content = active_task["task_name"]
 
+        # Check if the task is a recurring task
+        if content.startswith("postponed recurring - (r)"):
+            response = input("You are trying to change the time of a recurring task, are you sure? y to continue: ")
+            if response.lower() != 'y':
+                print("User aborted...")
+                return
+
         # Retrieve the task from Todoist
         task = api.get_task(task_id)
         if not task:
