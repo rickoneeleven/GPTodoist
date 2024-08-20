@@ -254,7 +254,9 @@ def get_next_todoist_task(api):
 
             if task and task.due:
                 is_recurring = task.due.is_recurring
-                recurrence_info = task.due.string + " | "  # Includes the recurrence pattern
+                if is_recurring:
+                    recurrence_info = "(r) "
+                recurrence_info += task.due.string + " | "
 
             task_name = recurrence_info + task_name  # Prepend recurrence info to task name
             add_to_active_task_file("postponed recurring - " + task_name, task_id, task_due)
