@@ -12,3 +12,4 @@ refactored.py
 backups/
 .DS_Store
 partytest.html
+.aider*
