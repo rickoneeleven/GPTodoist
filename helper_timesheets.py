@@ -74,14 +74,26 @@ def timesheet():
         duration = int(duration) if duration else 5
         timesheet_entries.append({"summary": summary, "duration": duration})
 
-    # Adjust durations to total 480 minutes
+    # Adjust durations to total 420 minutes (7 hours)
     total_duration = sum(entry['duration'] for entry in timesheet_entries)
-    while total_duration < 480:
-        for entry in timesheet_entries:
-            if total_duration >= 480:
-                break
-            entry['duration'] += 5
-            total_duration += 5
+    target_duration = 420  # 7 hours in minutes
+
+    while total_duration != target_duration:
+        if total_duration < target_duration:
+            # Add time if less than 7 hours
+            for entry in timesheet_entries:
+                if total_duration >= target_duration:
+                    break
+                entry['duration'] += 1
+                total_duration += 1
+        else:
+            # Remove time if more than 7 hours
+            for entry in timesheet_entries:
+                if total_duration <= target_duration:
+                    break
+                if entry['duration'] > 5:
+                    entry['duration'] -= 1
+                    total_duration -= 1
 
     # Display final timesheet
     print("\n++++++++++++++++++++++++ Final Timesheet:")
@@ -120,10 +132,32 @@ def timesheet():
 
     timesheet_date_str = timesheet_date.strftime("%Y-%m-%d")
     if timesheet_date_str in diary:
-        # Append new entries to existing date
-        diary[timesheet_date_str]["tasks"].extend(diary_entry["tasks"])
-        diary[timesheet_date_str]["total_duration"] += diary_entry["total_duration"]
-        diary[timesheet_date_str]["total_hours"] += diary_entry["total_hours"]
+        # Merge new entries with existing entries
+        existing_entries = diary[timesheet_date_str]["tasks"]
+        merged_entries = existing_entries + timesheet_entries
+        
+        # Recalculate durations for the merged entries
+        total_duration = sum(entry['duration'] for entry in merged_entries)
+        while total_duration != target_duration:
+            if total_duration < target_duration:
+                for entry in merged_entries:
+                    if total_duration >= target_duration:
+                        break
+                    entry['duration'] += 1
+                    total_duration += 1
+            else:
+                for entry in merged_entries:
+                    if total_duration <= target_duration:
+                        break
+                    if entry['duration'] > 5:
+                        entry['duration'] -= 1
+                        total_duration -= 1
+        
+        diary[timesheet_date_str] = {
+            "tasks": merged_entries,
+            "total_duration": total_duration,
+            "total_hours": round(total_duration / 60, 2)
+        }
     else:
         diary[timesheet_date_str] = diary_entry
 
