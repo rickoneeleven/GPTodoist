@@ -132,9 +132,9 @@ def timesheet():
 
     print(f"Timesheet for {timesheet_date_str} has been saved to j_diary.json")
 
-    # Ask about purging completed tasks
-    purge_tasks = input("Would you like to purge all completed tasks for this date and earlier? (y/n, default n): ").lower()
-    if purge_tasks == 'y':
+    # Ask about purging completed tasks, defaulting to 'y'
+    purge_tasks = input("Would you like to purge all completed tasks for this date and earlier? (Y/n, default Y): ").lower()
+    if purge_tasks != 'n':
         purge_completed_tasks(timesheet_date_str)
 
         
