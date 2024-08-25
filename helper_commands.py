@@ -21,14 +21,16 @@ from helper_todoist_part2 import (
 )
 
 # Import from other helper modules
-import helper_tasks
-import helper_regex
+import helper_tasks, helper_regex, helper_timesheets
 
 def ifelse_commands(api, user_message):
     command = user_message.lower()
     if command == "done":
         subprocess.call("reset")
         complete_active_todoist_task(api)
+        return True
+    elif command == "timesheet":
+        helper_timesheets.timesheet()
         return True
     elif command.startswith("time"):
         update_task_due_date(api, user_message)
