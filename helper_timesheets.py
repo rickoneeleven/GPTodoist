@@ -11,7 +11,7 @@ def timesheet():
     
     if include_all == 'y':
         reference_date = None
-        timesheet_date = datetime.now().date()
+        timesheet_date = datetime.now().date() - timedelta(days=1)  # Default to yesterday
     else:
         while True:
             date_input = input("Enter the date to show completed tasks from (dd/mm format, or 'yesterday'): ")
@@ -93,13 +93,12 @@ def timesheet():
     print(f"\nTotal Time: {total_hours:.2f} hours")
     print("\n++++++++++++++++++++++++ ")
 
-    # Confirm date for the timesheet
-    print(f"Is this timesheet for {timesheet_date.strftime('%Y-%m-%d')}? (y/n, default y): ")
-    use_reference_date = input().lower()
-    use_reference_date = use_reference_date if use_reference_date else 'y'
-    if use_reference_date != 'y':
+    # Confirm or change the timesheet date
+    print(f"Timesheet date: {timesheet_date.strftime('%Y-%m-%d')}")
+    change_date = input("Would you like to change this date? (y/n, default n): ").lower()
+    if change_date == 'y':
         while True:
-            date_input = input("Enter the date for this timesheet (dd/mm/yy): ")
+            date_input = input("Enter the new date for this timesheet (dd/mm/yy): ")
             try:
                 timesheet_date = datetime.strptime(date_input, "%d/%m/%y").date()
                 break
@@ -137,8 +136,8 @@ def timesheet():
     purge_tasks = input("Would you like to purge all completed tasks for this date and earlier? (y/n, default n): ").lower()
     if purge_tasks == 'y':
         purge_completed_tasks(timesheet_date_str)
-        
 
+        
 def purge_completed_tasks(cutoff_date):
     cutoff_date = datetime.strptime(cutoff_date, "%Y-%m-%d").date()
     
