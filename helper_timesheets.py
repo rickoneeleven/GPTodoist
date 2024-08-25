@@ -3,49 +3,50 @@ from datetime import datetime, timedelta
 from rich import print
 
 def timesheet():
-    while True:
-        # Ask user which day to reference
-        use_yesterday = input("Would you like to reference yesterday's completed tasks? (y/n, default y): ").lower()
-        use_yesterday = use_yesterday if use_yesterday else 'y'
-        
-        if use_yesterday == 'y':
-            reference_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-        else:
-            date_input = input("Enter the date to reference (dd/mm format, or 'c' to cancel): ")
-            if date_input.lower() == 'c':
-                print("Timesheet entry cancelled.")
-                return
+    completed_tasks_file = "j_todays_completed_tasks.json"
+    
+    # Ask if user wants to include all saved completed tasks
+    include_all = input("Would you like to include all saved completed tasks? y/n (default y): ").lower()
+    include_all = include_all if include_all else 'y'
+    
+    if include_all == 'y':
+        reference_date = None
+        timesheet_date = datetime.now().date()
+    else:
+        while True:
+            date_input = input("Enter the date to show completed tasks from (dd/mm format, or 'yesterday'): ")
+            if date_input.lower() == 'yesterday':
+                reference_date = datetime.now().date() - timedelta(days=1)
+                timesheet_date = reference_date
+                break
             try:
-                reference_date = datetime.strptime(date_input + "/" + str(datetime.now().year), "%d/%m/%Y").strftime("%Y-%m-%d")
+                reference_date = datetime.strptime(date_input + "/" + str(datetime.now().year), "%d/%m/%Y").date()
+                timesheet_date = reference_date
+                break
             except ValueError:
-                print("Invalid date format. Please use dd/mm.")
-                continue
+                print("Invalid date format. Please use dd/mm or 'yesterday'.")
 
-        # Load completed tasks
-        try:
-            with open("j_todays_completed_tasks.json", "r") as f:
-                completed_tasks = json.load(f)
-        except FileNotFoundError:
-            print("No completed tasks file found.")
-            return
+    # Load completed tasks
+    try:
+        with open(completed_tasks_file, "r") as f:
+            completed_tasks = json.load(f)
+    except FileNotFoundError:
+        print("No completed tasks file found.")
+        return
 
-        # Filter tasks for the reference date
-        reference_tasks = [task for task in completed_tasks if task['datetime'].startswith(reference_date)]
+    # Filter tasks based on the reference date
+    if reference_date:
+        filtered_tasks = [task for task in completed_tasks if datetime.strptime(task['datetime'], "%Y-%m-%d %H:%M:%S").date() >= reference_date]
+    else:
+        filtered_tasks = completed_tasks
 
-        if not reference_tasks:
-            print(f"No completed tasks found for {reference_date}.")
-            retry = input("Would you like to enter another date? (y/n, default y): ").lower()
-            if retry != 'n':
-                continue
-            else:
-                print("Timesheet entry cancelled.")
-                return
-        
-        break  # Exit the loop if we have tasks for the selected date
+    if not filtered_tasks:
+        print("No completed tasks found for the specified period.")
+        return
 
-    # Display referenced tasks
-    print(f"Completed tasks for {reference_date}:")
-    for task in reference_tasks:
+    # Display filtered tasks
+    print("Completed tasks:")
+    for task in filtered_tasks:
         print(f"{task['id']}, {task['datetime']}, {task['task_name']}")
 
     # Get user input for task IDs
@@ -56,7 +57,7 @@ def timesheet():
 
     # Process selected tasks
     for task_id in selected_ids:
-        task = next((t for t in reference_tasks if t['id'] == task_id), None)
+        task = next((t for t in filtered_tasks if t['id'] == task_id), None)
         if task:
             print(f"\nTask: {task['task_name']}")
             summary = input("Enter task summary (press Enter to keep original): ").strip()
@@ -93,18 +94,17 @@ def timesheet():
     print("\n++++++++++++++++++++++++ ")
 
     # Confirm date for the timesheet
-    use_reference_date = input(f"Is this timesheet for {reference_date}? (y/n, default y): ").lower()
+    print(f"Is this timesheet for {timesheet_date.strftime('%Y-%m-%d')}? (y/n, default y): ")
+    use_reference_date = input().lower()
     use_reference_date = use_reference_date if use_reference_date else 'y'
     if use_reference_date != 'y':
         while True:
             date_input = input("Enter the date for this timesheet (dd/mm/yy): ")
             try:
-                timesheet_date = datetime.strptime(date_input, "%d/%m/%y").strftime("%Y-%m-%d")
+                timesheet_date = datetime.strptime(date_input, "%d/%m/%y").date()
                 break
             except ValueError:
                 print("Invalid date format. Please use dd/mm/yy.")
-    else:
-        timesheet_date = reference_date
 
     # Save to j_diary.json
     diary_entry = {
@@ -119,23 +119,25 @@ def timesheet():
     except FileNotFoundError:
         diary = {}
 
-    if timesheet_date in diary:
+    timesheet_date_str = timesheet_date.strftime("%Y-%m-%d")
+    if timesheet_date_str in diary:
         # Append new entries to existing date
-        diary[timesheet_date]["tasks"].extend(diary_entry["tasks"])
-        diary[timesheet_date]["total_duration"] += diary_entry["total_duration"]
-        diary[timesheet_date]["total_hours"] += diary_entry["total_hours"]
+        diary[timesheet_date_str]["tasks"].extend(diary_entry["tasks"])
+        diary[timesheet_date_str]["total_duration"] += diary_entry["total_duration"]
+        diary[timesheet_date_str]["total_hours"] += diary_entry["total_hours"]
     else:
-        diary[timesheet_date] = diary_entry
+        diary[timesheet_date_str] = diary_entry
 
     with open("j_diary.json", "w") as f:
         json.dump(diary, f, indent=2)
 
-    print(f"Timesheet for {timesheet_date} has been saved to j_diary.json")
+    print(f"Timesheet for {timesheet_date_str} has been saved to j_diary.json")
 
-    # New code to ask about purging completed tasks
+    # Ask about purging completed tasks
     purge_tasks = input("Would you like to purge all completed tasks for this date and earlier? (y/n, default n): ").lower()
     if purge_tasks == 'y':
-        purge_completed_tasks(timesheet_date)
+        purge_completed_tasks(timesheet_date_str)
+        
 
 def purge_completed_tasks(cutoff_date):
     cutoff_date = datetime.strptime(cutoff_date, "%Y-%m-%d").date()
