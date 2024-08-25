@@ -67,8 +67,8 @@ def timesheet():
             duration = int(duration) if duration else 5
             timesheet_entries.append({"summary": summary, "duration": duration})
 
-    # Ask for additional tasks
-    while input("Would you like to add any additional tasks? (y/n, default y): ").lower() != 'n':
+    # Ask for additional tasks, defaulting to 'n'
+    while input("Would you like to add any additional tasks? (y/n, default n): ").lower() == 'y':
         summary = input("Enter task summary: ")
         duration = input("Enter time spent in minutes (default 5): ").strip()
         duration = int(duration) if duration else 5
