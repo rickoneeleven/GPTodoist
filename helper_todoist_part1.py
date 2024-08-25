@@ -218,7 +218,7 @@ def log_completed_task(task_name):
     except (FileNotFoundError, json.JSONDecodeError):
         completed_tasks = []
     current_date = datetime.datetime.now().date()
-    completed_tasks = [task for task in completed_tasks if parse(task['datetime']).date() > current_date - timedelta(days=2)]
+    completed_tasks = [task for task in completed_tasks if parse(task['datetime']).date() > current_date - timedelta(days=30)]
     completed_tasks.append({"datetime": now, "task_name": task_name})
     with open(completed_tasks_file, "w") as file:
         json.dump(completed_tasks, file, indent=2)
