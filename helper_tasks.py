@@ -31,7 +31,36 @@ def add_long_term_task(user_message):
     
     helper_general.backup_json_files()
 
+def add_completed_task(user_message):
+    # Remove the "xx " prefix from the user message
+    task_content = user_message[3:].strip()
 
+    # Get the current timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Create the task entry
+    task_entry = {
+        "datetime": timestamp,
+        "task_name": task_content
+    }
+
+    # Load existing tasks or create an empty list if the file doesn't exist
+    try:
+        with open("j_todays_completed_tasks.json", "r") as file:
+            completed_tasks = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        completed_tasks = []
+
+    # Add the new task to the list
+    completed_tasks.append(task_entry)
+
+    # Save the updated list back to the JSON file
+    with open("j_todays_completed_tasks.json", "w") as file:
+        json.dump(completed_tasks, file, indent=2)
+
+    print(f"Task added to completed daily tasks: {task_content}")
+    
+    
 def print_tasks() -> None:
     filename = "j_long_term_tasks.json"
 

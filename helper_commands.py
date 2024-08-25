@@ -35,6 +35,9 @@ def ifelse_commands(api, user_message):
     elif command.startswith("time"):
         update_task_due_date(api, user_message)
         return True
+    elif command.startswith("xx"):
+        helper_tasks.add_completed_task(user_message)
+        return True
     elif command.startswith("postpone"):
         postpone_due_date(api, user_message)
         return True
