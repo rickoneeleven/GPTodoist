@@ -1,4 +1,4 @@
-import module_call_counter, helper_todoist
+import module_call_counter, helper_todoist_part1, helper_todoist_part2
 import re, os
 from fuzzywuzzy import process
 from rich import print
@@ -8,10 +8,10 @@ api = TodoistAPI(os.environ["TODOIST_API_KEY"])
 
 
 def complete_todoist_task_by_title(user_message):
-    tasks = helper_todoist.fetch_todoist_tasks(api)
+    tasks = helper_todoist_part2.fetch_todoist_tasks(api)
     task_id = fuzzy_return_task_id(user_message, tasks)
     if task_id:
-        helper_todoist.complete_todoist_task_by_id(api, task_id)
+        helper_todoist_part1.complete_todoist_task_by_id(api, task_id)
         #print(f"[green]Task ID: {task_id} complete[/green]")
 
 

@@ -1,5 +1,5 @@
 import os, json, time
-import module_call_counter, helper_general, helper_todoist
+import module_call_counter, helper_general, helper_todoist_part1
 from datetime import datetime, timedelta
 
 
@@ -176,7 +176,7 @@ def touch_long_date(user_message):
         if task["index"] == index:
             task["index"] = max_index
             task["added"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            helper_todoist.log_completed_task(task["task_name"])
+            helper_todoist_part1.log_completed_task(task["task_name"])
             break
 
     # Write back to the json file
