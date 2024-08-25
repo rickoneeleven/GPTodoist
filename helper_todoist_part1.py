@@ -212,14 +212,28 @@ def log_completed_task(task_name):
     completed_tasks_file = "j_todays_completed_tasks.json"
     today = datetime.date.today()
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     try:
         with open(completed_tasks_file, "r") as file:
             completed_tasks = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         completed_tasks = []
+    
     current_date = datetime.datetime.now().date()
     completed_tasks = [task for task in completed_tasks if parse(task['datetime']).date() > current_date - timedelta(days=30)]
-    completed_tasks.append({"datetime": now, "task_name": task_name})
+    
+    # Find the first available ID
+    existing_ids = set(task.get('id', 0) for task in completed_tasks)
+    new_id = 1
+    while new_id in existing_ids:
+        new_id += 1
+    
+    completed_tasks.append({
+        "id": new_id,
+        "datetime": now,
+        "task_name": task_name
+    })
+    
     with open(completed_tasks_file, "w") as file:
         json.dump(completed_tasks, file, indent=2)
 
