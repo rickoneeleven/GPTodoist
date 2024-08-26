@@ -9,7 +9,18 @@ def diary():
     if summary_type == "day":
         show_day_summary()
     elif summary_type == "week":
-        show_week_summary()
+        week_option = input("Which week? (this/last/dd/mm/yy): ").lower()
+        if week_option == "this":
+            show_week_summary(datetime.now().date())
+        elif week_option == "last":
+            last_week = datetime.now().date() - timedelta(days=7)
+            show_week_summary(last_week)
+        else:
+            try:
+                specified_date = datetime.strptime(week_option, "%d/%m/%y").date()
+                show_week_summary(specified_date)
+            except ValueError:
+                print("[red]Invalid date format. Please use dd/mm/yy.[/red]")
     else:
         print("[red]Invalid input. Please choose 'day' or 'week'.[/red]")
 
@@ -36,7 +47,7 @@ def show_day_summary():
     print(f"[bold blue]Summary for {previous_day.strftime('%A, %B %d, %Y')}:[/bold blue]")
     show_day_entries(diary[previous_day.isoformat()])
 
-def show_week_summary():
+def show_week_summary(reference_date):
     try:
         with open("j_diary.json", "r") as f:
             diary = json.load(f)
@@ -47,20 +58,18 @@ def show_week_summary():
         print("[red]Error reading the diary file.[/red]")
         return
 
-    today = datetime.now().date()
-    start_of_week = today - timedelta(days=today.weekday())
+    start_of_week = reference_date - timedelta(days=reference_date.weekday())
     end_of_week = start_of_week + timedelta(days=4)  # Monday to Friday
 
     print(f"[bold blue]Summary for the week of {start_of_week.strftime('%B %d')} - {end_of_week.strftime('%B %d, %Y')}:[/bold blue]")
 
     for day in range(5):  # Monday to Friday
         current_date = start_of_week + timedelta(days=day)
-        if current_date > today:
-            # Skip future dates
-            continue
-        if current_date.isoformat() in diary:
+        date_str = current_date.strftime("%Y-%m-%d")
+        
+        if date_str in diary:
             print(f"\n[bold green]{current_date.strftime('%A, %B %d')}:[/bold green]")
-            show_day_entries(diary[current_date.isoformat()])
+            show_day_entries(diary[date_str])
         else:
             print(f"\n[yellow]{current_date.strftime('%A, %B %d')}: No entries[/yellow]")
 
