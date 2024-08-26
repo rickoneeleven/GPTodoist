@@ -174,9 +174,10 @@ def delete_long_task(user_message: str) -> None:
         tasks = json.load(file)
 
     task_found = False
+    deleted_task = None
     for i, task in enumerate(tasks):
         if task["index"] == id:
-            del tasks[i]
+            deleted_task = tasks.pop(i)
             task_found = True
             break
 
@@ -191,7 +192,37 @@ def delete_long_task(user_message: str) -> None:
         json.dump(tasks, file, indent=2)
 
     print(f"Task with index {id} deleted.")
+
+    # Add the deleted task to j_todays_completed_tasks.json
+    if deleted_task:
+        add_to_completed_tasks(deleted_task)
+
     time.sleep(2)
+
+def add_to_completed_tasks(task):
+    completed_tasks_file = "j_todays_completed_tasks.json"
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    try:
+        with open(completed_tasks_file, "r") as file:
+            completed_tasks = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        completed_tasks = []
+    
+    # Find the first available ID
+    existing_ids = set(task.get('id', 0) for task in completed_tasks)
+    new_id = 1
+    while new_id in existing_ids:
+        new_id += 1
+    
+    completed_tasks.append({
+        "id": new_id,
+        "datetime": now,
+        "task_name": f"(Deleted long task) {task['task_name']}"
+    })
+    
+    with open(completed_tasks_file, "w") as file:
+        json.dump(completed_tasks, file, indent=2)
 
 
 def touch_long_date(user_message):
