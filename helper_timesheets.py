@@ -53,8 +53,8 @@ def timesheet():
             print(f"{task['id']}, {task['datetime']}, {task['task_name']}")
 
     # Get user input for task IDs
-    selected_ids = input("Enter the IDs of tasks for the timesheet (comma-separated): ").split(',')
-    selected_ids = [int(id.strip()) for id in selected_ids]
+    selected_ids = input("Enter the IDs of tasks for the timesheet (comma-separated, or press Enter to skip): ").split(',')
+    selected_ids = [int(id.strip()) for id in selected_ids if id.strip()]
 
     timesheet_entries = []
 
@@ -71,18 +71,22 @@ def timesheet():
             timesheet_entries.append({"summary": summary, "duration": duration})
 
     # Print summary of selected tasks
-    print("\nSelected tasks for timesheet:")
-    for entry in timesheet_entries:
-        print(f"- {entry['summary']} ({entry['duration']} minutes)")
-    print()
+    if timesheet_entries:
+        print("\nSelected tasks for timesheet:")
+        for entry in timesheet_entries:
+            print(f"- {entry['summary']} ({entry['duration']} minutes)")
+        print()
 
-    # Ask for additional tasks, defaulting to 'n'
-    while input("Would you like to add any additional tasks? (y/n, default n): ").lower() == 'y':
+    # Prompt for additional tasks
+    while not timesheet_entries or input("Would you like to add any additional tasks? (y/n, default y): ").lower() != 'n':
         summary = input("Enter task summary: ")
         duration = input("Enter time spent in minutes (default 5): ").strip()
         duration = int(duration) if duration else 5
         timesheet_entries.append({"summary": summary, "duration": duration})
-        
+
+        # Print the newly added task
+        print(f"Added: {summary} ({duration} minutes)")
+
     # Calculate total duration of entered tasks
     total_duration = sum(entry['duration'] for entry in timesheet_entries)
 
