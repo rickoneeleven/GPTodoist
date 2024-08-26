@@ -195,16 +195,7 @@ def timesheet():
     print("\nLong-term tasks:")
     helper_tasks.print_tasks()
 
-    # Ask for high-level goals
-    print("\nWhat are your high-level goals for today?")
-    goals = []
-    while True:
-        goal = input("Enter a goal (or press Enter to finish): ").strip()
-        if not goal:
-            break
-        goals.append(goal)
-
-    # Save high-level goals to j_diary.json
+    # Ask for the day's overall objective
     today_str = datetime.now().strftime("%Y-%m-%d")
     try:
         with open("j_diary.json", "r") as f:
@@ -212,14 +203,22 @@ def timesheet():
     except (FileNotFoundError, json.JSONDecodeError):
         diary = {}
 
-    if today_str not in diary:
-        diary[today_str] = {}
-    diary[today_str]['highlevel_goals'] = goals
+    if today_str in diary and 'overall_objective' in diary[today_str]:
+        print(f"\nCurrent overall objective for today: {diary[today_str]['overall_objective']}")
+        change_objective = input("Would you like to change today's overall objective? (y/n, default n): ").lower()
+        if change_objective == 'y':
+            new_objective = input("What key things would you like to achieve today? ")
+            diary[today_str]['overall_objective'] = new_objective
+    else:
+        new_objective = input("What key things would you like to achieve today? ")
+        if today_str not in diary:
+            diary[today_str] = {}
+        diary[today_str]['overall_objective'] = new_objective
 
     with open("j_diary.json", "w") as f:
         json.dump(diary, f, indent=2)
 
-    print("High-level goals saved for today.")
+    print("Overall objective for today has been saved.")
 
         
 def purge_completed_tasks(cutoff_date):
