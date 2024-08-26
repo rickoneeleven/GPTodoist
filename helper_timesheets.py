@@ -11,15 +11,15 @@ def timesheet():
     
     # Ask for the timesheet date at the beginning
     while True:
-        date_input = input("Enter the date for this timesheet (dd/mm/yyyy format, or 'yesterday'): ")
-        if date_input.lower() == 'yesterday':
+        date_input = input("Enter the date for this timesheet (dd/mm/yy format, or press Enter for yesterday): ")
+        if date_input.lower() == '' or date_input.lower() == 'yesterday':
             timesheet_date = datetime.now().date() - timedelta(days=1)
             break
         try:
-            timesheet_date = datetime.strptime(date_input, "%d/%m/%Y").date()
+            timesheet_date = datetime.strptime(date_input, "%d/%m/%y").date()
             break
         except ValueError:
-            print("Invalid date format. Please use dd/mm/yyyy or 'yesterday'.")
+            print("Invalid date format. Please use dd/mm/yy or press Enter for yesterday.")
 
     # Load completed tasks
     try:
