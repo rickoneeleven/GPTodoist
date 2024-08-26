@@ -1,5 +1,5 @@
 import os, readline, subprocess
-import helper_todoist_part1, helper_todoist_part2, helper_commands, module_call_counter, helper_general, helper_parse
+import helper_todoist_part1, helper_todoist_part2, helper_commands, module_call_counter, helper_general, helper_parse, helper_diary
 from rich import print
 from dateutil.parser import parse
 from todoist_api_python.api import TodoistAPI
@@ -16,6 +16,7 @@ def main_loop():
         helper_todoist_part2.get_next_todoist_task(api)
         helper_todoist_part1.print_completed_tasks_count()
         helper_todoist_part2.check_if_grafting(api)
+        helper_diary.weekly_audit()
         user_message = helper_parse.get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():

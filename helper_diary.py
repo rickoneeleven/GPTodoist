@@ -86,7 +86,44 @@ def show_day_entries(day_data):
     if 'total_hours' in day_data:
         print(f"\n[cyan]Total hours worked:[/cyan] {day_data['total_hours']}")
         print("-------------------------------------------------------------------")
+        
+def weekly_audit():
+    try:
+        with open("j_diary.json", "r") as f:
+            diary = json.load(f)
+    except FileNotFoundError:
+        print("[red]Diary file not found.[/red]")
+        return
+    except json.JSONDecodeError:
+        print("[red]Error reading the diary file.[/red]")
+        return
 
+    today = datetime.now().date()
+    start_date = today - timedelta(days=today.weekday() + 14)  # Two weeks ago Monday
+    end_date = today - timedelta(days=1)  # Yesterday
+
+    missing_data_days = []
+
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date.weekday() < 5:  # Monday to Friday
+            date_str = current_date.strftime("%Y-%m-%d")
+            if date_str in diary:
+                total_hours = diary[date_str].get("total_hours", 0)
+                if total_hours < 7:
+                    missing_data_days.append(current_date)
+            else:
+                missing_data_days.append(current_date)
+        current_date += timedelta(days=1)
+
+    if missing_data_days:
+        print("\n[red]Days with less than 7 hours of accountable time:[/red]")
+        for day in missing_data_days:
+            formatted_date = day.strftime("%d/%m/%y")
+            day_of_week = day.strftime("%A")
+            print(f"[red]I[/red] {formatted_date} - {day_of_week}")
+            
+            
 if __name__ == "__main__":
     diary()
     
