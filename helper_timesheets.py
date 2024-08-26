@@ -1,30 +1,25 @@
-import json, random
+import json, random, os
 from datetime import datetime, timedelta
 from rich import print
+from todoist_api_python.api import TodoistAPI
+import helper_todoist_part2
+import helper_tasks
 
 def timesheet():
+    api = TodoistAPI(os.environ["TODOIST_API_KEY"])
     completed_tasks_file = "j_todays_completed_tasks.json"
     
-    # Ask if user wants to include all saved completed tasks
-    include_all = input("Would you like to include all saved completed tasks? y/n (default y): ").lower()
-    include_all = include_all if include_all else 'y'
-    
-    if include_all == 'y':
-        reference_date = None
-        timesheet_date = datetime.now().date() - timedelta(days=1)  # Default to yesterday
-    else:
-        while True:
-            date_input = input("Enter the date to show completed tasks from (dd/mm format, or 'yesterday'): ")
-            if date_input.lower() == 'yesterday':
-                reference_date = datetime.now().date() - timedelta(days=1)
-                timesheet_date = reference_date
-                break
-            try:
-                reference_date = datetime.strptime(date_input + "/" + str(datetime.now().year), "%d/%m/%Y").date()
-                timesheet_date = reference_date
-                break
-            except ValueError:
-                print("Invalid date format. Please use dd/mm or 'yesterday'.")
+    # Ask for the timesheet date at the beginning
+    while True:
+        date_input = input("Enter the date for this timesheet (dd/mm/yyyy format, or 'yesterday'): ")
+        if date_input.lower() == 'yesterday':
+            timesheet_date = datetime.now().date() - timedelta(days=1)
+            break
+        try:
+            timesheet_date = datetime.strptime(date_input, "%d/%m/%Y").date()
+            break
+        except ValueError:
+            print("Invalid date format. Please use dd/mm/yyyy or 'yesterday'.")
 
     # Load completed tasks
     try:
@@ -34,20 +29,28 @@ def timesheet():
         print("No completed tasks file found.")
         return
 
-    # Filter tasks based on the reference date
-    if reference_date:
-        filtered_tasks = [task for task in completed_tasks if datetime.strptime(task['datetime'], "%Y-%m-%d %H:%M:%S").date() >= reference_date]
-    else:
-        filtered_tasks = completed_tasks
+    # Filter tasks based on the timesheet date
+    filtered_tasks = [task for task in completed_tasks if datetime.strptime(task['datetime'], "%Y-%m-%d %H:%M:%S").date() == timesheet_date]
+
+    # Load high-level goals for the day
+    try:
+        with open("j_diary.json", "r") as f:
+            diary = json.load(f)
+        date_str = timesheet_date.strftime("%Y-%m-%d")
+        if date_str in diary and 'highlevel_goals' in diary[date_str]:
+            print("\nYour high-level goals for this day were:")
+            for goal in diary[date_str]['highlevel_goals']:
+                print(f"- {goal}")
+        print()
+    except (FileNotFoundError, KeyError):
+        print("No high-level goals found for this day.")
 
     if not filtered_tasks:
-        print("No completed tasks found for the specified period.")
-        return
-
-    # Display filtered tasks
-    print("Completed tasks:")
-    for task in filtered_tasks:
-        print(f"{task['id']}, {task['datetime']}, {task['task_name']}")
+        print("No completed tasks found for the specified date.")
+    else:
+        print("Completed tasks:")
+        for task in filtered_tasks:
+            print(f"{task['id']}, {task['datetime']}, {task['task_name']}")
 
     # Get user input for task IDs
     selected_ids = input("Enter the IDs of tasks for the timesheet (comma-separated): ").split(',')
@@ -180,6 +183,39 @@ def timesheet():
     purge_tasks = input("Would you like to purge all completed tasks for this date and earlier? (Y/n, default Y): ").lower()
     if purge_tasks != 'n':
         purge_completed_tasks(timesheet_date_str)
+        
+    # After finalizing the timesheet
+    print("\nCurrent Todoist tasks:")
+    helper_todoist_part2.display_todoist_tasks(api)
+    
+    print("\nLong-term tasks:")
+    helper_tasks.print_tasks()
+
+    # Ask for high-level goals
+    print("\nWhat are your high-level goals for today?")
+    goals = []
+    while True:
+        goal = input("Enter a goal (or press Enter to finish): ").strip()
+        if not goal:
+            break
+        goals.append(goal)
+
+    # Save high-level goals to j_diary.json
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    try:
+        with open("j_diary.json", "r") as f:
+            diary = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        diary = {}
+
+    if today_str not in diary:
+        diary[today_str] = {}
+    diary[today_str]['highlevel_goals'] = goals
+
+    with open("j_diary.json", "w") as f:
+        json.dump(diary, f, indent=2)
+
+    print("High-level goals saved for today.")
 
         
 def purge_completed_tasks(cutoff_date):
