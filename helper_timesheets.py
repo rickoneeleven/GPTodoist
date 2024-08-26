@@ -137,7 +137,7 @@ def timesheet():
     timesheet_date_str = timesheet_date.strftime("%Y-%m-%d")
     if timesheet_date_str in diary:
         # Merge new entries with existing entries
-        existing_entries = diary[timesheet_date_str]["tasks"]
+        existing_entries = diary[timesheet_date_str].get("tasks", [])
         merged_entries = existing_entries + timesheet_entries
         
         # Recalculate durations for the merged entries
