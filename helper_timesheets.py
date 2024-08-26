@@ -122,18 +122,6 @@ def timesheet():
     print(f"\nTotal Time: {total_hours:.2f} hours")
     print("\n++++++++++++++++++++++++ ")
 
-    # Confirm or change the timesheet date
-    print(f"Timesheet date: {timesheet_date.strftime('%Y-%m-%d')}")
-    change_date = input("Would you like to change this date? (y/n, default n): ").lower()
-    if change_date == 'y':
-        while True:
-            date_input = input("Enter the new date for this timesheet (dd/mm/yy): ")
-            try:
-                timesheet_date = datetime.strptime(date_input, "%d/%m/%y").date()
-                break
-            except ValueError:
-                print("Invalid date format. Please use dd/mm/yy.")
-
     # Save to j_diary.json
     diary_entry = {
         "tasks": timesheet_entries,
