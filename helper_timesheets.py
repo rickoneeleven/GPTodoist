@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from rich import print
 from todoist_api_python.api import TodoistAPI
 import helper_todoist_part2
-import helper_tasks
+import helper_tasks, module_call_counter
 
 def timesheet():
     api = TodoistAPI(os.environ["TODOIST_API_KEY"])
@@ -229,3 +229,5 @@ def purge_completed_tasks(cutoff_date):
         print("Error reading the completed tasks file.")
     except Exception as e:
         print(f"An error occurred while purging tasks: {e}")
+        
+module_call_counter.apply_call_counter_to_all(globals(), __name__)

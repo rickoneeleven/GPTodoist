@@ -1,5 +1,5 @@
 import subprocess
-import module_call_counter
+import module_call_counter, helper_diary
 from rich import print
 
 # Import from helper_todoist_part1
@@ -28,6 +28,9 @@ def ifelse_commands(api, user_message):
     if command == "done":
         subprocess.call("reset")
         complete_active_todoist_task(api)
+        return True
+    elif command == "diary":
+        helper_diary.diary()
         return True
     elif command == "timesheet":
         helper_timesheets.timesheet()
