@@ -55,6 +55,9 @@ def show_week_summary():
 
     for day in range(5):  # Monday to Friday
         current_date = start_of_week + timedelta(days=day)
+        if current_date > today:
+            # Skip future dates
+            continue
         if current_date.isoformat() in diary:
             print(f"\n[bold green]{current_date.strftime('%A, %B %d')}:[/bold green]")
             show_day_entries(diary[current_date.isoformat()])
