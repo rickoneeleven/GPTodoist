@@ -53,7 +53,6 @@ def ifelse_commands(api, user_message):
         return True
     elif command == "all" or command == "show all":
         subprocess.call("reset")
-        helper_tasks.display_completed_tasks()
         display_todoist_tasks(api)
         helper_tasks.print_tasks()
         print("###################################################################################################")
