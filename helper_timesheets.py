@@ -67,13 +67,19 @@ def timesheet():
             duration = int(duration) if duration else 5
             timesheet_entries.append({"summary": summary, "duration": duration})
 
+    # Print summary of selected tasks
+    print("\nSelected tasks for timesheet:")
+    for entry in timesheet_entries:
+        print(f"- {entry['summary']} ({entry['duration']} minutes)")
+    print()
+
     # Ask for additional tasks, defaulting to 'n'
     while input("Would you like to add any additional tasks? (y/n, default n): ").lower() == 'y':
         summary = input("Enter task summary: ")
         duration = input("Enter time spent in minutes (default 5): ").strip()
         duration = int(duration) if duration else 5
         timesheet_entries.append({"summary": summary, "duration": duration})
-
+        
     # Adjust durations to total 420 minutes (7 hours)
     total_duration = sum(entry['duration'] for entry in timesheet_entries)
     target_duration = 420  # 7 hours in minutes
