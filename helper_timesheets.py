@@ -32,18 +32,17 @@ def timesheet():
     # Filter tasks based on the timesheet date
     filtered_tasks = [task for task in completed_tasks if datetime.strptime(task['datetime'], "%Y-%m-%d %H:%M:%S").date() == timesheet_date]
 
-    # Load high-level goals for the day
+    # Load and display overall objective for the day
     try:
         with open("j_diary.json", "r") as f:
             diary = json.load(f)
         date_str = timesheet_date.strftime("%Y-%m-%d")
-        if date_str in diary and 'highlevel_goals' in diary[date_str]:
-            print("\nYour high-level goals for this day were:")
-            for goal in diary[date_str]['highlevel_goals']:
-                print(f"- {goal}")
+        if date_str in diary and 'overall_objective' in diary[date_str]:
+            print("\n[yellow2]Your key objective for the day was to try and:[/yellow2]")
+            print(f"[yellow]{diary[date_str]['overall_objective']}[/yellow]")
         print()
     except (FileNotFoundError, KeyError):
-        print("No high-level goals found for this day.")
+        print("No overall objective found for this day.")
 
     if not filtered_tasks:
         print("No completed tasks found for the specified date.")
