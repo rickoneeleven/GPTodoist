@@ -38,18 +38,22 @@ def add_completed_task(user_message):
     # Get the current timestamp
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Create the task entry
-    task_entry = {
-        "datetime": timestamp,
-        "task_name": task_content
-    }
-
     # Load existing tasks or create an empty list if the file doesn't exist
     try:
         with open("j_todays_completed_tasks.json", "r") as file:
             completed_tasks = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         completed_tasks = []
+
+    # Find the maximum ID in the existing tasks
+    max_id = max([task.get('id', 0) for task in completed_tasks], default=0)
+
+    # Create the task entry with a new ID
+    task_entry = {
+        "id": max_id + 1,
+        "datetime": timestamp,
+        "task_name": task_content
+    }
 
     # Add the new task to the list
     completed_tasks.append(task_entry)
@@ -58,7 +62,7 @@ def add_completed_task(user_message):
     with open("j_todays_completed_tasks.json", "w") as file:
         json.dump(completed_tasks, file, indent=2)
 
-    print(f"Task added to completed daily tasks: {task_content}")
+    print(f"Task added to completed daily tasks: {task_content} (ID: {task_entry['id']})")
     
     
 def print_tasks() -> None:
