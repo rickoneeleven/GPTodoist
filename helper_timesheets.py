@@ -77,8 +77,8 @@ def timesheet():
             print(f"- {entry['summary']} ({entry['duration']} minutes)")
         print()
 
-    # Prompt for additional tasks
-    while not timesheet_entries or input("Would you like to add any additional tasks? (y/n, default y): ").lower() != 'n':
+    # Prompt for additional tasks (changed to default 'n')
+    while not timesheet_entries or input("Would you like to add any additional tasks? (y/n, default n): ").lower() == 'y':
         summary = input("Enter task summary: ")
         duration = input("Enter time spent in minutes (default 5): ").strip()
         duration = int(duration) if duration else 5
