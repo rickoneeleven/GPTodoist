@@ -1,4 +1,4 @@
-import json
+import json, random
 from datetime import datetime, timedelta
 from rich import print
 
@@ -80,34 +80,38 @@ def timesheet():
         duration = int(duration) if duration else 5
         timesheet_entries.append({"summary": summary, "duration": duration})
         
-    # Adjust durations to total 420 minutes (7 hours)
+    # Calculate total duration of entered tasks
     total_duration = sum(entry['duration'] for entry in timesheet_entries)
-    target_duration = 420  # 7 hours in minutes
 
-    while total_duration != target_duration:
-        if total_duration < target_duration:
-            # Add time if less than 7 hours
+    # Generate random duration between 7 and 8 hours (420 to 480 minutes)
+    # and round to nearest 5-minute increment
+    target_duration = round(random.randint(420, 480) / 5) * 5
+
+    # Adjust durations to match target duration
+    if total_duration < target_duration:
+        # Add time if less than target
+        while total_duration < target_duration:
             for entry in timesheet_entries:
                 if total_duration >= target_duration:
                     break
-                entry['duration'] += 1
-                total_duration += 1
-        else:
-            # Remove time if more than 7 hours
+                entry['duration'] += 5
+                total_duration += 5
+    else:
+        # Remove time if more than target
+        while total_duration > target_duration:
             for entry in timesheet_entries:
                 if total_duration <= target_duration:
                     break
                 if entry['duration'] > 5:
-                    entry['duration'] -= 1
-                    total_duration -= 1
+                    entry['duration'] -= 5
+                    total_duration -= 5
 
     # Display final timesheet
     print("\n++++++++++++++++++++++++ Final Timesheet:")
     for entry in timesheet_entries:
         print(f"{entry['summary']}: {entry['duration']} minutes")
     
-    total_minutes = sum(entry['duration'] for entry in timesheet_entries)
-    total_hours = total_minutes / 60
+    total_hours = target_duration / 60
     print(f"\nTotal Time: {total_hours:.2f} hours")
     print("\n++++++++++++++++++++++++ ")
 
@@ -126,7 +130,7 @@ def timesheet():
     # Save to j_diary.json
     diary_entry = {
         "tasks": timesheet_entries,
-        "total_duration": total_minutes,
+        "total_duration": target_duration,  # Changed from total_minutes to target_duration
         "total_hours": round(total_hours, 2)
     }
 
