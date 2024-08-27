@@ -17,11 +17,28 @@ def get_options():
     with open(options_file, "r") as f:
         return json.load(f)
 
+def purge_old_completed_tasks():
+    completed_tasks_file = "j_todays_completed_tasks.json"
+    if not os.path.exists(completed_tasks_file):
+        return
+
+    with open(completed_tasks_file, "r") as f:
+        tasks = json.load(f)
+
+    two_weeks_ago = datetime.now() - timedelta(weeks=2)
+    updated_tasks = [task for task in tasks if datetime.strptime(task['datetime'], "%Y-%m-%d %H:%M:%S") > two_weeks_ago]
+
+    if len(tasks) > len(updated_tasks):
+        with open(completed_tasks_file, "w") as f:
+            json.dump(updated_tasks, f, indent=2)
+        print(f"[yellow]Purged {len(tasks) - len(updated_tasks)} tasks older than 2 weeks.[/yellow]")
+
 def weekly_audit():
     options = get_options()
     
     if options.get("enable_diary_prompts", "yes").lower() != "yes":
-        return  # Skip the weekly audit if the option is not set to "yes"
+        purge_old_completed_tasks()
+        return  # Skip the rest of the weekly audit
 
     try:
         with open("j_diary.json", "r") as f:
