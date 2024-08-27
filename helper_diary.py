@@ -122,6 +122,12 @@ def weekly_audit():
             formatted_date = day.strftime("%d/%m/%y")
             day_of_week = day.strftime("%A")
             print(f"[red]I[/red] {formatted_date} - {day_of_week}")
+
+    # Print today's overall objective if it exists
+    today_str = today.strftime("%Y-%m-%d")
+    if today_str in diary and 'overall_objective' in diary[today_str]:
+        print(f"\nflow with...")
+        print(f"[gold1]{diary[today_str]['overall_objective']}[/gold1]")
             
             
 if __name__ == "__main__":
