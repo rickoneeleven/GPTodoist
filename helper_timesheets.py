@@ -8,7 +8,7 @@ import helper_tasks, module_call_counter
 def timesheet():
     api = TodoistAPI(os.environ["TODOIST_API_KEY"])
     completed_tasks_file = "j_todays_completed_tasks.json"
-    
+
     # Ask for the timesheet date at the beginning
     while True:
         date_input = input("Enter the date for this timesheet (dd/mm/yy format, or press Enter for yesterday): ")
@@ -49,7 +49,7 @@ def timesheet():
     else:
         print("Completed tasks:")
         for task in filtered_tasks:
-            print(f"{task['id']}, {task['datetime']}, {task['task_name']}")
+            print(f"{task['datetime']}, {task['id']}, {task['task_name']}")
 
     # Get user input for task IDs
     selected_ids = input("Enter the IDs of tasks for the timesheet (comma-separated, or press Enter to skip): ").split(',')
