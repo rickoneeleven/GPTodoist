@@ -62,8 +62,10 @@ def timesheet():
         task = next((t for t in filtered_tasks if t['id'] == task_id), None)
         if task:
             print(f"\nTask: {task['task_name']}")
-            summary = input("Enter task summary (press Enter to keep original): ").strip()
-            if not summary:
+            change_summary = input("Would you like to change task summary? (y/n, default: n): ").strip().lower()
+            if change_summary == 'y':
+                summary = input("Enter new task summary: ").strip()
+            else:
                 summary = task['task_name']
             duration = input("Enter time spent in minutes (default 5): ").strip()
             duration = int(duration) if duration else 5
