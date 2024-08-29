@@ -60,7 +60,7 @@ def ifelse_commands(api, user_message):
         helper_tasks.print_tasks()
         print("###################################################################################################")
         return True
-    elif command == "complete" or command == "show complete":
+    elif command == "completed" or command == "show complete":
         subprocess.call("reset")
         helper_tasks.display_completed_tasks()
         return True
