@@ -136,10 +136,15 @@ def get_next_todoist_task(api):
                 if is_recurring:
                     recurrence_info = "(r) "
                 recurrence_info += task.due.string + " | "
-            task_name = recurrence_info + task_name
+            
+            # Add priority label if priority is not 4
+            priority_label = ""
+            if task.priority and task.priority < 4:
+                priority_label = f"(p{5 - task.priority}) "
+            
+            task_name = priority_label + recurrence_info + task_name
             add_to_active_task_file("postponed recurring - " + task_name, task_id, task_due)
-            priority_prefix = f"[p{5 - task.priority}]" if task.priority and task.priority > 1 else ""
-            print(f"                   [green]{priority_prefix} {task_name}[/green]")
+            print(f"                   [green]{task_name}[/green]")
             print()
         else:
             print("\u2705")
