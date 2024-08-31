@@ -121,30 +121,20 @@ def get_next_todoist_task(api):
         today = datetime.date.today()
         if tasks:
             next_task = tasks[0]
-            task_name = next_task.content
+            original_task_name = next_task.content
             task_id = next_task.id
-            task_due = (
-                next_task.due.datetime
-                if next_task.due and next_task.due.datetime
-                else None
-            )
+            task_due = next_task.due.datetime if next_task.due and next_task.due.datetime else None
+            
             task = api.get_task(task_id)
-            is_recurring = False
-            recurrence_info = ""
-            if task and task.due:
-                is_recurring = task.due.is_recurring
-                if is_recurring:
-                    recurrence_info = "(r) "
-                recurrence_info += task.due.string + " | "
             
-            # Add priority label if priority is not 4
-            priority_label = ""
-            if task.priority and task.priority < 4:
-                priority_label = f"(p{5 - task.priority}) "
+            # Prepare display information
+            display_info = get_task_display_info(task)
             
-            task_name = priority_label + recurrence_info + task_name
-            add_to_active_task_file("postponed recurring - " + task_name, task_id, task_due)
-            print(f"                   [green]{task_name}[/green]")
+            # Add to active task file with original name
+            add_to_active_task_file(original_task_name, task_id, task_due)
+            
+            # Display task with additional info
+            print(f"                   [green]{display_info}{original_task_name}[/green]")
             print()
         else:
             print("\u2705")
@@ -180,6 +170,18 @@ def get_next_todoist_task(api):
             return None
         else:
             raise e
+        
+def get_task_display_info(task):
+    display_info = ""
+    if task and task.due:
+        if task.due.is_recurring:
+            display_info += "(r) "
+        display_info += f"{task.due.string} | "
+    
+    if task.priority and task.priority < 4:
+        display_info += f"(p{5 - task.priority}) "
+    
+    return display_info
 
 def display_todoist_tasks(api):
     tasks = fetch_todoist_tasks(api)
