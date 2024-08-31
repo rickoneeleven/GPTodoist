@@ -133,21 +133,42 @@ def postpone_due_date(api, user_message):
     except Exception as error:
         print(f"Error updating active task due date: {error}")
 
-def update_task_due_date(api, user_message):
+def get_active_task():
+    with open("j_active_task.json", "r") as infile:
+        return json.load(infile)
+
+def update_task_due_date(api, task_id, due_string):
+    # Existing implementation
+    api.update_task(task_id=task_id, due_string=due_string)
+    print(f"Due date updated to '{due_string}'.")
+
+# New function to get full task details
+def get_full_task_details(api, task_id):
+    return api.get_task(task_id)
+
+# New wrapper function
+def check_and_update_task_due_date(api, user_message):
     try:
-        with open("j_active_task.json", "r") as infile:
-            active_task = json.load(infile)
-            task_id = active_task["task_id"]
-            content = active_task["task_name"]
-        if content.startswith("postponed recurring - (r)"):
+        active_task = get_active_task()
+        task_id = active_task["task_id"]
+        content = active_task["task_name"]
+
+        # Get full task details
+        task = get_full_task_details(api, task_id)
+        
+        if not task:
+            print(f"Task {task_id} not found.")
+            return
+
+        # Check if the task is recurring
+        is_recurring = task.due.is_recurring if task.due else False
+
+        if is_recurring:
             response = input("You are trying to change the time of a recurring task, are you sure? y to continue: ")
             if response.lower() != 'y':
                 print("User aborted...")
                 return
-        task = api.get_task(task_id)
-        if not task:
-            print(f"Task {task_id} not found.")
-            return
+
         due_string = user_message.replace("time ", "", 1)
         if due_string.isdigit() and len(due_string) == 4:
             print("[red]bad time format[/red]")
@@ -155,8 +176,9 @@ def update_task_due_date(api, user_message):
         if not due_string:
             print("No due date provided.")
             return
-        api.update_task(task_id=task.id, due_string=due_string)
-        print(f"Due date updated to '{due_string}'.")
+
+        update_task_due_date(api, task.id, due_string)
+
     except FileNotFoundError:
         print("Active task file not found.")
     except KeyError:
