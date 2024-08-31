@@ -195,7 +195,21 @@ def display_todoist_tasks(api):
             due_time = format_due_time(due_time_str, london_tz).ljust(
                 max_due_time_length + tab_size
             )
-            task_name = task.content
+            
+            # Check if the task is recurring
+            is_recurring = False
+            if task.due and hasattr(task.due, 'string'):
+                recurrence_patterns = ['every', 'daily', 'weekly', 'monthly', 'yearly']
+                is_recurring = any(pattern in task.due.string.lower() for pattern in recurrence_patterns)
+            
+            recurrence_prefix = "(r) " if is_recurring else ""
+            
+            # Add priority label if priority is not 4
+            priority_label = ""
+            if task.priority and task.priority < 4:
+                priority_label = f"(p{5 - task.priority}) "
+            
+            task_name = f"{recurrence_prefix}{priority_label}{task.content}"
             print(f"{due_time}{task_name}")
 
 def graft(api, user_message):
