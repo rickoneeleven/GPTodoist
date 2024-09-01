@@ -71,35 +71,78 @@ def complete_todoist_task_by_id(api, task_id):
     return True
 
 def complete_active_todoist_task(api):
+    def handler(signum, frame):
+        raise Exception("end of time")
+
+    signal.signal(signal.SIGALRM, handler)
+
+    retries = 0
+    while retries < 3:  # Limit to 3 retries
+        try:
+            signal.alarm(5)  # 5-second timeout
+
+            with open("j_active_task.json", "r") as infile:
+                active_task = json.load(infile)
+                task_id = active_task["task_id"]
+                task_name = active_task["task_name"]
+
+            task = api.get_task(task_id)
+            if task:
+                api.close_task(task_id=task_id)
+                log_completed_task(task_name)
+                print(f"[yellow]{task_name} completed[/yellow]")
+                
+                # Update completed tasks count
+                update_completed_tasks_count()
+                
+                signal.alarm(0)
+                return True
+            else:
+                print("No task was found with the given id.")
+                signal.alarm(0)
+                return False
+
+        except FileNotFoundError:
+            print("Active task file not found.")
+            signal.alarm(0)
+            return False
+        except KeyError:
+            print("Task ID not found in the active task file.")
+            signal.alarm(0)
+            return False
+        except Exception as error:
+            retries += 1
+            print(f"Attempt {retries}: Failed to complete task. Error: {error}")
+            if retries == 3 or "end of time" in str(error):
+                print("[red]Failed to complete task after 3 retries or timeout occurred.[/red]")
+                signal.alarm(0)
+                return False
+
+    signal.alarm(0)
+    return False
+
+def update_completed_tasks_count():
+    completed_tasks_file = "j_number_of_todays_completed_tasks.json"
+    today_str = datetime.date.today().isoformat()
+    
     try:
-        with open("j_active_task.json", "r") as infile:
-            active_task = json.load(infile)
-            task_id = active_task["task_id"]
-            task_name = active_task["task_name"]
-        if complete_todoist_task_by_id(api, task_id):
-            completed_tasks_file = "j_number_of_todays_completed_tasks.json"
-            today_str = datetime.date.today().isoformat()
-            if not os.path.exists(completed_tasks_file):
-                with open(completed_tasks_file, "w") as outfile:
-                    json.dump({"total_today": 0, "todays_date": today_str}, outfile, indent=2)
-            with open(completed_tasks_file, "r+") as file:
-                data = json.load(file)
-                if data["todays_date"] == today_str:
-                    data["total_today"] += 1
-                else:
-                    data["total_today"] = 1
-                    data["todays_date"] = today_str
-                file.seek(0)
-                file.truncate()
-                json.dump(data, file, indent=2)
-        else:
-            print(f"[red]DO A MANUAL qq, DON'T TRUST NEXT TASK - Error completing task {task_id}.[/red]")
+        with open(completed_tasks_file, "r+") as file:
+            data = json.load(file)
+            if data["todays_date"] == today_str:
+                data["total_today"] += 1
+            else:
+                data["total_today"] = 1
+                data["todays_date"] = today_str
+            file.seek(0)
+            file.truncate()
+            json.dump(data, file, indent=2)
     except FileNotFoundError:
-        print("Active task file not found.")
-    except KeyError:
-        print("Task ID not found in the active task file.")
-    except Exception as error:
-        print(f"Error completing active task: {error}")
+        with open(completed_tasks_file, "w") as outfile:
+            json.dump({"total_today": 1, "todays_date": today_str}, outfile, indent=2)
+    except json.JSONDecodeError:
+        print("Error reading the task count file. Resetting count.")
+        with open(completed_tasks_file, "w") as outfile:
+            json.dump({"total_today": 1, "todays_date": today_str}, outfile, indent=2)
 
 def postpone_due_date(api, user_message):
     try:
