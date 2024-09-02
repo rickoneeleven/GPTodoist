@@ -1,4 +1,4 @@
-import json, dateutil.parser, datetime, sys, os, signal, pyfiglet
+import json, dateutil.parser, datetime, sys, os, signal, pyfiglet, time
 import module_call_counter
 from dateutil.parser import parse
 from datetime import timedelta
@@ -76,8 +76,10 @@ def complete_active_todoist_task(api):
 
     signal.signal(signal.SIGALRM, handler)
 
-    retries = 0
-    while retries < 3:  # Limit to 3 retries
+    max_retries = 3
+    retry_delay = 1  # seconds
+
+    for retry in range(max_retries):
         try:
             signal.alarm(5)  # 5-second timeout
 
@@ -111,14 +113,15 @@ def complete_active_todoist_task(api):
             signal.alarm(0)
             return False
         except Exception as error:
-            retries += 1
-            print(f"Attempt {retries}: Failed to complete task. Error: {error}")
-            if retries == 3 or "end of time" in str(error):
-                print("[red]Failed to complete task after 3 retries or timeout occurred.[/red]")
-                signal.alarm(0)
+            signal.alarm(0)
+            print(f"Attempt {retry + 1}: Failed to complete task. Error: {error}")
+            if retry < max_retries - 1:
+                print(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                print("[red]Failed to complete task after all retries.[/red]")
                 return False
 
-    signal.alarm(0)
     return False
 
 def update_completed_tasks_count():
