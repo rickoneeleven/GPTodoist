@@ -94,9 +94,9 @@ def timesheet():
     # Calculate total duration of entered tasks
     total_duration = sum(entry['duration'] for entry in timesheet_entries)
 
-    # Generate random duration between 7 and 8 hours (420 to 480 minutes)
+    # Generate random duration between 7 and 9 hours (420 to 540 minutes)
     # and round to nearest 5-minute increment
-    target_duration = round(random.randint(420, 480) / 5) * 5
+    target_duration = round(random.randint(420, 540) / 5) * 5
 
     # Adjust durations to match target duration
     if total_duration < target_duration:
