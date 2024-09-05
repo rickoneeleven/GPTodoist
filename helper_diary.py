@@ -164,7 +164,24 @@ def show_day_entries(day_data):
     if 'total_hours' in day_data:
         print(f"\n[cyan]Total hours worked:[/cyan] {day_data['total_hours']}")
         print("-------------------------------------------------------------------")
-        
+
+def update_todays_objective(new_objective):
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    try:
+        with open("j_diary.json", "r") as f:
+            diary = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        diary = {}
+
+    if today_str not in diary:
+        diary[today_str] = {}
+    
+    diary[today_str]['overall_objective'] = new_objective
+
+    with open("j_diary.json", "w") as f:
+        json.dump(diary, f, indent=2)
+
+    print(f"Today's overall objective has been updated to: {new_objective}")
             
             
 if __name__ == "__main__":

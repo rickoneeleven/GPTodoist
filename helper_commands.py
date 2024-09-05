@@ -32,6 +32,10 @@ def ifelse_commands(api, user_message):
     elif command == "diary":
         helper_diary.diary()
         return True
+    elif command.startswith("diary "):
+        new_objective = user_message[6:].strip()
+        helper_diary.update_todays_objective(new_objective)
+        return True
     elif command == "timesheet":
         helper_timesheets.timesheet()
         return True
