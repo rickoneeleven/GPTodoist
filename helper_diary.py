@@ -141,15 +141,31 @@ def show_week_summary(reference_date):
 
     print(f"[bold blue]Summary for the week of {start_of_week.strftime('%B %d')} - {end_of_week.strftime('%B %d, %Y')}:[/bold blue]")
 
-    for day in range(5):  # Monday to Friday
-        current_date = start_of_week + timedelta(days=day)
-        date_str = current_date.strftime("%Y-%m-%d")
+    days_to_show = list(range(5))  # Monday to Friday
+    for i in range(0, 5, 2):
+        for day in days_to_show[i:i+2]:
+            current_date = start_of_week + timedelta(days=day)
+            date_str = current_date.strftime("%Y-%m-%d")
+            
+            if date_str in diary:
+                print(f"\n[bold green]{current_date.strftime('%A, %B %d')}:[/bold green]")
+                show_day_entries(diary[date_str])
+            else:
+                print(f"\n[yellow]{current_date.strftime('%A, %B %d')}: No entries[/yellow]")
+        
+        if i < 3:  # Don't prompt after the last day
+            input("\nPress Enter to continue...")
+
+    # Show the last day if there's an odd number of days
+    if len(days_to_show) % 2 != 0:
+        last_day = start_of_week + timedelta(days=days_to_show[-1])
+        date_str = last_day.strftime("%Y-%m-%d")
         
         if date_str in diary:
-            print(f"\n[bold green]{current_date.strftime('%A, %B %d')}:[/bold green]")
+            print(f"\n[bold green]{last_day.strftime('%A, %B %d')}:[/bold green]")
             show_day_entries(diary[date_str])
         else:
-            print(f"\n[yellow]{current_date.strftime('%A, %B %d')}: No entries[/yellow]")
+            print(f"\n[yellow]{last_day.strftime('%A, %B %d')}: No entries[/yellow]")
 
 def show_day_entries(day_data):
     if 'overall_objective' in day_data:
