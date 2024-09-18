@@ -1,6 +1,7 @@
 import os, json, time
 import module_call_counter, helper_general, helper_todoist_part1
 from datetime import datetime, timedelta
+from rich import print
 
 
 def add_long_term_task(user_message):
