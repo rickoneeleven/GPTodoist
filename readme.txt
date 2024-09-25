@@ -11,3 +11,5 @@ CTRL+C
 vim j_todoist_filters.json
   [{"id": 1, "filter": "(no due date | today | overdue) & #Inbox", "isActive": 0, "project_id": ""}, {"id": 1, "filter": "(today | overdue | no due date) & #Team Virtue", "isActive": 1, "project_id": "2294289600"}]
   :wq
+  
+  heelo mate
