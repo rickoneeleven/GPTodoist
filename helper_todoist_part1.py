@@ -162,12 +162,28 @@ def postpone_due_date(api, user_message):
             if due_string:
                 if task.due and task.due.is_recurring:
                     api.close_task(task_id=task_id)
-                    new_task_args = {"content": content, "due_string": due_string}
+                    new_task_args = {
+                        "content": content,
+                        "due_string": due_string,
+                        "description": task.description
+                    }
                     if hasattr(task, "project_id") and task.project_id:
                         new_task_args["project_id"] = task.project_id
                     new_task = api.add_task(**new_task_args)
+                    if new_task:
+                        print(f"Recurring task postponed to '{due_string}' and description preserved.")
+                    else:
+                        print("Failed to create new recurring task.")
                 else:
-                    api.update_task(task_id=task.id, due_string=due_string)
+                    updated_task = api.update_task(
+                        task_id=task.id,
+                        due_string=due_string,
+                        description=task.description
+                    )
+                    if updated_task:
+                        print(f"Task postponed to '{due_string}' and description preserved.")
+                    else:
+                        print("Failed to update task.")
             else:
                 print("No due date provided.")
         else:
@@ -223,7 +239,17 @@ def check_and_update_task_due_date(api, user_message):
             print("No due date provided.")
             return
 
-        update_task_due_date(api, task.id, due_string)
+        # Update the task with the new due date and preserve the description
+        updated_task = api.update_task(
+            task_id=task.id,
+            due_string=due_string,
+            description=task.description
+        )
+
+        if updated_task:
+            print(f"Task due date updated to '{due_string}' and description preserved.")
+        else:
+            print("Failed to update task.")
 
     except FileNotFoundError:
         print("Active task file not found.")

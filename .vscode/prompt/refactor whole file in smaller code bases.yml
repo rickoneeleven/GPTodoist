@@ -1,5 +1,0 @@
-name: split file into two
-instruction: >
-  split out the functions in this code into two seperate files, as evenly as possible, whilst reducing the number of includes required between the two to one another. no loss of functionailiy. refactor must include full code. do one file at a time and then ask the user when they are ready to continue onto the second file.
-files:
-  - helper_todoist.py

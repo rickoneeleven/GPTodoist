@@ -135,6 +135,10 @@ def get_next_todoist_task(api):
             
             # Display task with additional info
             print(f"                   [green]{display_info}{original_task_name}[/green]")
+            
+            # Check for and display description
+            if task.description:
+                print(f"                   [italic blue]{task.description}[/italic blue]")
             print()
         else:
             print("\u2705")
@@ -213,6 +217,11 @@ def display_todoist_tasks(api):
             
             task_name = f"{recurrence_prefix}{priority_label}{task.content}"
             print(f"{due_time}{task_name}")
+            
+            # Display description if it exists
+            if task.description:
+                description_indent = " " * (max_due_time_length + tab_size)
+                print(f"{description_indent}[italic blue]{task.description}[/italic blue]")
 
 def graft(api, user_message):
     try:
