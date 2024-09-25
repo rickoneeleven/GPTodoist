@@ -189,11 +189,16 @@ def timesheet():
 
     # Ask for the day's overall objective
     today_str = datetime.now().strftime("%Y-%m-%d")
+    yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
     try:
         with open("j_diary.json", "r") as f:
             diary = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         diary = {}
+
+    # Print yesterday's objective
+    if yesterday_str in diary and 'overall_objective' in diary[yesterday_str]:
+        print(f"\n[orange3]Yesterday: {diary[yesterday_str]['overall_objective']}[/orange3]")
 
     if today_str in diary and 'overall_objective' in diary[today_str]:
         print(f"\nCurrent overall objective for today: {diary[today_str]['overall_objective']}")
