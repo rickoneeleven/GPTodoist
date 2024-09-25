@@ -76,41 +76,45 @@ def fetch_todoist_tasks(api):
             signal.alarm(5)
             tasks = api.get_tasks(filter=active_filter)
             london_tz = pytz.timezone("Europe/London")
-            all_tasks = []
             now_utc = datetime.datetime.now(datetime.timezone.utc)
-            now_london = now_utc.astimezone(london_tz).isoformat()
+            now_london = now_utc.astimezone(london_tz)
+
             for task in tasks:
-                if task.due and task.due.datetime:
-                    utc_dt = parse(task.due.datetime)
-                    london_dt = utc_dt.astimezone(london_tz)
-                    task.due.datetime = london_dt.isoformat()
-                else:
-                    if task.due and task.due.date:
+                if task.due:
+                    if task.due.datetime:
+                        utc_dt = parse(task.due.datetime)
+                        london_dt = utc_dt.astimezone(london_tz)
+                        task.due.datetime = london_dt.isoformat()
+                        task.has_time = True
+                    elif task.due.date:
                         due_date = parse(task.due.date).date()
-                        end_of_due_day = datetime.datetime.combine(due_date, datetime.time(6, 59), tzinfo=london_tz)
-                        task.due.datetime = end_of_due_day.isoformat()
+                        start_of_due_day = datetime.datetime.combine(due_date, datetime.time(0, 0), tzinfo=london_tz)
+                        task.due.datetime = start_of_due_day.isoformat()
+                        task.has_time = False
                     else:
-                        task.due = type("Due", (object,), {"datetime": now_london})()
-                all_tasks.append(task)
+                        task.due.datetime = now_london.isoformat()
+                        task.has_time = False
+                else:
+                    task.due = type("Due", (object,), {"datetime": now_london.isoformat()})()
+                    task.has_time = False
+
             sorted_final_tasks = sorted(
-                all_tasks,
+                tasks,
                 key=lambda t: (
                     -t.priority,
-                    t.due.datetime
-                    if t.due and hasattr(t.due, "datetime")
-                    else now_london,
+                    not t.has_time,
+                    t.due.datetime if t.due and hasattr(t.due, "datetime") else now_london.isoformat(),
                     t.created if hasattr(t, "created") else "",
                 ),
             )
+            
             signal.alarm(0)
             return sorted_final_tasks
         except Exception as e:
             retries += 1
             print(f"Attempt {retries}: Failed to fetch tasks. Error: {e}")
             if retries == 99:
-                print(
-                    "[red]Failed to fetch tasks after 10 retries. Exiting with 'end of time'[/red]"
-                )
+                print("[red]Failed to fetch tasks after 99 retries. Exiting with 'end of time'[/red]")
                 return None
             time.sleep(1)
 
