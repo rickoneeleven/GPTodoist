@@ -129,7 +129,7 @@ def timesheet():
     # Save to j_diary.json
     diary_entry = {
         "tasks": timesheet_entries,
-        "total_duration": target_duration,  # Changed from total_minutes to target_duration
+        "total_duration": target_duration,
         "total_hours": round(total_hours, 2)
     }
 
@@ -141,6 +141,10 @@ def timesheet():
 
     timesheet_date_str = timesheet_date.strftime("%Y-%m-%d")
     if timesheet_date_str in diary:
+        # Preserve the overall_objective if it exists
+        if 'overall_objective' in diary[timesheet_date_str]:
+            diary_entry['overall_objective'] = diary[timesheet_date_str]['overall_objective']
+        
         # Merge new entries with existing entries
         existing_entries = diary[timesheet_date_str].get("tasks", [])
         merged_entries = existing_entries + timesheet_entries
@@ -162,13 +166,11 @@ def timesheet():
                         entry['duration'] -= 1
                         total_duration -= 1
 
-        diary[timesheet_date_str] = {
-            "tasks": merged_entries,
-            "total_duration": total_duration,
-            "total_hours": round(total_duration / 60, 2)
-        }
-    else:
-        diary[timesheet_date_str] = diary_entry
+        diary_entry['tasks'] = merged_entries
+        diary_entry['total_duration'] = total_duration
+        diary_entry['total_hours'] = round(total_duration / 60, 2)
+
+    diary[timesheet_date_str] = diary_entry
 
     with open("j_diary.json", "w") as f:
         json.dump(diary, f, indent=2)
