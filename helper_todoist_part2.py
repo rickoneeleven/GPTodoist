@@ -88,8 +88,7 @@ def fetch_todoist_tasks(api):
                         task.has_time = True
                     elif task.due.date:
                         due_date = parse(task.due.date).date()
-                        start_of_due_day = datetime.datetime.combine(due_date, datetime.time(0, 0), tzinfo=london_tz)
-                        task.due.datetime = start_of_due_day.isoformat()
+                        task.due.datetime = now_london.replace(year=due_date.year, month=due_date.month, day=due_date.day).isoformat()
                         task.has_time = False
                     else:
                         task.due.datetime = now_london.isoformat()
