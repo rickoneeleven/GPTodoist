@@ -101,8 +101,8 @@ def fetch_todoist_tasks(api):
                 tasks,
                 key=lambda t: (
                     -t.priority,
-                    not t.has_time,
                     t.due.datetime if t.due and hasattr(t.due, "datetime") else now_london.isoformat(),
+                    not t.has_time,
                     t.created if hasattr(t, "created") else "",
                 ),
             )
