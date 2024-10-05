@@ -1,4 +1,5 @@
 import json, dateutil.parser, datetime, sys, os, signal, pyfiglet, time, uuid
+import hashlib, platform
 import module_call_counter
 from dateutil.parser import parse
 from datetime import timedelta
@@ -26,6 +27,23 @@ def add_to_active_task_file(task_name, task_id, task_due):
     }
     with open("j_active_task.json", "w") as outfile:
         json.dump(active_task, outfile, indent=2)
+
+def get_device_id():
+    # Collect system-specific information
+    system_info = [
+        platform.node(),  # Network name of the machine
+        platform.machine(),  # Machine type (e.g., 'x86_64')
+        platform.processor(),  # Processor type
+        str(uuid.getnode()),  # MAC address as a 48-bit integer
+    ]
+    
+    # Create a unique string from the system information
+    unique_string = ':'.join(system_info)
+    
+    # Generate a hash of the unique string
+    device_id = hashlib.md5(unique_string.encode()).hexdigest()
+    
+    return device_id
 
 def get_active_filter():
     filter_file_path = "j_todoist_filters.json"
@@ -201,17 +219,6 @@ def postpone_due_date(api, user_message):
     except Exception as error:
         print(f"Error updating active task due date: {error}")
 
-def get_device_id():
-    device_id_file = "j_device_id.json"
-    if os.path.exists(device_id_file):
-        with open(device_id_file, "r") as f:
-            data = json.load(f)
-            return data["device_id"]
-    else:
-        device_id = str(uuid.uuid4())
-        with open(device_id_file, "w") as f:
-            json.dump({"device_id": device_id}, f, indent=2)
-        return device_id
 
 def get_active_task():
     try:
