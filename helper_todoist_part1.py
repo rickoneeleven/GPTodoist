@@ -1,4 +1,4 @@
-import json, dateutil.parser, datetime, sys, os, signal, pyfiglet, time
+import json, dateutil.parser, datetime, sys, os, signal, pyfiglet, time, uuid
 import module_call_counter
 from dateutil.parser import parse
 from datetime import timedelta
@@ -17,9 +17,15 @@ def change_active_task():
         json.dump(task_data, file)
 
 def add_to_active_task_file(task_name, task_id, task_due):
-    active_task = {"task_name": task_name, "task_id": task_id, "task_due": task_due}
+    active_task = {
+        "task_name": task_name,
+        "task_id": task_id,
+        "task_due": task_due,
+        "device_id": get_device_id(),
+        "last_updated": datetime.datetime.now().isoformat()
+    }
     with open("j_active_task.json", "w") as outfile:
-        json.dump(active_task, outfile)
+        json.dump(active_task, outfile, indent=2)
 
 def get_active_filter():
     filter_file_path = "j_todoist_filters.json"
@@ -195,9 +201,44 @@ def postpone_due_date(api, user_message):
     except Exception as error:
         print(f"Error updating active task due date: {error}")
 
+def get_device_id():
+    device_id_file = "j_device_id.json"
+    if os.path.exists(device_id_file):
+        with open(device_id_file, "r") as f:
+            data = json.load(f)
+            return data["device_id"]
+    else:
+        device_id = str(uuid.uuid4())
+        with open(device_id_file, "w") as f:
+            json.dump({"device_id": device_id}, f, indent=2)
+        return device_id
+
 def get_active_task():
-    with open("j_active_task.json", "r") as infile:
-        return json.load(infile)
+    try:
+        with open("j_active_task.json", "r") as infile:
+            return json.load(infile)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+def verify_device_id_before_command():
+    try:
+        with open("j_active_task.json", "r") as infile:
+            active_task = json.load(infile)
+    except (FileNotFoundError, json.JSONDecodeError):
+        print("[red]No active task found. Please set an active task first.[/red]")
+        return False
+
+    current_device_id = get_device_id()
+    task_device_id = active_task.get("device_id")
+    
+    if task_device_id != current_device_id:
+        print("[red]Warning: Active task was last updated on another device.[/red]")
+        print(f"Last update: {active_task.get('last_updated', 'Unknown')}")
+        print("Please refresh the active task on this device before proceeding.")
+        print(f"Current active task: {active_task['task_name']}")
+        return False
+    
+    return True
 
 def update_task_due_date(api, task_id, due_string):
     # Existing implementation

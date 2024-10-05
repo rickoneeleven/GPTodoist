@@ -1,4 +1,4 @@
-import os, readline, subprocess
+import os, readline
 import helper_todoist_part1, helper_todoist_part2, helper_commands, module_call_counter, helper_general, helper_parse, helper_diary
 from rich import print
 from dateutil.parser import parse
@@ -20,6 +20,8 @@ def main_loop():
         user_message = helper_parse.get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():
+            continue
+        if not helper_todoist_part1.verify_device_id_before_command():
             continue
         if helper_commands.ifelse_commands(api, user_message):
             continue
