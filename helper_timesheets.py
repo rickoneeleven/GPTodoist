@@ -72,7 +72,11 @@ def timesheet():
                 summary = task['task_name']
             duration = input("Enter time spent in minutes (default 5): ").strip()
             duration = int(duration) if duration else 5
-            timesheet_entries.append({"summary": summary, "duration": duration})
+            timesheet_entries.append({
+                "summary": summary, 
+                "duration": duration,
+                "datetime": task['datetime']  # Include the original datetime
+            })
 
     # Print summary of selected tasks
     if timesheet_entries:
@@ -116,6 +120,9 @@ def timesheet():
                 if entry['duration'] > 5:
                     entry['duration'] -= 5
                     total_duration -= 5
+    
+    # Sort entries by datetime before saving             
+    timesheet_entries.sort(key=lambda x: x['datetime'])
 
     # Display final timesheet
     print("\n++++++++++++++++++++++++ Final Timesheet:")
@@ -125,6 +132,17 @@ def timesheet():
     total_hours = target_duration / 60
     print(f"\nTotal Time: {total_hours:.2f} hours")
     print("\n++++++++++++++++++++++++ ")
+    
+    # Remove the datetime key as it's not needed in the final diary entry
+    for entry in timesheet_entries:
+        del entry['datetime']
+
+    # Save to j_diary.json
+    diary_entry = {
+        "tasks": timesheet_entries,
+        "total_duration": target_duration,
+        "total_hours": round(total_hours, 2)
+    }
 
     # Save to j_diary.json
     diary_entry = {
