@@ -168,13 +168,9 @@ def show_week_summary(reference_date):
             print(f"\n[yellow]{last_day.strftime('%A, %B %d')}: No entries[/yellow]")
 
 def show_day_entries(day_data):
-    #if 'overall_objective' in day_data:
-        #print(f"[cyan]Overall objective:[/cyan] {day_data['overall_objective']}")
-
     if 'tasks' in day_data:
         print("\n[cyan]Tasks:[/cyan]")
-        sorted_tasks = sorted(day_data['tasks'], key=lambda x: x['duration'], reverse=True)
-        for task in sorted_tasks:
+        for task in day_data['tasks']:
             print(f"- {task['summary']} ({task['duration']} minutes)")
 
     if 'total_hours' in day_data:
