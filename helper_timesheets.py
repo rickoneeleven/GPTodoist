@@ -75,7 +75,7 @@ def timesheet():
             timesheet_entries.append({
                 "summary": summary, 
                 "duration": duration,
-                "datetime": task['datetime']  # Include the original datetime
+                "datetime": task['datetime']
             })
 
     # Print summary of selected tasks
@@ -90,10 +90,22 @@ def timesheet():
         summary = input("Enter task summary: ")
         duration = input("Enter time spent in minutes (default 5): ").strip()
         duration = int(duration) if duration else 5
-        timesheet_entries.append({"summary": summary, "duration": duration})
+        completion_time = input("Enter the time you completed this task (HH:mm format): ").strip()
+        
+        # Combine the timesheet date with the completion time
+        task_datetime = f"{timesheet_date.strftime('%Y-%m-%d')} {completion_time}"
+        
+        timesheet_entries.append({
+            "summary": summary, 
+            "duration": duration,
+            "datetime": task_datetime
+        })
 
         # Print the newly added task
         print(f"Added: {summary} ({duration} minutes)")
+
+    # Sort entries by datetime
+    timesheet_entries.sort(key=lambda x: x['datetime'])
 
     # Calculate total duration of entered tasks
     total_duration = sum(entry['duration'] for entry in timesheet_entries)
