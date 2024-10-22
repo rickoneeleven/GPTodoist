@@ -70,11 +70,20 @@ def timesheet():
                 summary = input("Enter new task summary: ").strip()
             else:
                 summary = task['task_name']
-            duration = input("Enter time spent in minutes (default 5): ").strip()
-            duration = int(duration) if duration else 5
+            duration_input = input("Enter time spent in minutes (default 5): ").strip()
+            
+            # Check if duration is locked (wrapped in parentheses)
+            is_locked = False
+            if duration_input.startswith('(') and duration_input.endswith(')'):
+                is_locked = True
+                duration_input = duration_input[1:-1]  # Remove parentheses
+            
+            duration = int(duration_input) if duration_input else 5
+            
             timesheet_entries.append({
                 "summary": summary, 
                 "duration": duration,
+                "is_locked": is_locked,
                 "datetime": task['datetime']
             })
 
@@ -82,14 +91,22 @@ def timesheet():
     if timesheet_entries:
         print("\nSelected tasks for timesheet:")
         for entry in timesheet_entries:
-            print(f"- {entry['summary']} ({entry['duration']} minutes)")
+            lock_status = "(locked)" if entry.get('is_locked') else ""
+            print(f"- {entry['summary']} ({entry['duration']} minutes) {lock_status}")
         print()
 
     # Prompt for additional tasks with the updated message
     while not timesheet_entries or input(f"Would you like to add any additional tasks? i.e. {day_name}'s flow: {diary.get(date_str, {}).get('overall_objective', 'No overall objective found')} (y/n, default n): ").lower() == 'y':
         summary = input("Enter task summary: ")
-        duration = input("Enter time spent in minutes (default 5): ").strip()
-        duration = int(duration) if duration else 5
+        duration_input = input("Enter time spent in minutes (default 5): ").strip()
+        
+        # Check if duration is locked
+        is_locked = False
+        if duration_input.startswith('(') and duration_input.endswith(')'):
+            is_locked = True
+            duration_input = duration_input[1:-1]  # Remove parentheses
+        
+        duration = int(duration_input) if duration_input else 5
         completion_time = input("Enter the time you completed this task (HH:mm format): ").strip()
         
         # Combine the timesheet date with the completion time
@@ -98,68 +115,70 @@ def timesheet():
         timesheet_entries.append({
             "summary": summary, 
             "duration": duration,
+            "is_locked": is_locked,
             "datetime": task_datetime
         })
 
         # Print the newly added task
-        print(f"Added: {summary} ({duration} minutes)")
+        lock_status = "(locked)" if is_locked else ""
+        print(f"Added: {summary} ({duration} minutes) {lock_status}")
 
     # Sort entries by datetime
     timesheet_entries.sort(key=lambda x: x['datetime'])
 
-    # Calculate total duration of entered tasks
-    total_duration = sum(entry['duration'] for entry in timesheet_entries)
+    # Calculate total duration of entered tasks, separating locked and unlocked
+    locked_duration = sum(entry['duration'] for entry in timesheet_entries if entry.get('is_locked'))
+    unlocked_duration = sum(entry['duration'] for entry in timesheet_entries if not entry.get('is_locked'))
+    total_duration = locked_duration + unlocked_duration
 
     # Generate random duration between 7 and 9 hours (420 to 480 minutes)
     # and round to nearest 5-minute increment
     target_duration = round(random.randint(420, 480) / 5) * 5
 
-    # Adjust durations to match target duration
+    # Adjust only unlocked durations to match target duration
     if total_duration < target_duration:
         # Add time if less than target
-        while total_duration < target_duration:
+        remaining_to_add = target_duration - total_duration
+        while remaining_to_add > 0:
             for entry in timesheet_entries:
-                if total_duration >= target_duration:
+                if not entry.get('is_locked') and remaining_to_add > 0:
+                    entry['duration'] += 5
+                    remaining_to_add -= 5
+                if remaining_to_add <= 0:
                     break
-                entry['duration'] += 5
-                total_duration += 5
     else:
         # Remove time if more than target
-        while total_duration > target_duration:
+        remaining_to_remove = total_duration - target_duration
+        while remaining_to_remove > 0:
             for entry in timesheet_entries:
-                if total_duration <= target_duration:
-                    break
-                if entry['duration'] > 5:
+                if not entry.get('is_locked') and entry['duration'] > 5 and remaining_to_remove > 0:
                     entry['duration'] -= 5
-                    total_duration -= 5
-    
+                    remaining_to_remove -= 5
+                if remaining_to_remove <= 0:
+                    break
+
     # Sort entries by datetime before saving             
     timesheet_entries.sort(key=lambda x: x['datetime'])
 
     # Display final timesheet
     print("\n++++++++++++++++++++++++ Final Timesheet:")
     for entry in timesheet_entries:
-        print(f"{entry['summary']}: {entry['duration']} minutes")
+        lock_status = "(locked)" if entry.get('is_locked') else ""
+        print(f"{entry['summary']}: {entry['duration']} minutes {lock_status}")
 
-    total_hours = target_duration / 60
+    total_hours = sum(entry['duration'] for entry in timesheet_entries) / 60
     print(f"\nTotal Time: {total_hours:.2f} hours")
     print("\n++++++++++++++++++++++++ ")
     
-    # Remove the datetime key as it's not needed in the final diary entry
+    # Remove the datetime and is_locked keys as they're not needed in the final diary entry
     for entry in timesheet_entries:
         del entry['datetime']
+        del entry['is_locked']
 
     # Save to j_diary.json
     diary_entry = {
         "tasks": timesheet_entries,
-        "total_duration": target_duration,
-        "total_hours": round(total_hours, 2)
-    }
-
-    # Save to j_diary.json
-    diary_entry = {
-        "tasks": timesheet_entries,
-        "total_duration": target_duration,
+        "total_duration": sum(entry['duration'] for entry in timesheet_entries),
         "total_hours": round(total_hours, 2)
     }
 
@@ -186,13 +205,14 @@ def timesheet():
                 for entry in merged_entries:
                     if total_duration >= target_duration:
                         break
-                    entry['duration'] += 1
-                    total_duration += 1
+                    if not entry.get('is_locked', False):
+                        entry['duration'] += 1
+                        total_duration += 1
             else:
                 for entry in merged_entries:
                     if total_duration <= target_duration:
                         break
-                    if entry['duration'] > 5:
+                    if not entry.get('is_locked', False) and entry['duration'] > 5:
                         entry['duration'] -= 1
                         total_duration -= 1
 
