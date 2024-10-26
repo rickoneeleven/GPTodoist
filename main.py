@@ -17,6 +17,7 @@ def main_loop():
         helper_todoist_part1.print_completed_tasks_count()
         helper_todoist_part2.check_if_grafting(api)
         helper_diary.weekly_audit()
+        helper_diary.purge_old_completed_tasks()
         user_message = helper_parse.get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():

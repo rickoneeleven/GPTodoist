@@ -227,11 +227,6 @@ def timesheet():
 
     print(f"Timesheet for {timesheet_date_str} has been saved to j_diary.json")
 
-    # Ask about purging completed tasks, defaulting to 'y'
-    purge_tasks = input("Would you like to purge all completed tasks for this date and earlier? (Y/n, default Y): ").lower()
-    if purge_tasks != 'n':
-        purge_completed_tasks(timesheet_date_str)
-
     # After finalizing the timesheet
     print("\nCurrent Todoist tasks:")
     helper_todoist_part2.display_todoist_tasks(api)
@@ -269,27 +264,5 @@ def timesheet():
 
     print("Overall objective for today has been saved.")
 
-
-def purge_completed_tasks(cutoff_date):
-    cutoff_date = datetime.strptime(cutoff_date, "%Y-%m-%d").date()
-
-    try:
-        with open("j_todays_completed_tasks.json", "r") as f:
-            completed_tasks = json.load(f)
-
-        # Filter out tasks that are after the cutoff date
-        remaining_tasks = [task for task in completed_tasks if datetime.strptime(task['datetime'], "%Y-%m-%d %H:%M:%S").date() > cutoff_date]
-
-        # Save the remaining tasks back to the file
-        with open("j_todays_completed_tasks.json", "w") as f:
-            json.dump(remaining_tasks, f, indent=2)
-
-        print(f"Completed tasks up to and including {cutoff_date} have been purged.")
-    except FileNotFoundError:
-        print("No completed tasks file found.")
-    except json.JSONDecodeError:
-        print("Error reading the completed tasks file.")
-    except Exception as e:
-        print(f"An error occurred while purging tasks: {e}")
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
