@@ -34,6 +34,19 @@ def timesheet():
 
     # Filter tasks based on the timesheet date
     filtered_tasks = [task for task in completed_tasks if datetime.strptime(task['datetime'], "%Y-%m-%d %H:%M:%S").date() == timesheet_date]
+    
+    # Sort filtered tasks by datetime and reindex them starting from 1
+    filtered_tasks.sort(key=lambda x: datetime.strptime(x['datetime'], "%Y-%m-%d %H:%M:%S"))
+    for i, task in enumerate(filtered_tasks, 1):
+        task['id'] = i
+        
+    # Update the original completed_tasks list with new indices for the filtered day
+    completed_tasks = [task for task in completed_tasks if datetime.strptime(task['datetime'], "%Y-%m-%d %H:%M:%S").date() != timesheet_date]
+    completed_tasks.extend(filtered_tasks)
+    
+    # Save the updated tasks back to the file
+    with open(completed_tasks_file, "w") as f:
+        json.dump(completed_tasks, f, indent=2)
 
     # Load and display overall objective for the day
     try:
