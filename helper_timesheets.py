@@ -148,27 +148,34 @@ def timesheet():
     # and round to nearest 5-minute increment
     target_duration = round(random.randint(420, 480) / 5) * 5
 
-    # Adjust only unlocked durations to match target duration
-    if total_duration < target_duration:
-        # Add time if less than target
-        remaining_to_add = target_duration - total_duration
-        while remaining_to_add > 0:
-            for entry in timesheet_entries:
-                if not entry.get('is_locked') and remaining_to_add > 0:
-                    entry['duration'] += 5
-                    remaining_to_add -= 5
-                if remaining_to_add <= 0:
-                    break
+    # Check if all entries are locked and match target duration
+    all_entries_locked = all(entry.get('is_locked') for entry in timesheet_entries)
+    if all_entries_locked:
+        # If all entries are locked, use their total as the target duration
+        target_duration = total_duration
     else:
-        # Remove time if more than target
-        remaining_to_remove = total_duration - target_duration
-        while remaining_to_remove > 0:
-            for entry in timesheet_entries:
-                if not entry.get('is_locked') and entry['duration'] > 5 and remaining_to_remove > 0:
-                    entry['duration'] -= 5
-                    remaining_to_remove -= 5
-                if remaining_to_remove <= 0:
-                    break
+        # Only adjust unlocked durations if there are any
+        if unlocked_duration > 0:
+            if total_duration < target_duration:
+                # Add time if less than target
+                remaining_to_add = target_duration - total_duration
+                while remaining_to_add > 0:
+                    for entry in timesheet_entries:
+                        if not entry.get('is_locked') and remaining_to_add > 0:
+                            entry['duration'] += 5
+                            remaining_to_add -= 5
+                        if remaining_to_add <= 0:
+                            break
+            elif total_duration > target_duration:
+                # Remove time if more than target
+                remaining_to_remove = total_duration - target_duration
+                while remaining_to_remove > 0:
+                    for entry in timesheet_entries:
+                        if not entry.get('is_locked') and entry['duration'] > 5 and remaining_to_remove > 0:
+                            entry['duration'] -= 5
+                            remaining_to_remove -= 5
+                        if remaining_to_remove <= 0:
+                            break
 
     # Sort entries by datetime before saving             
     timesheet_entries.sort(key=lambda x: x['datetime'])
