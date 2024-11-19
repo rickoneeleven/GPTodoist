@@ -144,9 +144,15 @@ def timesheet():
     unlocked_duration = sum(entry['duration'] for entry in timesheet_entries if not entry.get('is_locked'))
     total_duration = locked_duration + unlocked_duration
 
-    # Generate random duration between 7 and 9 hours (420 to 480 minutes)
-    # and round to nearest 5-minute increment
-    target_duration = round(random.randint(420, 480) / 5) * 5
+    # Get random range from user
+    rand_low = input("rand low value? (default 420): ").strip()
+    rand_low = int(rand_low) if rand_low else 420
+
+    rand_high = input("rand high value? (default 480): ").strip()
+    rand_high = int(rand_high) if rand_high else 480
+
+    # Generate random duration and round to nearest 5-minute increment
+    target_duration = round(random.randint(rand_low, rand_high) / 5) * 5
 
     # Check if all entries are locked and match target duration
     all_entries_locked = all(entry.get('is_locked') for entry in timesheet_entries)
