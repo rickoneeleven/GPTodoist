@@ -128,24 +128,34 @@ def get_next_todoist_task(api):
             task_id = next_task.id
             task_due = next_task.due.datetime if next_task.due and next_task.due.datetime else None
             
-            task = api.get_task(task_id)
-            
-            # Prepare display information
-            display_info = get_task_display_info(task)
-            
-            # Add to active task file with original name
-            add_to_active_task_file(original_task_name, task_id, task_due)
-            
-            # Display task with additional info
-            print(f"                   [green]{display_info}{original_task_name}[/green]")
-            
-            # Check for and display description
-            if task.description:
-                print(f"                   [italic blue]{task.description}[/italic blue]")
-            print()
+            # Check if task is due in the future
+            if task_due:
+                current_time = datetime.datetime.now(datetime.timezone.utc)
+                due_time = parse(task_due)
+                if due_time > current_time:
+                    print(f"                   [orange1]next task due at {due_time.strftime('%H:%M')}...[/orange1]")
+                    print()
+                    # Skip to long-term tasks display
+                else:
+                    task = api.get_task(task_id)
+                    display_info = get_task_display_info(task)
+                    add_to_active_task_file(original_task_name, task_id, task_due)
+                    print(f"                   [green]{display_info}{original_task_name}[/green]")
+                    if task.description:
+                        print(f"                   [italic blue]{task.description}[/italic blue]")
+                    print()
+            else:
+                task = api.get_task(task_id)
+                display_info = get_task_display_info(task)
+                add_to_active_task_file(original_task_name, task_id, task_due)
+                print(f"                   [green]{display_info}{original_task_name}[/green]")
+                if task.description:
+                    print(f"                   [italic blue]{task.description}[/italic blue]")
+                print()
         else:
             print("\u2705")
             print()
+            
         x_tasks = [
                 lt_task
                 for lt_task in long_term_tasks
