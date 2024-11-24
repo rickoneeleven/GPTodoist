@@ -55,6 +55,9 @@ def ifelse_commands(api, user_message):
         helper_regex.complete_todoist_task_by_title(user_message)
         display_todoist_tasks(api)
         return True
+    elif command.startswith("|||"):
+        helper_regex.search_todoist_tasks(user_message)
+        return True
     elif command == "delete":
         delete_todoist_task(api)
         return True
