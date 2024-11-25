@@ -260,51 +260,102 @@ def get_full_task_details(api, task_id):
 def check_and_update_task_due_date(api, user_message):
     try:
         active_task = get_active_task()
+        if not active_task:
+            print("[red]No active task found.[/red]")
+            return False
+
         task_id = active_task["task_id"]
         content = active_task["task_name"]
 
-        # Get full task details
-        task = get_full_task_details(api, task_id)
+        # Get full task details and show original state
+        original_task = get_full_task_details(api, task_id)
+        print("\n[yellow]Debug - Original task state:[/yellow]")
+        print(f"Content: {original_task.content}")
+        print(f"Due: {original_task.due.string if original_task.due else 'None'}")
+        print(f"Is recurring: {original_task.due.is_recurring if original_task.due else 'None'}")
         
-        if not task:
-            print(f"Task {task_id} not found.")
-            return
+        if not original_task:
+            print(f"[red]Task {task_id} not found.[/red]")
+            return False
 
         # Check if the task is recurring
-        is_recurring = task.due.is_recurring if task.due else False
+        is_recurring = original_task.due.is_recurring if original_task.due else False
 
         if is_recurring:
             response = input("You are trying to change the time of a recurring task, are you sure? y to continue: ")
             if response.lower() != 'y':
                 print("User aborted...")
-                return
+                return False
 
         due_string = user_message.replace("time ", "", 1)
         if due_string.isdigit() and len(due_string) == 4:
             print("[red]bad time format[/red]")
-            return
+            return False
         if not due_string:
             print("No due date provided.")
-            return
+            return False
 
-        # Update the task with the new due date and preserve the description
-        updated_task = api.update_task(
-            task_id=task.id,
-            due_string=due_string,
-            description=task.description
-        )
+        print(f"\n[yellow]Debug - Attempting to update with due_string: '{due_string}'[/yellow]")
 
-        if updated_task:
-            print(f"Task due date updated to '{due_string}' and description preserved.")
-        else:
-            print("Failed to update task.")
+        try:
+            # Update the task with the new due date and preserve the description
+            updated_task = api.update_task(
+                task_id=task_id,
+                due_string=due_string,
+                description=original_task.description
+            )
+
+            if not updated_task:
+                print("[red]Failed to update task - no response from API.[/red]")
+                return False
+
+            # Show the immediate update response
+            print("\n[yellow]Debug - API update response:[/yellow]")
+            print(f"Updated task due: {updated_task.due.string if updated_task.due else 'None'}")
+
+            # Wait a moment for API consistency
+            time.sleep(1)
+
+            # Verify the update by fetching the task again
+            verification_task = api.get_task(task_id)
+            print("\n[yellow]Debug - Verification fetch response:[/yellow]")
+            print(f"Verified task due: {verification_task.due.string if verification_task.due else 'None'}")
+            print(f"Is recurring: {verification_task.due.is_recurring if verification_task.due else 'None'}")
+            print(f"Full due object: {verification_task.due.__dict__ if verification_task.due else 'None'}")
+
+            if not verification_task or not verification_task.due:
+                print("[red]Failed to verify task update - could not fetch updated task.[/red]")
+                return False
+
+            # More detailed comparison
+            print("\n[yellow]Debug - Comparing values:[/yellow]")
+            print(f"Requested due string: '{due_string}'")
+            print(f"Actual due string: '{verification_task.due.string}'")
+
+            if verification_task.due.string != due_string:
+                print(f"[red]Task update verification failed. Expected due date '{due_string}' but got '{verification_task.due.string}'[/red]")
+                return False
+
+            print(f"[green]Task due date successfully updated to '{due_string}' and verified. Description preserved.[/green]")
+            return True
+
+        except Exception as api_error:
+            print(f"[red]Error from Todoist API while updating task: {api_error}[/red]")
+            print(f"Error type: {type(api_error)}")
+            print(f"Full error details: {api_error.__dict__ if hasattr(api_error, '__dict__') else 'No additional details'}")
+            return False
 
     except FileNotFoundError:
-        print("Active task file not found.")
-    except KeyError:
-        print("Task ID not found in the active task file.")
+        print("[red]Active task file not found.[/red]")
+        return False
+    except KeyError as ke:
+        print(f"[red]Task ID not found in the active task file. Key: {ke}[/red]")
+        return False
     except Exception as error:
-        print(f"Error updating active task due date: {error}")
+        print(f"[red]Error updating active task due date: {error}[/red]")
+        print(f"Error type: {type(error)}")
+        print(f"Full error details: {error.__dict__ if hasattr(error, '__dict__') else 'No additional details'}")
+        return False
 
 def delete_todoist_task(api):
     try:
