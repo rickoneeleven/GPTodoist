@@ -81,6 +81,11 @@ def timesheet():
             change_summary = input("Would you like to change task summary? (y/n, default: n): ").strip().lower()
             if change_summary == 'y':
                 summary = input("Enter new task summary: ").strip()
+                # Add validation check for numeric input
+                if any(char.isdigit() for char in summary):
+                    confirm = input(f"[red]Are you sure you want to change this task description to '{summary}'? (y/n, default: n): [/red]").strip().lower()
+                    if confirm != 'y':
+                        summary = task['task_name']
             else:
                 summary = task['task_name']
             duration_input = input("Enter time spent in minutes (default 5): ").strip()
