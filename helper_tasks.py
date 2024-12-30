@@ -8,7 +8,7 @@ def add_long_term_task(user_message):
     task_name = user_message[8:].strip()  # Extracts the task name from the message
     timestamp_str = helper_general.get_timestamp()  # Gets the current timestamp as a string
     timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")  # Convert timestamp string to datetime object
-    added = timestamp
+    added = timestamp - timedelta(days=1)  # Subtract 1 day from timestamp, show it shows up on todays y_ tasks
 
     if os.path.exists("j_long_term_tasks.json"):
         with open("j_long_term_tasks.json", "r") as file:
