@@ -50,7 +50,7 @@ def weekly_audit():
         return
 
     today = datetime.now().date()
-    start_date = today - timedelta(days=today.weekday() + 14)  # Two weeks ago Monday
+    start_date = today - timedelta(days=today.weekday() + 35)  # Five weeks ago Monday
     end_date = today - timedelta(days=1)  # Yesterday
 
     missing_data_days = []
