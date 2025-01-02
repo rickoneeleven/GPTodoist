@@ -282,10 +282,10 @@ def timesheet():
         print(f"\nCurrent overall objective for today: {diary[today_str]['overall_objective']}")
         change_objective = input("Would you like to change today's overall objective? (y/n, default n): ").lower()
         if change_objective == 'y':
-            new_objective = input("What key things would you like to achieve today? Check meetings.")
+            new_objective = input("What key things would you like to achieve today? Check meetings | ..")
             diary[today_str]['overall_objective'] = new_objective
     else:
-        new_objective = input("What key things would you like to achieve today? Check meetings.")
+        new_objective = input("What key things would you like to achieve today? Check meetings | ..")
         if today_str not in diary:
             diary[today_str] = {}
         diary[today_str]['overall_objective'] = new_objective
