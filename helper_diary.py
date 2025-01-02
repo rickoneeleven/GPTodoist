@@ -31,7 +31,7 @@ def purge_old_completed_tasks():
     if len(tasks) > len(updated_tasks):
         with open(completed_tasks_file, "w") as f:
             json.dump(updated_tasks, f, indent=2)
-        print(f"[yellow]Purged {len(tasks) - len(updated_tasks)} tasks older than 2 weeks.[/yellow]")
+        print(f"[yellow]Purged {len(tasks) - len(updated_tasks)} tasks older than 5 weeks.[/yellow]")
 
 def weekly_audit():
     options = get_options()
