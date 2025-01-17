@@ -120,75 +120,112 @@ def fetch_todoist_tasks(api):
 def get_next_todoist_task(api):
     try:
         tasks = fetch_todoist_tasks(api)
+        if tasks is None:  # Handle case where fetch_todoist_tasks failed
+            print("[yellow]Unable to fetch tasks at this time. Please try again later.[/yellow]")
+            print()
+            return
+            
         long_term_tasks = read_long_term_tasks("j_long_term_tasks.json")
         today = datetime.date.today()
+        
         if tasks:
-            next_task = tasks[0]
-            original_task_name = next_task.content
-            task_id = next_task.id
-            task_due = next_task.due.datetime if next_task.due and next_task.due.datetime else None
-            
-            # Always store the next task, regardless of due time
-            add_to_active_task_file(original_task_name, task_id, task_due)
-            
-            # Check if task is due in the future
-            if task_due:
-                current_time = datetime.datetime.now(datetime.timezone.utc)
-                due_time = parse(task_due)
-                if due_time > current_time:
-                    print(f"                   [orange1]next task due at {due_time.strftime('%H:%M')}...[/orange1]")
-                    print()
-                    # Skip to long-term tasks display
+            try:
+                next_task = tasks[0]
+                original_task_name = next_task.content
+                task_id = next_task.id
+                task_due = next_task.due.datetime if next_task.due and next_task.due.datetime else None
+                
+                # Always store the next task, regardless of due time
+                try:
+                    add_to_active_task_file(original_task_name, task_id, task_due)
+                except Exception as e:
+                    print(f"[yellow]Warning: Could not save active task file: {str(e)}[/yellow]")
+                
+                # Check if task is due in the future
+                if task_due:
+                    try:
+                        current_time = datetime.datetime.now(datetime.timezone.utc)
+                        due_time = parse(task_due)
+                        if due_time > current_time:
+                            print(f"                   [orange1]next task due at {due_time.strftime('%H:%M')}...[/orange1]")
+                            print()
+                            # Skip to long-term tasks display
+                        else:
+                            try:
+                                task = api.get_task(task_id)
+                                if task:
+                                    display_info = get_task_display_info(task)
+                                    print(f"                   [green]{display_info}{original_task_name}[/green]")
+                                    if task.description:
+                                        print(f"                   [italic blue]{task.description}[/italic blue]")
+                                    print()
+                            except Exception as e:
+                                print(f"[yellow]Warning: Could not fetch full task details: {str(e)}[/yellow]")
+                                # Fall back to displaying basic task info
+                                print(f"                   [green]{original_task_name}[/green]")
+                                print()
+                    except (ValueError, TypeError) as e:
+                        print(f"[yellow]Warning: Error processing task due date: {str(e)}[/yellow]")
+                        print(f"                   [green]{original_task_name}[/green]")
+                        print()
                 else:
-                    task = api.get_task(task_id)
-                    display_info = get_task_display_info(task)
-                    print(f"                   [green]{display_info}{original_task_name}[/green]")
-                    if task.description:
-                        print(f"                   [italic blue]{task.description}[/italic blue]")
-                    print()
-            else:
-                task = api.get_task(task_id)
-                display_info = get_task_display_info(task)
-                print(f"                   [green]{display_info}{original_task_name}[/green]")
-                if task.description:
-                    print(f"                   [italic blue]{task.description}[/italic blue]")
+                    try:
+                        task = api.get_task(task_id)
+                        if task:
+                            display_info = get_task_display_info(task)
+                            print(f"                   [green]{display_info}{original_task_name}[/green]")
+                            if task.description:
+                                print(f"                   [italic blue]{task.description}[/italic blue]")
+                            print()
+                    except Exception as e:
+                        print(f"[yellow]Warning: Could not fetch full task details: {str(e)}[/yellow]")
+                        print(f"                   [green]{original_task_name}[/green]")
+                        print()
+            except Exception as e:
+                print(f"[yellow]Warning: Error processing next task: {str(e)}[/yellow]")
                 print()
         else:
             print("\u2705")
             print()
             
-        x_tasks = [
+        # Process long-term tasks even if there was an error with regular tasks
+        try:
+            x_tasks = [
                 lt_task
                 for lt_task in long_term_tasks
                 if lt_task["task_name"].startswith("x_")
             ]
-        x_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
-        if x_tasks:
-            print("Complete in your own time:")
-            for x_task in x_tasks:
-                print(f"[{x_task['index']}][dodger_blue1] {x_task['task_name']}[/dodger_blue1]")
+            x_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
+            if x_tasks:
+                print("Complete in your own time:")
+                for x_task in x_tasks:
+                    print(f"[{x_task['index']}][dodger_blue1] {x_task['task_name']}[/dodger_blue1]")
+                print()
+                
+            y_tasks = [
+                lt_task
+                for lt_task in long_term_tasks
+                if lt_task["task_name"].startswith("y_") and datetime.datetime.strptime(lt_task["added"], "%Y-%m-%d %H:%M:%S").date() < today
+            ]
+            y_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
+            if y_tasks:
+                print("Daily tasks:")
+                for y_task in y_tasks:
+                    print(f"[{y_task['index']}][dodger_blue1] {y_task['task_name']}[/dodger_blue1]")
+                print()
+            else:
+                print("you've completed all of your daily, nib, nibs. Well done \o/")
+                print()
+        except Exception as e:
+            print(f"[yellow]Warning: Error processing long-term tasks: {str(e)}[/yellow]")
             print()
-        y_tasks = [
-            lt_task
-            for lt_task in long_term_tasks
-            if lt_task["task_name"].startswith("y_") and datetime.datetime.strptime(lt_task["added"], "%Y-%m-%d %H:%M:%S").date() < today
-        ]
-        y_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
-        if y_tasks:
-            print("Daily tasks:")
-            for y_task in y_tasks:
-                print(f"[{y_task['index']}][dodger_blue1] {y_task['task_name']}[/dodger_blue1]")
-            print()
-        else:
-            print("you've completed all of your daily, nib, nibs. Well done \o/")
-            print()
+            
     except Exception as e:
-        if "end of time" in str(e):
-            print("An end of time exception occurred.")
-            return None
-        else:
-            raise e
-        
+        print(f"[yellow]An error occurred while getting next task: {str(e)}[/yellow]")
+        print("Continuing to main loop...")
+        print()
+        return
+              
 def get_task_display_info(task):
     display_info = ""
     if task and task.due:
