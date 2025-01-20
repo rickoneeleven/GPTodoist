@@ -5,11 +5,16 @@ from todoist_api_python.api import TodoistAPI
 import helper_todoist_part2
 import helper_tasks, module_call_counter
 
+def prompt_user(message: str) -> str:
+    """Display a formatted prompt and get user input."""
+    print(f"[bold bright_magenta]{message}[/bold bright_magenta]")
+    return input()
+
 def get_timesheet_date():
     """Get and validate the timesheet date from user input."""
     while True:
         try:
-            date_input = input("Enter the date for this timesheet (dd/mm/yy format, or press Enter for yesterday): ")
+            date_input = prompt_user("Enter the date for this timesheet (dd/mm/yy format, or press Enter for yesterday): ")
             if date_input.lower() in ('', 'yesterday'):
                 return datetime.now().date() - timedelta(days=1)
             return datetime.strptime(date_input, "%d/%m/%y").date()
@@ -69,7 +74,7 @@ def get_selected_task_ids(filtered_tasks):
     """Get and validate task IDs from user input."""
     while True:
         try:
-            id_input = input("Enter the IDs of tasks for the timesheet (comma-separated, or press Enter to skip): ")
+            id_input = prompt_user("Enter the IDs of tasks for the timesheet (comma-separated, or press Enter to skip): ")
             if not id_input.strip():
                 return []
             selected_ids = [int(id.strip()) for id in id_input.split(',') if id.strip()]
@@ -85,16 +90,16 @@ def get_task_details(task):
     
     # Get task summary
     summary = task['task_name']
-    if input("Would you like to change task summary? (y/n, default: n): ").strip().lower() == 'y':
-        summary = input("Enter new task summary: ").strip()
+    if prompt_user("Would you like to change task summary? (y/n, default: n): ").strip().lower() == 'y':
+        summary = prompt_user("Enter new task summary: ").strip()
         if any(char.isdigit() for char in summary):
-            if input(f"[red]Are you sure you want to change this task description to '{summary}'? (y/n, default: n): [/red]").strip().lower() != 'y':
+            if prompt_user(f"[red]Are you sure you want to change this task description to '{summary}'? (y/n, default: n): [/red]").strip().lower() != 'y':
                 summary = task['task_name']
     
     # Get task duration
     while True:
         try:
-            duration_input = input("Enter time spent in minutes (default 5): ").strip()
+            duration_input = prompt_user("Enter time spent in minutes (default 5): ").strip()
             
             is_locked = False
             if duration_input.startswith('(') and duration_input.endswith(')'):
@@ -123,12 +128,12 @@ def get_task_details(task):
 
 def get_additional_task_details(day_name, diary, date_str):
     """Get details for additional tasks."""
-    summary = input("Enter task summary: ")
+    summary = prompt_user("Enter task summary: ")
     
     # Get duration
     while True:
         try:
-            duration_input = input("Enter time spent in minutes (default 5): ").strip()
+            duration_input = prompt_user("Enter time spent in minutes (default 5): ").strip()
             
             is_locked = False
             if duration_input.startswith('(') and duration_input.endswith(')'):
@@ -149,7 +154,7 @@ def get_additional_task_details(day_name, diary, date_str):
     # Get completion time
     while True:
         try:
-            completion_time = input("Enter the time you completed this task (HH:mm format): ").strip()
+            completion_time = prompt_user("Enter the time you completed this task (HH:mm format): ").strip()
             datetime.strptime(completion_time, "%H:%M")
             break
         except ValueError:
@@ -166,7 +171,7 @@ def get_random_range():
     """Get and validate random range for duration adjustment."""
     while True:
         try:
-            rand_low = input("rand low value? (default 420): ").strip()
+            rand_low = prompt_user("rand low value? (default 420): ").strip()
             rand_low = int(rand_low) if rand_low else 420
             
             if rand_low < 0:
@@ -175,7 +180,7 @@ def get_random_range():
                 continue
                 
             while True:
-                rand_high = input("rand high value? (default 480): ").strip()
+                rand_high = prompt_user("rand high value? (default 480): ").strip()
                 rand_high = int(rand_high) if rand_high else 480
                 
                 if rand_high < 0:
@@ -265,11 +270,11 @@ def update_todays_objective(diary):
 
     if today_str in diary and 'overall_objective' in diary[today_str]:
         print(f"\nCurrent overall objective for today: {diary[today_str]['overall_objective']}")
-        if input("Would you like to change today's overall objective? (y/n, default n): ").lower() == 'y':
-            new_objective = input("What key things would you like to achieve today? Check meetings | ..")
+        if prompt_user("Would you like to change today's overall objective? (y/n, default n): ").lower() == 'y':
+            new_objective = prompt_user("What key things would you like to achieve today? Check meetings | ..")
             diary[today_str]['overall_objective'] = new_objective
     else:
-        new_objective = input("What key things would you like to achieve today? Check meetings | ..")
+        new_objective = prompt_user("What key things would you like to achieve today? Check meetings | ..")
         if today_str not in diary:
             diary[today_str] = {}
         diary[today_str]['overall_objective'] = new_objective
@@ -310,7 +315,7 @@ def timesheet():
                 timesheet_entries.append(entry)
 
         # Handle additional tasks
-        while not timesheet_entries or input(f"Would you like to add any additional tasks? i.e. {day_name}'s flow: {diary.get(date_str, {}).get('overall_objective', 'No overall objective found')} (y/n, default n): ").lower() == 'y':
+        while not timesheet_entries or prompt_user(f"Would you like to add any additional tasks? i.e. {day_name}'s flow: {diary.get(date_str, {}).get('overall_objective', 'No overall objective found')} (y/n, default n): ").lower() == 'y':
             entry = get_additional_task_details(day_name, diary, date_str)
             timesheet_entries.append(entry)
             lock_status = "(locked)" if entry['is_locked'] else ""
@@ -352,7 +357,7 @@ def timesheet():
     except Exception as e:
         print(f"\n[red]An error occurred: {str(e)}[/red]")
         print("[yellow]Would you like to try again? (y/n):[/yellow]")
-        retry = input().lower().strip()
+        retry = prompt_user("").lower().strip()
         if retry == 'y':
             timesheet()  # Recursive call to restart the timesheet process
 
