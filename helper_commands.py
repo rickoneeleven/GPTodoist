@@ -21,7 +21,7 @@ from helper_todoist_part2 import (
 )
 
 # Import from other helper modules
-import helper_tasks, helper_regex, helper_timesheets
+import helper_tasks, helper_regex, helper_timesheets, helper_todoist_long
 
 def ifelse_commands(api, user_message):
     command = user_message.lower()
@@ -78,17 +78,37 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         change_active_task()
         return True
-    elif command.startswith("add long"):
+    # Original long term task commands
+    elif command.startswith("add long "):  # More specific matching
         helper_tasks.add_long_term_task(user_message)
         subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
-    elif command.startswith("show long"):
+    elif command == "show long":  # Exact match
         subprocess.call("reset")
         helper_tasks.print_tasks()
         return True
-    elif command.startswith("rename long"):
+    elif command.startswith("rename long "):  # More specific matching
         helper_tasks.rename_long_task(user_message)
+        return True
+    # New Todoist-based long term task commands
+    elif command.startswith("add long2"):
+        task_name = user_message[9:].strip()  # Extract task name after "add long2"
+        helper_todoist_long.add_task(api, task_name)
+        subprocess.call("reset")
+        helper_todoist_long.display_tasks(api)  # Show updated task list
+        return True
+    elif command.startswith("show long2"):
+        subprocess.call("reset")
+        helper_todoist_long.display_tasks(api)
+        return True
+    elif command.startswith("show long2 x"):
+        subprocess.call("reset")
+        helper_todoist_long.display_tasks(api, task_type='x')
+        return True
+    elif command.startswith("show long2 y"):
+        subprocess.call("reset")
+        helper_todoist_long.display_tasks(api, task_type='y')
         return True
     elif command.startswith("rename"):
         subprocess.call("reset")
