@@ -15,6 +15,49 @@ def get_long_term_project_id(api):
     except Exception as error:
         print(f"[red]Error accessing Todoist projects: {error}[/red]")
         return None
+        
+def delete_task(api, index):
+    """Delete a task with the given index from the Long Term Tasks project.
+    
+    Args:
+        api: Todoist API instance
+        index: Index number to delete
+        
+    Returns:
+        Deleted task content or None if failed
+    """
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return None
+        
+    try:
+        # Get all tasks to find the one with matching index
+        tasks = api.get_tasks(project_id=project_id)
+        target_task = None
+        
+        # Find task with matching index
+        for task in tasks:
+            match = re.match(r'\[(\d+)\]', task.content)
+            if match and int(match.group(1)) == index:
+                target_task = task
+                break
+                
+        if not target_task:
+            print(f"[yellow]No task found with index [{index}][/yellow]")
+            return None
+            
+        # Store task content before deletion
+        task_content = target_task.content
+        
+        # Delete the task
+        api.delete_task(task_id=target_task.id)
+        
+        print(f"[green]Deleted task: {task_content}[/green]")
+        return task_content
+        
+    except Exception as error:
+        print(f"[red]Error deleting task: {error}[/red]")
+        return None
 
 def add_task(api, task_name):
     """Add a task to the Long Term Tasks project with proper [index] prefix.

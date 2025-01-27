@@ -118,10 +118,20 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         change_active_task_priority(api, user_message)
         return True
-    elif command.startswith("delete long"):
-        helper_tasks.delete_long_task(user_message)
-        subprocess.call("reset")
-        helper_tasks.print_tasks()
+    elif command.startswith("delete long "):
+            helper_tasks.delete_long_task(user_message)
+            subprocess.call("reset")
+            helper_tasks.print_tasks()
+            return True
+    elif command.startswith("delete long2"):
+        try:
+            index = int(user_message.split()[-1])  # Get index from command
+            deleted_task = helper_todoist_long.delete_task(api, index)
+            if deleted_task:
+                subprocess.call("reset")
+                helper_todoist_long.display_tasks(api)
+        except ValueError:
+            print("[red]Invalid index format. Usage: 'delete long2 <index>'[/red]")
         return True
     elif command.startswith("touch long"):
         helper_tasks.touch_long_date(user_message)
