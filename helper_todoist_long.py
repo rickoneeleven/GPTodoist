@@ -1,6 +1,6 @@
 import module_call_counter
 from rich import print
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 
 def get_long_term_project_id(api):
@@ -58,6 +58,61 @@ def delete_task(api, index):
     except Exception as error:
         print(f"[red]Error deleting task: {error}[/red]")
         return None
+        
+def touch_task(api, task_index):
+    """Update the timestamp of a task by setting its due date to today.
+    
+    Args:
+        api: Todoist API instance
+        task_index: Index of task to touch
+        
+    Returns:
+        Updated task object or None if failed
+    """
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return None
+        
+    try:
+        # Get all tasks in project
+        tasks = api.get_tasks(project_id=project_id)
+        
+        # Find task with matching index
+        target_task = None
+        for task in tasks:
+            match = re.match(r'\[(\d+)\]', task.content)
+            if match and int(match.group(1)) == task_index:
+                target_task = task
+                break
+                
+        if not target_task:
+            print(f"[yellow]No task found with index {task_index}[/yellow]")
+            return None
+            
+        # Extract task content without index to check if it's a y_ task
+        content_without_index = re.sub(r'^\[\d+\]\s*', '', target_task.content)
+        
+        # Check if this is a y_ task that's already been touched today
+        if content_without_index.startswith('y_'):
+            if target_task.due and target_task.due.date:
+                due_date = datetime.fromisoformat(target_task.due.date)
+                if due_date.date() > datetime.now().date():
+                    print(f"[yellow]Task {task_index} has already been touched today[/yellow]")
+                    return None
+            
+        # Update the task's due date to tomorrow (so it won't show up in today's list)
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        updated_task = api.update_task(
+            task_id=target_task.id,
+            due_string=tomorrow
+        )
+        
+        print(f"[green]Updated task: {target_task.content}[/green]")
+        return updated_task
+        
+    except Exception as error:
+        print(f"[red]Error touching task: {error}[/red]")
+        return None
 
 def add_task(api, task_name):
     """Add a task to the Long Term Tasks project with proper [index] prefix.
@@ -92,10 +147,17 @@ def add_task(api, task_name):
         # Format task content with index prefix
         task_content = f"[{next_index}] {task_name}"
         
+        # For y_ tasks, set due date to yesterday so they show up immediately
+        due_string = None
+        if task_name.startswith('y_'):
+            yesterday = datetime.now() - timedelta(days=1)
+            due_string = yesterday.strftime("%Y-%m-%d")
+        
         # Add task to project
         task = api.add_task(
             content=task_content,
-            project_id=project_id
+            project_id=project_id,
+            due_string=due_string
         )
         
         print(f"[green]Added task: {task_content}[/green]")
@@ -125,7 +187,20 @@ def fetch_tasks(api, prefix=None):
         
         # Filter by prefix if specified
         if prefix:
-            tasks = [t for t in tasks if prefix in t.content]
+            filtered_tasks = []
+            today = datetime.now().date()
+            
+            for task in tasks:
+                if prefix in task.content:
+                    # For y_ tasks, only show if due today or overdue
+                    if prefix == 'y_':
+                        if task.due:
+                            due_date = datetime.fromisoformat(task.due.date)
+                            if due_date.date() <= today:
+                                filtered_tasks.append(task)
+                    else:
+                        filtered_tasks.append(task)
+            tasks = filtered_tasks
             
         # Sort by index
         tasks.sort(key=lambda t: int(re.match(r'\[(\d+)\]', t.content).group(1)))

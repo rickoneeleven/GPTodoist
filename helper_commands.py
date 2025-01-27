@@ -133,10 +133,16 @@ def ifelse_commands(api, user_message):
         except ValueError:
             print("[red]Invalid index format. Usage: 'delete long2 <index>'[/red]")
         return True
-    elif command.startswith("touch long"):
+    elif command.startswith("touch long "):
         helper_tasks.touch_long_date(user_message)
         subprocess.call("reset")
         helper_tasks.print_tasks()
+        return True
+    elif command.startswith("touch long2"):  # Add new handler here
+        index = int(user_message.split()[-1])  # Extract index from command
+        helper_todoist_long.touch_task(api, index)
+        subprocess.call("reset")
+        helper_todoist_long.display_tasks(api)
         return True
     elif command.startswith("untouch long"):
         helper_tasks.untouch_long_date(user_message)
