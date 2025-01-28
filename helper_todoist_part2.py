@@ -117,74 +117,6 @@ def fetch_todoist_tasks(api):
                 return None
             time.sleep(1)
 
-def show_long_term_tasks_only(api):
-    """Shows only long term tasks from both old and new systems"""
-    try:
-        long_term_tasks = read_long_term_tasks("j_long_term_tasks.json")
-        today = datetime.date.today()
-            
-        # Process existing long-term tasks
-        try:
-            x_tasks = [
-                lt_task
-                for lt_task in long_term_tasks
-                if lt_task["task_name"].startswith("x_")
-            ]
-            x_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
-            if x_tasks:
-                print("Complete in your own time:")
-                for x_task in x_tasks:
-                    print(f"[{x_task['index']}][dodger_blue1] {x_task['task_name']}[/dodger_blue1]")
-                print()
-                
-            y_tasks = [
-                lt_task
-                for lt_task in long_term_tasks
-                if lt_task["task_name"].startswith("y_") and datetime.datetime.strptime(lt_task["added"], "%Y-%m-%d %H:%M:%S").date() < today
-            ]
-            y_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
-            if y_tasks:
-                print("Daily tasks:")
-                for y_task in y_tasks:
-                    print(f"[{y_task['index']}][dodger_blue1] {y_task['task_name']}[/dodger_blue1]")
-                print()
-            else:
-                print("you've completed all of your daily, nib, nibs. Well done \o/")
-                print()
-        except Exception as e:
-            print(f"[yellow]Warning: Error processing long-term tasks: {str(e)}[/yellow]")
-            print()
-            
-        # Display new Todoist-based long-term tasks
-        print("[cyan]New Long Term Tasks System (Todoist):[/cyan]")
-        try:
-            # Get and display x_ tasks
-            print("\nComplete in your own time (New):")
-            x_tasks = helper_todoist_long.fetch_tasks(api, prefix='x_')
-            if x_tasks:
-                for task in x_tasks:
-                    print(f"[dodger_blue1]{task.content}[/dodger_blue1]")
-            else:
-                print("[dim]No tasks[/dim]")
-
-            # Get and display y_ tasks
-            print("\nDaily tasks (New):")
-            y_tasks = helper_todoist_long.fetch_tasks(api, prefix='y_')
-            if y_tasks:
-                for task in y_tasks:
-                    print(f"[dodger_blue1]{task.content}[/dodger_blue1]")
-            else:
-                print("[dim]No tasks[/dim]")
-            print()
-        except Exception as e:
-            print(f"[yellow]Warning: Error processing new long-term tasks: {str(e)}[/yellow]")
-            print()
-            
-    except Exception as e:
-        print(f"[yellow]An error occurred while getting long term tasks: {str(e)}[/yellow]")
-        print()
-        return
-
 def get_next_todoist_task(api):
     try:
         tasks = fetch_todoist_tasks(api)
@@ -193,9 +125,6 @@ def get_next_todoist_task(api):
             print()
             return
             
-        long_term_tasks = read_long_term_tasks("j_long_term_tasks.json")
-        today = datetime.date.today()
-        
         if tasks:
             try:
                 next_task = tasks[0]
@@ -217,7 +146,6 @@ def get_next_todoist_task(api):
                         if due_time > current_time:
                             print(f"                   [orange1]next task due at {due_time.strftime('%H:%M')}...[/orange1]")
                             print()
-                            # Skip to long-term tasks display
                         else:
                             try:
                                 task = api.get_task(task_id)
@@ -256,43 +184,11 @@ def get_next_todoist_task(api):
             print("\u2705")
             print()
             
-        # Process existing long-term tasks
-        try:
-            x_tasks = [
-                lt_task
-                for lt_task in long_term_tasks
-                if lt_task["task_name"].startswith("x_")
-            ]
-            x_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
-            if x_tasks:
-                print("Complete in your own time:")
-                for x_task in x_tasks:
-                    print(f"[{x_task['index']}][dodger_blue1] {x_task['task_name']}[/dodger_blue1]")
-                print()
-                
-            y_tasks = [
-                lt_task
-                for lt_task in long_term_tasks
-                if lt_task["task_name"].startswith("y_") and datetime.datetime.strptime(lt_task["added"], "%Y-%m-%d %H:%M:%S").date() < today
-            ]
-            y_tasks.sort(key=lambda x: datetime.datetime.strptime(x["added"], "%Y-%m-%d %H:%M:%S"))
-            if y_tasks:
-                print("Daily tasks:")
-                for y_task in y_tasks:
-                    print(f"[{y_task['index']}][dodger_blue1] {y_task['task_name']}[/dodger_blue1]")
-                print()
-            else:
-                print("you've completed all of your daily, nib, nibs. Well done \o/")
-                print()
-        except Exception as e:
-            print(f"[yellow]Warning: Error processing long-term tasks: {str(e)}[/yellow]")
-            print()
-            
-        # Display new Todoist-based long-term tasks
-        print("[cyan]New Long Term Tasks System (Todoist):[/cyan]")
+        # Display long-term tasks
+        print("[cyan]Long Term Tasks:[/cyan]")
         try:
             # Get and display x_ tasks
-            print("\nComplete in your own time (New):")
+            print("\nComplete in your own time:")
             x_tasks = helper_todoist_long.fetch_tasks(api, prefix='x_')
             if x_tasks:
                 for task in x_tasks:
@@ -301,7 +197,7 @@ def get_next_todoist_task(api):
                 print("[dim]No tasks[/dim]")
 
             # Get and display y_ tasks
-            print("\nDaily tasks (New):")
+            print("\nDaily tasks:")
             y_tasks = helper_todoist_long.fetch_tasks(api, prefix='y_')
             if y_tasks:
                 for task in y_tasks:
@@ -310,7 +206,7 @@ def get_next_todoist_task(api):
                 print("[dim]No tasks[/dim]")
             print()
         except Exception as e:
-            print(f"[yellow]Warning: Error processing new long-term tasks: {str(e)}[/yellow]")
+            print(f"[yellow]Warning: Error processing long-term tasks: {str(e)}[/yellow]")
             print()
             
     except Exception as e:
