@@ -78,35 +78,21 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         change_active_task()
         return True
-    # Original long term task commands
-    elif command.startswith("add long "):  # More specific matching
-        helper_tasks.add_long_term_task(user_message)
-        subprocess.call("reset")
-        helper_tasks.print_tasks()
-        return True
-    elif command == "show long":  # Exact match
-        subprocess.call("reset")
-        helper_tasks.print_tasks()
-        return True
-    elif command.startswith("rename long "):  # More specific matching
-        helper_tasks.rename_long_task(user_message)
-        return True
-    # New Todoist-based long term task commands
-    elif command.startswith("add long2"):
-        task_name = user_message[9:].strip()  # Extract task name after "add long2"
+    elif command.startswith("add long"):
+        task_name = user_message[9:].strip()  # Extract task name after "add long"
         helper_todoist_long.add_task(api, task_name)
         subprocess.call("reset")
         helper_todoist_long.display_tasks(api)  # Show updated task list
         return True
-    elif command.startswith("show long2"):
+    elif command.startswith("show long"):
         subprocess.call("reset")
         helper_todoist_long.display_tasks(api)
         return True
-    elif command.startswith("show long2 x"):
+    elif command.startswith("show long x"):
         subprocess.call("reset")
         helper_todoist_long.display_tasks(api, task_type='x')
         return True
-    elif command.startswith("show long2 y"):
+    elif command.startswith("show long y"):
         subprocess.call("reset")
         helper_todoist_long.display_tasks(api, task_type='y')
         return True
@@ -118,12 +104,7 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         change_active_task_priority(api, user_message)
         return True
-    elif command.startswith("delete long "):
-            helper_tasks.delete_long_task(user_message)
-            subprocess.call("reset")
-            helper_tasks.print_tasks()
-            return True
-    elif command.startswith("delete long2"):
+    elif command.startswith("delete long"):
         try:
             index = int(user_message.split()[-1])  # Get index from command
             deleted_task = helper_todoist_long.delete_task(api, index)
@@ -133,21 +114,11 @@ def ifelse_commands(api, user_message):
         except ValueError:
             print("[red]Invalid index format. Usage: 'delete long2 <index>'[/red]")
         return True
-    elif command.startswith("touch long "):
-        helper_tasks.touch_long_date(user_message)
-        subprocess.call("reset")
-        helper_tasks.print_tasks()
-        return True
-    elif command.startswith("touch long2"):  # Add new handler here
+    elif command.startswith("touch long"):  # Add new handler here
         index = int(user_message.split()[-1])  # Extract index from command
         helper_todoist_long.touch_task(api, index)
         subprocess.call("reset")
         helper_todoist_long.display_tasks(api)
-        return True
-    elif command.startswith("untouch long"):
-        helper_tasks.untouch_long_date(user_message)
-        subprocess.call("reset")
-        helper_tasks.print_tasks()
         return True
     elif command.startswith("add task"):
         add_todoist_task(api, user_message)
