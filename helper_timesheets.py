@@ -348,9 +348,6 @@ def timesheet():
         print("\nCurrent Todoist tasks:")
         helper_todoist_part2.display_todoist_tasks(api)
 
-        print("\nLong-term tasks:")
-        helper_tasks.print_tasks()
-
         # Update today's objective
         update_todays_objective(diary)
 
