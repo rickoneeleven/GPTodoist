@@ -194,7 +194,10 @@ def fetch_tasks(api, prefix=None):
                 if prefix in task.content:
                     # For y_ tasks, only show if due today or overdue
                     if prefix == 'y_':
-                        if task.due:
+                        if not task.due:
+                            # For y_ tasks without due date, treat as oldest
+                            filtered_tasks.append(task)
+                        else:
                             due_date = datetime.fromisoformat(task.due.date)
                             if due_date.date() <= today:
                                 filtered_tasks.append(task)
@@ -202,8 +205,19 @@ def fetch_tasks(api, prefix=None):
                         filtered_tasks.append(task)
             tasks = filtered_tasks
             
-        # Sort by index
-        tasks.sort(key=lambda t: int(re.match(r'\[(\d+)\]', t.content).group(1)))
+        # Sort by due date (oldest first), then by index for tasks with same date
+        def sort_key(task):
+            # If no due date (only possible for non-y_ tasks), treat as oldest
+            if not task.due:
+                return (datetime.min.date(), get_index(task))
+            due_date = datetime.fromisoformat(task.due.date).date()
+            return (due_date, get_index(task))
+            
+        def get_index(task):
+            match = re.match(r'\[(\d+)\]', task.content)
+            return int(match.group(1)) if match else float('inf')
+            
+        tasks.sort(key=sort_key)
         
         return tasks
         
@@ -253,12 +267,12 @@ def display_tasks(api, task_type=None):
         print(f"[{index}] {task.content} {date_str}")
         
 def rename_task(api, index, new_name):
-    """Rename a task in the Long Term Tasks project while preserving its index and type prefix.
+    """Rename a task in the Long Term Tasks project while preserving its index.
     
     Args:
         api: Todoist API instance
         index: Index of task to rename
-        new_name: New name for the task
+        new_name: New name for the task (complete new name including x_/y_ prefix)
         
     Returns:
         Updated task object or None if failed
@@ -283,18 +297,10 @@ def rename_task(api, index, new_name):
             print(f"[yellow]No task found with index [{index}][/yellow]")
             return None
             
-        # Extract task type prefix (x_ or y_) if present
-        content_without_index = re.sub(r'^\[\d+\]\s*', '', target_task.content)
-        prefix_match = re.match(r'^(x_|y_)', content_without_index)
-        prefix = prefix_match.group(1) if prefix_match else ''
+        # Construct new task content, just preserving the index
+        new_content = f"[{index}] {new_name}"
         
-        # Construct new task content preserving index and type prefix
-        # Clean up the new name to remove any existing prefix or index
-        cleaned_name = re.sub(r'^(x_|y_)', '', new_name)  # Remove any existing prefix
-        cleaned_name = re.sub(r'^\[\d+\]\s*', '', cleaned_name)  # Remove any existing index
-        new_content = f"[{index}] {prefix}{cleaned_name}"
-        
-        # Update the task while preserving all other attributes
+        # Update the task
         updated_task = api.update_task(
             task_id=target_task.id,
             content=new_content
