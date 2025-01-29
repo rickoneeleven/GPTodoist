@@ -99,7 +99,25 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         helper_todoist_long.display_tasks(api, task_type='y')
         return True
-    elif command.startswith("rename"):
+    elif command.startswith("rename long "):  # Add rename handler
+        try:
+            # Split the command into parts
+            parts = user_message.split(None, 3)  # Split into max 4 parts
+            if len(parts) < 4:
+                print("[red]Invalid format. Usage: 'rename long <index> <new_name>'[/red]")
+                return True
+                
+            index = int(parts[2])  # Get index from command
+            new_name = parts[3]  # Get new name
+            
+            renamed_task = helper_todoist_long.rename_task(api, index, new_name)
+            if renamed_task:
+                subprocess.call("reset")
+                helper_todoist_long.display_tasks(api)
+        except ValueError:
+            print("[red]Invalid index format. Usage: 'rename long <index> <new_name>'[/red]")
+        return True
+    elif command.startswith("rename "):
         subprocess.call("reset")
         rename_todoist_task(api, user_message)
         return True

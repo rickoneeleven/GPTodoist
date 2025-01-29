@@ -251,5 +251,60 @@ def display_tasks(api, task_type=None):
         
         # Format matching current implementation
         print(f"[{index}] {task.content} {date_str}")
+        
+def rename_task(api, index, new_name):
+    """Rename a task in the Long Term Tasks project while preserving its index and type prefix.
+    
+    Args:
+        api: Todoist API instance
+        index: Index of task to rename
+        new_name: New name for the task
+        
+    Returns:
+        Updated task object or None if failed
+    """
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return None
+        
+    try:
+        # Get all tasks to find the one with matching index
+        tasks = api.get_tasks(project_id=project_id)
+        target_task = None
+        
+        # Find task with matching index
+        for task in tasks:
+            match = re.match(r'\[(\d+)\]', task.content)
+            if match and int(match.group(1)) == index:
+                target_task = task
+                break
+                
+        if not target_task:
+            print(f"[yellow]No task found with index [{index}][/yellow]")
+            return None
+            
+        # Extract task type prefix (x_ or y_) if present
+        content_without_index = re.sub(r'^\[\d+\]\s*', '', target_task.content)
+        prefix_match = re.match(r'^(x_|y_)', content_without_index)
+        prefix = prefix_match.group(1) if prefix_match else ''
+        
+        # Construct new task content preserving index and type prefix
+        # Clean up the new name to remove any existing prefix or index
+        cleaned_name = re.sub(r'^(x_|y_)', '', new_name)  # Remove any existing prefix
+        cleaned_name = re.sub(r'^\[\d+\]\s*', '', cleaned_name)  # Remove any existing index
+        new_content = f"[{index}] {prefix}{cleaned_name}"
+        
+        # Update the task while preserving all other attributes
+        updated_task = api.update_task(
+            task_id=target_task.id,
+            content=new_content
+        )
+        
+        print(f"[green]Renamed task to: {new_content}[/green]")
+        return updated_task
+        
+    except Exception as error:
+        print(f"[red]Error renaming task: {error}[/red]")
+        return None
 
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
