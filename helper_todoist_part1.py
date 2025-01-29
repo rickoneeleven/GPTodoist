@@ -94,7 +94,7 @@ def complete_todoist_task_by_id(api, task_id):
         signal.alarm(0)
     return True
 
-def complete_active_todoist_task(api):
+def complete_active_todoist_task(api, skip_logging=False):
     def handler(signum, frame):
         raise Exception("end of time")
 
@@ -115,11 +115,11 @@ def complete_active_todoist_task(api):
             task = api.get_task(task_id)
             if task:
                 api.close_task(task_id=task_id)
-                log_completed_task(task_name)
-                print(f"[yellow]{task_name} completed[/yellow]")
-                
-                # Update completed tasks count
-                update_completed_tasks_count()
+                if not skip_logging:
+                    log_completed_task(task_name)
+                    # Update completed tasks count
+                    update_completed_tasks_count()
+                print(f"[yellow]{task_name} {'skipped' if skip_logging else 'completed'}[/yellow]")
                 
                 signal.alarm(0)
                 return True

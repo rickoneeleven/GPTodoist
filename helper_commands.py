@@ -29,6 +29,10 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         complete_active_todoist_task(api)
         return True
+    elif command == "skip":
+        subprocess.call("reset")
+        complete_active_todoist_task(api, skip_logging=True)
+        return True
     elif command == "diary":
         helper_diary.diary()
         return True
