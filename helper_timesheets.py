@@ -56,18 +56,42 @@ def load_completed_tasks(timesheet_date):
     return filtered_tasks
 
 def load_diary_objective(timesheet_date):
-    """Load and display the overall objective for the specified date."""
+    """Load and display the overall objective for the specified date.
+    If no entry exists for the specified date, look for the most recent entry before it.
+    """
     try:
         with open("j_diary.json", "r") as f:
             diary = json.load(f)
-        date_str = timesheet_date.strftime("%Y-%m-%d")
-        if date_str in diary and 'overall_objective' in diary[date_str]:
-            print("\n[yellow2]Your key objective for the day was to try and:[/yellow2]")
-            print(f"[yellow]{diary[date_str]['overall_objective']}[/yellow]")
+        
+        # Start with the given date
+        current_date = timesheet_date
+        max_lookback_days = 30  # Maximum number of days to look back
+        
+        # Look back up to max_lookback_days to find the most recent entry
+        for _ in range(max_lookback_days):
+            date_str = current_date.strftime("%Y-%m-%d")
+            if date_str in diary and 'overall_objective' in diary[date_str]:
+                if current_date != timesheet_date:  # Only show this message if we found an older entry
+                    days_ago = (timesheet_date - current_date).days
+                    day_word = "day" if days_ago == 1 else "days"
+                    print(f"\n[yellow2]Your key objective {days_ago} {day_word} ago ({current_date.strftime('%A, %d %B')}) was to try and:[/yellow2]")
+                else:
+                    print("\n[yellow2]Your key objective for the day was to try and:[/yellow2]")
+                
+                print(f"[yellow]{diary[date_str]['overall_objective']}[/yellow]")
+                print()
+                return diary, date_str
+            
+            # Move to the previous day
+            current_date -= datetime.timedelta(days=1)
+        
+        # If we reach here, no entry was found within the lookback period
+        print("\n[yellow]No recent objectives found within the last 14 days.[/yellow]")
         print()
-        return diary, date_str
+        return diary, timesheet_date.strftime("%Y-%m-%d")
+    
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
-        print("[yellow]No overall objective found for this day.[/yellow]")
+        print("[yellow]No diary file found or error reading file.[/yellow]")
         return {}, timesheet_date.strftime("%Y-%m-%d")
 
 def get_selected_task_ids(filtered_tasks):
