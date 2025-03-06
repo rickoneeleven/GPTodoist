@@ -188,7 +188,7 @@ def get_next_todoist_task(api):
         print("[cyan]Long Term Tasks:[/cyan]")
         try:
             # Get and display x_ tasks
-            print("\nComplete in your own time:")
+            print("\n5 Minute Max Tasks:")
             x_tasks = helper_todoist_long.fetch_tasks(api, prefix='x_')
             if x_tasks:
                 for task in x_tasks:
