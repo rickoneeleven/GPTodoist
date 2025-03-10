@@ -50,10 +50,37 @@ def load_completed_tasks(timesheet_date):
     completed_tasks.extend(filtered_tasks)
     
     # Save updated tasks
-    with open(completed_tasks_file, "w") as f:
-        json.dump(completed_tasks, f, indent=2)
+    with open(completed_tasks_file, "w") as file:
+        json.dump(completed_tasks, file, indent=2)
         
     return filtered_tasks
+
+def find_most_recent_objective(diary, start_date, max_lookback_days=30):
+    """
+    Find the most recent objective in the diary by looking back from start_date.
+    
+    Args:
+        diary: The diary dictionary
+        start_date: The date to start looking back from
+        max_lookback_days: Maximum number of days to look back
+        
+    Returns:
+        tuple: (found_objective_str, found_date, days_ago) or (None, None, None) if not found
+    """
+    current_date = start_date
+    
+    # Look back up to max_lookback_days to find the most recent entry
+    for lookback_day in range(max_lookback_days):
+        date_str = current_date.strftime("%Y-%m-%d")
+        if date_str in diary and 'overall_objective' in diary[date_str]:
+            days_ago = (start_date - current_date).days if current_date != start_date else 0
+            return diary[date_str]['overall_objective'], current_date, days_ago
+        
+        # Move to the previous day
+        current_date -= timedelta(days=1)
+    
+    # If we reach here, no entry was found within the lookback period
+    return None, None, None
 
 def load_diary_objective(timesheet_date):
     """Load and display the overall objective for the specified date.
@@ -63,32 +90,23 @@ def load_diary_objective(timesheet_date):
         with open("j_diary.json", "r") as f:
             diary = json.load(f)
         
-        # Start with the given date
-        current_date = timesheet_date
-        max_lookback_days = 30  # Maximum number of days to look back
+        objective, found_date, days_ago = find_most_recent_objective(diary, timesheet_date)
         
-        # Look back up to max_lookback_days to find the most recent entry
-        for _ in range(max_lookback_days):
-            date_str = current_date.strftime("%Y-%m-%d")
-            if date_str in diary and 'overall_objective' in diary[date_str]:
-                if current_date != timesheet_date:  # Only show this message if we found an older entry
-                    days_ago = (timesheet_date - current_date).days
-                    day_word = "day" if days_ago == 1 else "days"
-                    print(f"\n[yellow2]Your key objective {days_ago} {day_word} ago ({current_date.strftime('%A, %d %B')}) was to try and:[/yellow2]")
-                else:
-                    print("\n[yellow2]Your key objective for the day was to try and:[/yellow2]")
-                
-                print(f"[yellow]{diary[date_str]['overall_objective']}[/yellow]")
-                print()
-                return diary, date_str
+        if objective:
+            if days_ago > 0:  # Only show this message if we found an older entry
+                day_word = "day" if days_ago == 1 else "days"
+                print(f"\n[yellow2]Your key objective {days_ago} {day_word} ago ({found_date.strftime('%A, %d %B')}) was to try and:[/yellow2]")
+            else:
+                print("\n[yellow2]Your key objective for the day was to try and:[/yellow2]")
             
-            # Move to the previous day
-            current_date -= datetime.timedelta(days=1)
-        
-        # If we reach here, no entry was found within the lookback period
-        print("\n[yellow]No recent objectives found within the last 14 days.[/yellow]")
-        print()
-        return diary, timesheet_date.strftime("%Y-%m-%d")
+            print(f"[yellow]{objective}[/yellow]")
+            print()
+            return diary, found_date.strftime("%Y-%m-%d")
+        else:
+            # If we reach here, no entry was found within the lookback period
+            print("\n[yellow]No recent objectives found within the last 30 days.[/yellow]")
+            print()
+            return diary, timesheet_date.strftime("%Y-%m-%d")
     
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         print("[yellow]No diary file found or error reading file.[/yellow]")
@@ -286,12 +304,19 @@ def save_timesheet(timesheet_entries, timesheet_date, diary):
 def update_todays_objective(diary):
     """Update the overall objective for today."""
     today_str = datetime.now().strftime("%Y-%m-%d")
-    yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-
-    # Print yesterday's objective
-    if yesterday_str in diary and 'overall_objective' in diary[yesterday_str]:
-        print(f"\n[orange3]Yesterday: {diary[yesterday_str]['overall_objective']}[/orange3]")
-
+    today = datetime.now().date()
+    
+    # Look for the most recent objective using the helper function
+    objective, found_date, days_ago = find_most_recent_objective(diary, today - timedelta(days=1))  # Start from yesterday
+    
+    if objective:
+        day_word = "day" if days_ago == 1 else "days"
+        previous_date_formatted = found_date.strftime("%A, %d %B")
+        print(f"\n[orange3]{days_ago} {day_word} ago ({previous_date_formatted}): {objective}[/orange3]")
+    else:
+        print("\n[yellow]No recent objectives found within the last 30 days.[/yellow]")
+    
+    # Handle today's objective
     if today_str in diary and 'overall_objective' in diary[today_str]:
         print(f"\nCurrent overall objective for today: {diary[today_str]['overall_objective']}")
         if prompt_user("Would you like to change today's overall objective? (y/n, default n): ").lower() == 'y':
