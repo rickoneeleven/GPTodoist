@@ -100,8 +100,8 @@ def ifelse_commands(api, user_message):
     elif command.startswith("add long"):
         task_name = user_message[9:].strip()  # Extract task name after "add long"
         helper_todoist_long.add_task(api, task_name)
+        # Removed display_tasks call as it will be shown on the next main loop iteration
         subprocess.call("reset")
-        helper_todoist_long.display_tasks(api)  # Show updated task list
         return True
     elif command.startswith("show long"):
         subprocess.call("reset")
@@ -129,7 +129,7 @@ def ifelse_commands(api, user_message):
             renamed_task = helper_todoist_long.rename_task(api, index, new_name)
             if renamed_task:
                 subprocess.call("reset")
-                helper_todoist_long.display_tasks(api)
+                # Similar removal of redundant display call here
         except ValueError:
             print("[red]Invalid index format. Usage: 'rename long <index> <new_name>'[/red]")
         return True
@@ -147,7 +147,7 @@ def ifelse_commands(api, user_message):
             deleted_task = helper_todoist_long.delete_task(api, index)
             if deleted_task:
                 subprocess.call("reset")
-                helper_todoist_long.display_tasks(api)
+                # Also removed redundant display call here
         except ValueError:
             print("[red]Invalid index format. Usage: 'delete long2 <index>'[/red]")
         return True
@@ -155,7 +155,7 @@ def ifelse_commands(api, user_message):
         index = int(user_message.split()[-1])  # Extract index from command
         helper_todoist_long.touch_task(api, index)
         subprocess.call("reset")
-        helper_todoist_long.display_tasks(api)
+        # Also removed redundant display call here
         return True
     elif command.startswith("add task"):
         add_todoist_task(api, user_message)
