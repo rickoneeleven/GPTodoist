@@ -219,6 +219,53 @@ def add_task(api, task_name):
         print(f"[red]Error adding task: {error}[/red]")
         return None
 
+def get_categorized_tasks(api):
+    """Fetch tasks from Long Term Tasks project and categorize them into one-shot and recurring.
+    
+    Args:
+        api: Todoist API instance
+        
+    Returns:
+        Tuple of (one_shot_tasks, recurring_tasks)
+    """
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return [], []
+        
+    try:
+        # Get all tasks in project
+        tasks = api.get_tasks(project_id=project_id)
+        
+        # Categorize tasks
+        one_shot_tasks = []
+        recurring_tasks = []
+        
+        for task in tasks:
+            if is_task_recurring(task):
+                recurring_tasks.append(task)
+            else:
+                one_shot_tasks.append(task)
+        
+        # Sort both lists
+        def sort_key(task):
+            if not task.due:
+                return (datetime.min.date(), get_index(task))
+            due_date = datetime.fromisoformat(task.due.date).date()
+            return (due_date, get_index(task))
+            
+        def get_index(task):
+            match = re.match(r'\[(\d+)\]', task.content)
+            return int(match.group(1)) if match else float('inf')
+            
+        one_shot_tasks.sort(key=sort_key)
+        recurring_tasks.sort(key=sort_key)
+        
+        return one_shot_tasks, recurring_tasks
+        
+    except Exception as error:
+        print(f"[red]Error fetching and categorizing tasks: {error}[/red]")
+        return [], []
+
 def fetch_tasks(api, prefix=None):
     """Fetch and display tasks from Long Term Tasks project.
     
@@ -363,26 +410,30 @@ def identify_task_type(task_content):
     return None
 
 def display_tasks(api, task_type=None):
-    """Display tasks in format matching current implementation.
+    """Display tasks based on their recurrence status.
     
     Args:
         api: Todoist API instance
-        task_type: Optional 'x' or 'y' to filter tasks
+        task_type: Optional filter (kept for backward compatibility)
     """
-    prefix = None
-    if task_type == 'x':
-        prefix = 'x_'
-    elif task_type == 'y':
-        prefix = 'y_'
-        
-    tasks = fetch_tasks(api, prefix)
+    one_shot_tasks, recurring_tasks = get_categorized_tasks(api)
     
-    for task in tasks:
-        # Format the task using the centralized formatting function
-        formatted_task = format_task_for_display(task)
-        # Just print the formatted task directly as it already includes the index
-        print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
+    print("\nOne Shots:")
+    if one_shot_tasks:
+        for task in one_shot_tasks:
+            formatted_task = format_task_for_display(task)
+            print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
+    else:
+        print("[dim]No tasks[/dim]")
         
+    print("\nRecurring:")
+    if recurring_tasks:
+        for task in recurring_tasks:
+            formatted_task = format_task_for_display(task)
+            print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
+    else:
+        print("[dim]No tasks[/dim]")
+    
 def rename_task(api, index, new_name):
     """Rename a task in the Long Term Tasks project while preserving its index.
     

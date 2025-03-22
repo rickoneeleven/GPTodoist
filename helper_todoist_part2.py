@@ -184,35 +184,25 @@ def get_next_todoist_task(api):
             print("\u2705")
             print()
             
-        # Display long-term tasks - THIS IS THE PART THAT NEEDS CHANGING
+        # Display long-term tasks
         print("[cyan]Long Term Tasks:[/cyan]")
         try:
-            # Get untagged tasks but only show section if there are tasks
-            untagged_tasks = helper_todoist_long.fetch_tasks(api, prefix="untagged")
-            if untagged_tasks:
-                print("\nUntagged Long Tasks:")
-                for task in untagged_tasks:
-                    # Use the new formatting function instead of direct content printing
-                    formatted_task = helper_todoist_long.format_task_for_display(task)
-                    print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
+            # Get categorized tasks
+            one_shot_tasks, recurring_tasks = helper_todoist_long.get_categorized_tasks(api)
             
-            # Get and display x_ tasks
-            print("\n5 Minute Max Tasks:")
-            x_tasks = helper_todoist_long.fetch_tasks(api, prefix='x_')
-            if x_tasks:
-                for task in x_tasks:
-                    # Use the new formatting function instead of direct content printing
+            # Display one-shot tasks
+            print("\nOne Shots:")
+            if one_shot_tasks:
+                for task in one_shot_tasks:
                     formatted_task = helper_todoist_long.format_task_for_display(task)
                     print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
             else:
                 print("[dim]No tasks[/dim]")
-
-            # Get and display y_ tasks
-            print("\nDaily tasks:")
-            y_tasks = helper_todoist_long.fetch_tasks(api, prefix='y_')
-            if y_tasks:
-                for task in y_tasks:
-                    # Use the new formatting function instead of direct content printing
+                
+            # Display recurring tasks
+            print("\nRecurring:")
+            if recurring_tasks:
+                for task in recurring_tasks:
                     formatted_task = helper_todoist_long.format_task_for_display(task)
                     print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
             else:
