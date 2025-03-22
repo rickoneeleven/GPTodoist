@@ -238,6 +238,63 @@ def fetch_tasks(api, prefix=None):
         print(f"[red]Error fetching tasks: {error}[/red]")
         return []
 
+def format_task_for_display(task):
+    """Format a task for display with recurring and priority information.
+    
+    Args:
+        task: Todoist task object
+        
+    Returns:
+        str: Formatted task string ready for display
+    """
+    try:
+        # Extract task index
+        match = re.match(r'\[(\d+)\]', task.content)
+        if not match:
+            return task.content  # Fallback if no index found
+            
+        task_index = match.group(1)
+        
+        # Check if the task is recurring
+        is_recurring = False
+        recurrence_string = ""
+        
+        if task.due:
+            # First check is_recurring property
+            if hasattr(task.due, 'is_recurring') and task.due.is_recurring:
+                is_recurring = True
+                if hasattr(task.due, 'string'):
+                    recurrence_string = task.due.string
+            # Second check the due string for recurring patterns
+            elif hasattr(task.due, 'string') and task.due.string:
+                recurrence_patterns = ['every', 'daily', 'weekly', 'monthly', 'yearly']
+                if any(pattern in task.due.string.lower() for pattern in recurrence_patterns):
+                    is_recurring = True
+                    recurrence_string = task.due.string
+        
+        # Build display string with proper prefixes
+        display_text = f"[{task_index}] "
+        
+        # Add recurring info if applicable
+        if is_recurring:
+            display_text += "(r) "
+            if recurrence_string:
+                display_text += f"{recurrence_string} | "
+        
+        # Add priority if available
+        if hasattr(task, 'priority') and task.priority < 4:
+            display_text += f"(p{5 - task.priority}) "
+        
+        # Add the task content without the index
+        content_without_index = re.sub(r'^\[\d+\]\s*', '', task.content)
+        display_text += content_without_index
+        
+        return display_text
+        
+    except Exception as error:
+        # Fallback to original content if any error occurs
+        return task.content
+
 def identify_task_type(task_content):
     """Identify if a task is x_ or y_ type.
     
@@ -269,15 +326,10 @@ def display_tasks(api, task_type=None):
     tasks = fetch_tasks(api, prefix)
     
     for task in tasks:
-        # Extract index from [n] prefix
-        index = re.match(r'\[(\d+)\]', task.content).group(1)
-        
-        # Get task date
-        task_date = datetime.fromisoformat(task.created_at[:19])
-        date_str = task_date.strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Format matching current implementation
-        print(f"[{index}] {task.content} {date_str}")
+        # Format the task using the centralized formatting function
+        formatted_task = format_task_for_display(task)
+        # Just print the formatted task directly as it already includes the index
+        print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
         
 def rename_task(api, index, new_name):
     """Rename a task in the Long Term Tasks project while preserving its index.

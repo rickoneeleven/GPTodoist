@@ -184,7 +184,7 @@ def get_next_todoist_task(api):
             print("\u2705")
             print()
             
-        # Display long-term tasks
+        # Display long-term tasks - THIS IS THE PART THAT NEEDS CHANGING
         print("[cyan]Long Term Tasks:[/cyan]")
         try:
             # Get untagged tasks but only show section if there are tasks
@@ -192,14 +192,18 @@ def get_next_todoist_task(api):
             if untagged_tasks:
                 print("\nUntagged Long Tasks:")
                 for task in untagged_tasks:
-                    print(f"[dodger_blue1]{task.content}[/dodger_blue1]")
+                    # Use the new formatting function instead of direct content printing
+                    formatted_task = helper_todoist_long.format_task_for_display(task)
+                    print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
             
             # Get and display x_ tasks
             print("\n5 Minute Max Tasks:")
             x_tasks = helper_todoist_long.fetch_tasks(api, prefix='x_')
             if x_tasks:
                 for task in x_tasks:
-                    print(f"[dodger_blue1]{task.content}[/dodger_blue1]")
+                    # Use the new formatting function instead of direct content printing
+                    formatted_task = helper_todoist_long.format_task_for_display(task)
+                    print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
             else:
                 print("[dim]No tasks[/dim]")
 
@@ -208,7 +212,9 @@ def get_next_todoist_task(api):
             y_tasks = helper_todoist_long.fetch_tasks(api, prefix='y_')
             if y_tasks:
                 for task in y_tasks:
-                    print(f"[dodger_blue1]{task.content}[/dodger_blue1]")
+                    # Use the new formatting function instead of direct content printing
+                    formatted_task = helper_todoist_long.format_task_for_display(task)
+                    print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
             else:
                 print("[dim]No tasks[/dim]")
             print()
