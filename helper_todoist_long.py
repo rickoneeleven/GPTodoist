@@ -244,48 +244,20 @@ def add_task(api, task_name):
     Returns:
         Created task object or None if failed
     """
-    project_id = get_long_term_project_id(api)
-    if not project_id:
-        return None
-        
-    try:
-        # Get existing tasks to determine next index
-        tasks = api.get_tasks(project_id=project_id)
-        
-        # Extract existing indices
-        indices = []
-        for task in tasks:
-            match = re.match(r'\[(\d+)\]', task.content)
-            if match:
-                indices.append(int(match.group(1)))
-                
-        # Find lowest available index
-        next_index = 0
-        while next_index in indices:
-            next_index += 1
-            
-        # Format task content with index prefix
-        task_content = f"[{next_index}] {task_name}"
-        
-        # For y_ tasks, set due date to yesterday so they show up immediately
-        due_string = None
-        if task_name.startswith('y_'):
-            yesterday = datetime.now() - timedelta(days=1)
-            due_string = yesterday.strftime("%Y-%m-%d")
-        
-        # Add task to project
-        task = api.add_task(
-            content=task_content,
-            project_id=project_id,
-            due_string=due_string
-        )
-        
-        print(f"[green]Added task: {task_content}[/green]")
-        return task
-        
-    except Exception as error:
-        print(f"[red]Error adding task: {error}[/red]")
-        return None
+    # Import here to avoid circular imports
+    import helper_task_factory
+    
+    task = helper_task_factory.create_task(
+        api=api,
+        task_content=task_name,
+        task_type="long",
+        options={"api": api}
+    )
+    
+    if task:
+        print(f"[green]Added task: {task.content}[/green]")
+    
+    return task
 
 def get_categorized_tasks(api):
     """Fetch tasks from Long Term Tasks project, automatically fix unindexed tasks, and categorize them.

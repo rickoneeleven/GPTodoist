@@ -21,7 +21,7 @@ from helper_todoist_part2 import (
 )
 
 # Import from other helper modules
-import helper_tasks, helper_regex, helper_timesheets, helper_todoist_long
+import helper_tasks, helper_regex, helper_timesheets, helper_todoist_long, helper_task_factory
 
 def ifelse_commands(api, user_message):
     command = user_message.lower()

@@ -15,51 +15,31 @@ from helper_todoist_part1 import (
 
 def add_todoist_task(api, task_name):
     try:
+        # Import here to avoid circular imports
+        import helper_task_factory
+        
         active_filter, project_id = get_active_filter()
         if not active_filter:
             print("No active filters configured. Update j_todoist_filters.json.")
             return None
+            
+        # Remove the "add task " prefix
         task_name = task_name.replace("add task ", "").strip()
-        time_day_pattern = re.compile(r"^(.*?)(\d{2}:\d{2})(.*)$")
-        match = time_day_pattern.match(task_name)
-        if match:
-            pre_time_text = match.group(1).strip() if match.group(1) else ''
-            task_time = match.group(2).strip() if match.group(2) else None
-            task_day = match.group(3).strip() if match.group(3) else None
-            task_name = pre_time_text
-        else:
-            task_time = None
-            task_day = None
-            print("No time pattern found.")
-
-        task_params = {"content": task_name}
-        if "p1" in task_name.lower():
-            task_params["priority"] = 4
-        elif "p2" in task_name.lower():
-            task_params["priority"] = 3
-        elif "p3" in task_name.lower():
-            task_params["priority"] = 2
-        if project_id and project_id.strip():
-            task_params["project_id"] = project_id
-        task = api.add_task(**task_params)
+        
+        # Use the factory to create the task
+        task = helper_task_factory.create_task(
+            api=api,
+            task_content=task_name,
+            task_type="normal",
+            options={"project_id": project_id}
+        )
+        
         if task:
             print(f"[purple]Task '{task.content}' successfully added.[/purple]")
-        else:
-            print("Failed to add task.")
-            return None
-        if task_time:
-            if task_day:
-                due_string = f"{task_time} {task_day}".strip()
-            else:
-                due_string = task_time.strip()
-        else:
-            due_string = None
-        if due_string:
-            api.update_task(task_id=task.id, due_string=due_string)
-            print(f"Task due date set to '{due_string}'.")
+        
         return task
     except Exception as error:
-        print(f"[red] SDSFDSFSDFFF 0088 ++ Error adding task: {error} |||||  SDSFDSFSDFFF 0088 ++ [/red]")
+        print(f"[red]Error adding task: {error}[/red]")
         return None
 
 def fetch_todoist_tasks(api):
