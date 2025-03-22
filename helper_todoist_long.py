@@ -288,7 +288,7 @@ def add_task(api, task_name):
         return None
 
 def get_categorized_tasks(api):
-    """Fetch tasks from Long Term Tasks project and categorize them into one-shot and recurring.
+    """Fetch tasks from Long Term Tasks project, automatically fix unindexed tasks, and categorize them.
     
     Args:
         api: Todoist API instance
@@ -304,6 +304,41 @@ def get_categorized_tasks(api):
         # Get all tasks in project
         tasks = api.get_tasks(project_id=project_id)
         
+        # Extract existing indices and identify unindexed tasks
+        indices = []
+        unindexed_tasks = []
+        
+        for task in tasks:
+            match = re.match(r'\[(\d+)\]', task.content)
+            if match:
+                indices.append(int(match.group(1)))
+            else:
+                unindexed_tasks.append(task)
+        
+        # Fix unindexed tasks
+        if unindexed_tasks:
+            print(f"[yellow]Found {len(unindexed_tasks)} tasks without indices. Auto-fixing...[/yellow]")
+            
+            # Assign indices to unindexed tasks
+            for task in unindexed_tasks:
+                # Find next available index
+                next_index = 0
+                while next_index in indices:
+                    next_index += 1
+                
+                # Update task with index
+                new_content = f"[{next_index}] {task.content}"
+                api.update_task(
+                    task_id=task.id,
+                    content=new_content
+                )
+                
+                # Update the local task object for correct categorization
+                task.content = new_content
+                indices.append(next_index)
+            
+            print(f"[green]Successfully indexed {len(unindexed_tasks)} tasks.[/green]")
+            
         # Categorize tasks
         one_shot_tasks = []
         recurring_tasks = []
