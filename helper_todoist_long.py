@@ -58,16 +58,72 @@ def delete_task(api, index):
     except Exception as error:
         print(f"[red]Error deleting task: {error}[/red]")
         return None
+
+def is_task_recurring(task):
+    """Check if a task has recurring information.
+    
+    Args:
+        task: Todoist task object
+        
+    Returns:
+        bool: True if the task is recurring, False otherwise
+    """
+    if task.due and hasattr(task.due, 'is_recurring'):
+        return task.due.is_recurring
+    elif task.due and hasattr(task.due, 'string'):
+        recurrence_patterns = ['every', 'daily', 'weekly', 'monthly', 'yearly']
+        return any(pattern in task.due.string.lower() for pattern in recurrence_patterns)
+    return False
+
+def handle_recurring_task(api, task):
+    """Complete a recurring task.
+    
+    Args:
+        api: Todoist API instance
+        task: Todoist task object
+        
+    Returns:
+        Completed task object or None if failed
+    """
+    try:
+        completed_task = api.close_task(task_id=task.id)
+        print(f"[green]Completed recurring task: {task.content}[/green]")
+        return completed_task
+    except Exception as error:
+        print(f"[red]Error completing recurring task: {error}[/red]")
+        return None
+
+def handle_non_recurring_task(api, task):
+    """Update a non-recurring task's due date to tomorrow.
+    
+    Args:
+        api: Todoist API instance
+        task: Todoist task object
+        
+    Returns:
+        Updated task object or None if failed
+    """
+    try:
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        updated_task = api.update_task(
+            task_id=task.id,
+            due_string=tomorrow
+        )
+        print(f"[green]Updated task: {task.content}[/green]")
+        return updated_task
+    except Exception as error:
+        print(f"[red]Error updating task due date: {error}[/red]")
+        return None
         
 def touch_task(api, task_index):
-    """Update the timestamp of a task by setting its due date to today.
+    """Update the timestamp of a task by setting its due date to tomorrow or completing it if recurring.
     
     Args:
         api: Todoist API instance
         task_index: Index of task to touch
         
     Returns:
-        Updated task object or None if failed
+        Updated or completed task object or None if failed
     """
     project_id = get_long_term_project_id(api)
     if not project_id:
@@ -99,16 +155,12 @@ def touch_task(api, task_index):
                 if due_date.date() > datetime.now().date():
                     print(f"[yellow]Task {task_index} has already been touched today[/yellow]")
                     return None
-            
-        # Update the task's due date to tomorrow (so it won't show up in today's list)
-        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-        updated_task = api.update_task(
-            task_id=target_task.id,
-            due_string=tomorrow
-        )
         
-        print(f"[green]Updated task: {target_task.content}[/green]")
-        return updated_task
+        # Check if task is recurring and handle appropriately
+        if is_task_recurring(target_task):
+            return handle_recurring_task(api, target_task)
+        else:
+            return handle_non_recurring_task(api, target_task)
         
     except Exception as error:
         print(f"[red]Error touching task: {error}[/red]")
