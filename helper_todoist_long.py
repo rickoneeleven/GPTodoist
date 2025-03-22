@@ -172,7 +172,7 @@ def fetch_tasks(api, prefix=None):
     
     Args:
         api: Todoist API instance
-        prefix: Optional filter for x_ or y_ tasks
+        prefix: Optional filter for x_ or y_ tasks, or "untagged" for tasks without x_ or y_
         
     Returns:
         List of tasks matching criteria
@@ -190,19 +190,32 @@ def fetch_tasks(api, prefix=None):
             filtered_tasks = []
             today = datetime.now().date()
             
-            for task in tasks:
-                if prefix in task.content:
-                    # For y_ tasks, only show if due today or overdue
-                    if prefix == 'y_':
-                        if not task.due:
-                            # For y_ tasks without due date, treat as oldest
-                            filtered_tasks.append(task)
-                        else:
-                            due_date = datetime.fromisoformat(task.due.date)
-                            if due_date.date() <= today:
-                                filtered_tasks.append(task)
-                    else:
+            if prefix == "untagged":
+                # Get tasks that don't start with x_ or y_ (after removing index)
+                for task in tasks:
+                    # Remove index from content
+                    content_without_index = re.sub(r'^\[\d+\]\s*', '', task.content)
+                    # Check if it starts with x_ or y_
+                    if not (content_without_index.startswith('x_') or content_without_index.startswith('y_')):
                         filtered_tasks.append(task)
+            else:
+                # Regular prefix filtering
+                for task in tasks:
+                    # Remove index from content
+                    content_without_index = re.sub(r'^\[\d+\]\s*', '', task.content)
+                    # Check if it starts with the prefix
+                    if content_without_index.startswith(prefix):
+                        # For y_ tasks, only show if due today or overdue
+                        if prefix == 'y_':
+                            if not task.due:
+                                # For y_ tasks without due date, treat as oldest
+                                filtered_tasks.append(task)
+                            else:
+                                due_date = datetime.fromisoformat(task.due.date)
+                                if due_date.date() <= today:
+                                    filtered_tasks.append(task)
+                        else:
+                            filtered_tasks.append(task)
             tasks = filtered_tasks
             
         # Sort by due date (oldest first), then by index for tasks with same date

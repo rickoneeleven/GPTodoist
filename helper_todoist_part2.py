@@ -187,6 +187,13 @@ def get_next_todoist_task(api):
         # Display long-term tasks
         print("[cyan]Long Term Tasks:[/cyan]")
         try:
+            # Get untagged tasks but only show section if there are tasks
+            untagged_tasks = helper_todoist_long.fetch_tasks(api, prefix="untagged")
+            if untagged_tasks:
+                print("\nUntagged Long Tasks:")
+                for task in untagged_tasks:
+                    print(f"[dodger_blue1]{task.content}[/dodger_blue1]")
+            
             # Get and display x_ tasks
             print("\n5 Minute Max Tasks:")
             x_tasks = helper_todoist_long.fetch_tasks(api, prefix='x_')
