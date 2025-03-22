@@ -59,6 +59,74 @@ def delete_task(api, index):
         print(f"[red]Error deleting task: {error}[/red]")
         return None
 
+def reschedule_task(api, index, schedule):
+    """Reschedule a task from the Long Term Tasks project with the specified schedule.
+    
+    Args:
+        api: Todoist API instance
+        index: Index of the task to reschedule
+        schedule: Due date string (in Todoist format)
+        
+    Returns:
+        Updated task object or None if operation failed
+    """
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return None
+        
+    try:
+        # Get all tasks to find the one with matching index
+        tasks = api.get_tasks(project_id=project_id)
+        target_task = None
+        
+        # Find task with matching index
+        for task in tasks:
+            match = re.match(r'\[(\d+)\]', task.content)
+            if match and int(match.group(1)) == index:
+                target_task = task
+                break
+                
+        if not target_task:
+            print(f"[yellow]No task found with index [{index}][/yellow]")
+            return None
+            
+        # Check if this is a recurring task
+        is_recurring = is_task_recurring(target_task)
+        if is_recurring:
+            response = input("You are trying to change the time of a recurring task, are you sure? y to continue: ")
+            if response.lower() != 'y':
+                print("User aborted...")
+                return None
+                
+        # Validate the schedule format
+        if schedule.isdigit() and len(schedule) == 4:
+            print("[red]Bad time format. Please use a format like '09:00', '09:00 tomorrow', etc.[/red]")
+            return None
+            
+        # Update the task with the new due date and preserve description
+        updated_task = api.update_task(
+            task_id=target_task.id,
+            due_string=schedule,
+            description=target_task.description
+        )
+        
+        # Verify the update with a small delay for API consistency
+        # For recurring tasks, this check isn't as reliable
+        if not is_recurring:
+            verification_task = api.get_task(target_task.id)
+            if verification_task and verification_task.due and verification_task.due.string:
+                print(f"[green]Task due date successfully updated to '{schedule}'.[/green]")
+            else:
+                print(f"[yellow]Task update initiated but couldn't verify immediately. Please check manually.[/yellow]")
+        else:
+            print(f"[green]Recurring task update initiated. Please verify the change manually.[/green]")
+        
+        return updated_task
+        
+    except Exception as error:
+        print(f"[red]Error rescheduling task: {error}[/red]")
+        return None
+
 def is_task_recurring(task):
     """Check if a task has recurring information.
     

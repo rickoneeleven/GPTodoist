@@ -43,6 +43,22 @@ def ifelse_commands(api, user_message):
     elif command == "timesheet":
         helper_timesheets.timesheet()
         return True
+    elif command.startswith("time long"):
+        # Extract index and schedule from command
+        parts = user_message.split(None, 3)  # Split into max 4 parts: "time", "long", "<index>", "<schedule>"
+        if len(parts) < 4:
+            print("[red]Invalid format. Usage: 'time long <index> <schedule>'[/red]")
+            return True
+            
+        try:
+            index = int(parts[2])
+            schedule = parts[3]
+            
+            # Call the new function to reschedule the long task
+            helper_todoist_long.reschedule_task(api, index, schedule)
+        except ValueError:
+            print("[red]Invalid index format. Usage: 'time long <index> <schedule>'[/red]")
+        return True
     elif command.startswith("time"):
         check_and_update_task_due_date(api, user_message)
         return True
