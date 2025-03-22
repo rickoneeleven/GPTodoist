@@ -213,17 +213,6 @@ def touch_task(api, task_index):
             print(f"[yellow]No task found with index {task_index}[/yellow]")
             return None
             
-        # Extract task content without index to check if it's a y_ task
-        content_without_index = re.sub(r'^\[\d+\]\s*', '', target_task.content)
-        
-        # Check if this is a y_ task that's already been touched today
-        if content_without_index.startswith('y_'):
-            if target_task.due and target_task.due.date:
-                due_date = datetime.fromisoformat(target_task.due.date)
-                if due_date.date() > datetime.now().date():
-                    print(f"[yellow]Task {task_index} has already been touched today[/yellow]")
-                    return None
-        
         # Check if task is recurring and handle appropriately
         if is_task_recurring(target_task):
             return handle_recurring_task(api, target_task)
@@ -342,14 +331,14 @@ def get_categorized_tasks(api):
         return [], []
 
 def fetch_tasks(api, prefix=None):
-    """Fetch and display tasks from Long Term Tasks project.
+    """Fetch tasks from Long Term Tasks project.
     
     Args:
         api: Todoist API instance
-        prefix: Optional filter for x_ or y_ tasks, or "untagged" for tasks without x_ or y_
+        prefix: Not used anymore, kept for backward compatibility
         
     Returns:
-        List of tasks matching criteria
+        List of tasks
     """
     project_id = get_long_term_project_id(api)
     if not project_id:
@@ -358,43 +347,10 @@ def fetch_tasks(api, prefix=None):
     try:
         # Get all tasks in project
         tasks = api.get_tasks(project_id=project_id)
-        
-        # Filter by prefix if specified
-        if prefix:
-            filtered_tasks = []
-            today = datetime.now().date()
-            
-            if prefix == "untagged":
-                # Get tasks that don't start with x_ or y_ (after removing index)
-                for task in tasks:
-                    # Remove index from content
-                    content_without_index = re.sub(r'^\[\d+\]\s*', '', task.content)
-                    # Check if it starts with x_ or y_
-                    if not (content_without_index.startswith('x_') or content_without_index.startswith('y_')):
-                        filtered_tasks.append(task)
-            else:
-                # Regular prefix filtering
-                for task in tasks:
-                    # Remove index from content
-                    content_without_index = re.sub(r'^\[\d+\]\s*', '', task.content)
-                    # Check if it starts with the prefix
-                    if content_without_index.startswith(prefix):
-                        # For y_ tasks, only show if due today or overdue
-                        if prefix == 'y_':
-                            if not task.due:
-                                # For y_ tasks without due date, treat as oldest
-                                filtered_tasks.append(task)
-                            else:
-                                due_date = datetime.fromisoformat(task.due.date)
-                                if due_date.date() <= today:
-                                    filtered_tasks.append(task)
-                        else:
-                            filtered_tasks.append(task)
-            tasks = filtered_tasks
             
         # Sort by due date (oldest first), then by index for tasks with same date
         def sort_key(task):
-            # If no due date (only possible for non-y_ tasks), treat as oldest
+            # If no due date, treat as oldest
             if not task.due:
                 return (datetime.min.date(), get_index(task))
             due_date = datetime.fromisoformat(task.due.date).date()
@@ -469,21 +425,6 @@ def format_task_for_display(task):
         # Fallback to original content if any error occurs
         return task.content
 
-def identify_task_type(task_content):
-    """Identify if a task is x_ or y_ type.
-    
-    Args:
-        task_content: Task content string
-        
-    Returns:
-        'x', 'y' or None
-    """
-    if 'x_' in task_content:
-        return 'x'
-    elif 'y_' in task_content:
-        return 'y'
-    return None
-
 def display_tasks(api, task_type=None):
     """Display tasks based on their recurrence status.
     
@@ -515,7 +456,7 @@ def rename_task(api, index, new_name):
     Args:
         api: Todoist API instance
         index: Index of task to rename
-        new_name: New name for the task (complete new name including x_/y_ prefix)
+        new_name: New name for the task
         
     Returns:
         Updated task object or None if failed

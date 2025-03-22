@@ -100,20 +100,11 @@ def ifelse_commands(api, user_message):
     elif command.startswith("add long"):
         task_name = user_message[9:].strip()  # Extract task name after "add long"
         helper_todoist_long.add_task(api, task_name)
-        # Removed display_tasks call as it will be shown on the next main loop iteration
-        subprocess.call("reset")
+        # Removed reset call to allow feedback to be visible
         return True
     elif command.startswith("show long"):
         subprocess.call("reset")
         helper_todoist_long.display_tasks(api)
-        return True
-    elif command.startswith("show long x"):
-        subprocess.call("reset")
-        helper_todoist_long.display_tasks(api, task_type='x')
-        return True
-    elif command.startswith("show long y"):
-        subprocess.call("reset")
-        helper_todoist_long.display_tasks(api, task_type='y')
         return True
     elif command.startswith("rename long "):  # Add rename handler
         try:

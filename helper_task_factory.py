@@ -34,16 +34,10 @@ def create_task(api, task_content, task_type="normal", options=None):
             return None
             
         # Handle post-creation tasks (like setting due dates)
-        if parsed_data["due_string"] and task_type == "normal":
+        if parsed_data["due_string"]:
             api.update_task(task_id=task.id, due_string=parsed_data["due_string"])
             print(f"Task due date set to '{parsed_data['due_string']}'.")
         
-        # For long tasks, handle y_ prefix logic (setting due date to yesterday)
-        if task_type == "long" and content.startswith('y_'):
-            yesterday = datetime.datetime.now() - timedelta(days=1)
-            due_string = yesterday.strftime("%Y-%m-%d")
-            api.update_task(task_id=task.id, due_string=due_string)
-            
         return task
         
     except Exception as error:
