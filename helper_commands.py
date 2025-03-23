@@ -144,8 +144,8 @@ def ifelse_commands(api, user_message):
         return True
     elif command.startswith("touch long"):  # Add new handler here
         index = int(user_message.split()[-1])  # Extract index from command
-        helper_todoist_long.touch_task(api, index)
         subprocess.call("reset")
+        helper_todoist_long.touch_task(api, index)
         # Also removed redundant display call here
         return True
     elif command.startswith("add task"):

@@ -169,22 +169,25 @@ def is_task_due_today_or_earlier(task):
         return True
 
 def handle_recurring_task(api, task):
-    """Complete a recurring task.
+    """Complete a recurring task by using the existing working function.
     
     Args:
         api: Todoist API instance
         task: Todoist task object
         
     Returns:
-        Completed task object or None if failed
+        True if task was completed successfully, False otherwise
     """
-    try:
-        completed_task = api.close_task(task_id=task.id)
-        print(f"[green]Completed recurring task: {task.content}[/green]")
-        return completed_task
-    except Exception as error:
-        print(f"[red]Error completing recurring task: {error}[/red]")
-        return None
+    # Import the function that we know works
+    from helper_todoist_part1 import complete_todoist_task_by_id
+    
+    # Use the existing function that works correctly
+    success = complete_todoist_task_by_id(api, task.id)
+    
+    if not success:
+        print(f"[red]Failed to complete recurring task.[/red]")
+        
+    return success
 
 def handle_non_recurring_task(api, task):
     """Update a non-recurring task's due date to tomorrow.

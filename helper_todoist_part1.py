@@ -83,7 +83,7 @@ def complete_todoist_task_by_id(api, task_id):
         if task:
             api.close_task(task_id=task_id)
             log_completed_task(task_name)
-            print(f"[yellow]{task_name} completed[/yellow]")
+            print(f"[yellow]{task_name} [/yellow] -- COMPLETED")
         else:
             print("No task was found with the given id.")
             return False
@@ -119,7 +119,7 @@ def complete_active_todoist_task(api, skip_logging=False):
                     log_completed_task(task_name)
                     # Update completed tasks count
                     update_completed_tasks_count()
-                print(f"[yellow]{task_name} {'skipped' if skip_logging else 'completed'}[/yellow]")
+                print(f"[yellow]{task_name}[/yellow] {'-- SKIPPED' if skip_logging else '-- COMPLETED'}")
                 
                 signal.alarm(0)
                 return True
