@@ -60,24 +60,40 @@ def parse_task_content(task_content):
         "due_string": None
     }
     
-    # Extract time and day pattern
-    time_day_pattern = re.compile(r"^(.*?)(\d{2}:\d{2})(.*)$")
-    match = time_day_pattern.match(task_content)
+    # Look for "(every)" or "(every!)" markers
+    every_pattern = re.compile(r"^(.*?)\s+\((every!?)\)\s+(.+)$")
+    match_every = every_pattern.match(task_content)
     
-    if match:
-        pre_time_text = match.group(1).strip() if match.group(1) else ''
-        task_time = match.group(2).strip() if match.group(2) else None
-        task_day = match.group(3).strip() if match.group(3) else None
+    if match_every:
+        # We found an "(every)" or "(every!)" pattern
+        pre_every_text = match_every.group(1).strip()
+        every_type = match_every.group(2)  # "every" or "every!"
+        schedule_text = match_every.group(3).strip()
         
-        # Update content to exclude time/day info
-        result["content"] = pre_time_text
+        # Update content to exclude the "(every)" portion and everything after
+        result["content"] = pre_every_text
         
-        # Create due string
-        if task_time:
-            if task_day:
-                result["due_string"] = f"{task_time} {task_day}".strip()
-            else:
-                result["due_string"] = task_time.strip()
+        # Pass the schedule text directly to Todoist
+        result["due_string"] = f"{every_type} {schedule_text}"
+    else:
+        # If no "(every)" pattern, try the existing time pattern
+        time_day_pattern = re.compile(r"^(.*?)(\d{2}:\d{2})(.*)$")
+        match_time = time_day_pattern.match(task_content)
+        
+        if match_time:
+            pre_time_text = match_time.group(1).strip() if match_time.group(1) else ''
+            task_time = match_time.group(2).strip() if match_time.group(2) else None
+            task_day = match_time.group(3).strip() if match_time.group(3) else None
+            
+            # Update content to exclude time/day info
+            result["content"] = pre_time_text
+            
+            # Create due string
+            if task_time:
+                if task_day:
+                    result["due_string"] = f"{task_time} {task_day}".strip()
+                else:
+                    result["due_string"] = task_time.strip()
     
     # Extract priority
     for i, priority_flag in enumerate(["p1", "p2", "p3"]):
