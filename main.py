@@ -18,6 +18,8 @@ def main_loop():
         helper_todoist_part2.check_if_grafting(api)
         helper_diary.weekly_audit()
         helper_diary.purge_old_completed_tasks()
+        # Update recurring long task patterns to use 'every!'
+        helper_todoist_part1.update_recurrence_patterns(api)
         user_message = helper_parse.get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")
         if not helper_general.connectivity_check():

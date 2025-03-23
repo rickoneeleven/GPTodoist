@@ -417,4 +417,59 @@ def log_completed_task(task_name):
     with open(completed_tasks_file, "w") as file:
         json.dump(completed_tasks, file, indent=2)
 
+
+def update_recurrence_patterns(api):
+    """
+    Update recurring long tasks that use 'every' to 'every!' in their due string
+    to ensure they maintain the original schedule regardless of completion date.
+    
+    Args:
+        api: Todoist API instance
+    """
+    try:
+        # Import here to avoid circular imports
+        import helper_todoist_long
+        
+        # Get the Long Term Tasks project ID
+        project_id = helper_todoist_long.get_long_term_project_id(api)
+        if not project_id:
+            return
+        
+        # Get all tasks in the Long Term Tasks project
+        tasks = api.get_tasks(project_id=project_id)
+        
+        # Find recurring tasks with 'every' but not 'every!' in due string
+        tasks_to_update = []
+        for task in tasks:
+            if task.due and hasattr(task.due, 'string'):
+                due_string = task.due.string.lower()
+                # Check if it contains 'every ' but not 'every!'
+                if 'every ' in due_string and 'every!' not in due_string:
+                    tasks_to_update.append(task)
+        
+        # Update each task and show a message
+        for task in tasks_to_update:
+            try:
+                # Get the current due string and replace 'every ' with 'every! '
+                current_due_string = task.due.string
+                new_due_string = current_due_string.replace('every ', 'every! ')
+                
+                # Update the task
+                api.update_task(
+                    task_id=task.id,
+                    due_string=new_due_string,
+                    description=task.description  # Preserve description
+                )
+                
+                # Show a message about the update
+                print(f"[cyan]Updated long task recurrence pattern: '{task.content}'[/cyan]")
+                print(f"[cyan]Changed from '{current_due_string}' to '{new_due_string}'[/cyan]")
+                
+            except Exception as e:
+                print(f"[yellow]Error updating recurrence pattern for task '{task.content}': {str(e)}[/yellow]")
+                
+    except Exception as e:
+        print(f"[yellow]Error in recurrence pattern update process: {str(e)}[/yellow]")
+
+
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
