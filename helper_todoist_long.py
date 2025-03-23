@@ -143,6 +143,31 @@ def is_task_recurring(task):
         return any(pattern in task.due.string.lower() for pattern in recurrence_patterns)
     return False
 
+def is_task_due_today_or_earlier(task):
+    """Check if a task is due today or earlier.
+    
+    Args:
+        task: Todoist task object
+        
+    Returns:
+        bool: True if the task is due today or earlier, False otherwise
+    """
+    # Tasks with no due date should be included (implicitly due now)
+    if not task.due or not hasattr(task.due, 'date'):
+        return True
+    
+    try:
+        # Get task's due date
+        task_due_date = datetime.fromisoformat(task.due.date).date()
+        today = datetime.now().date()
+        
+        # Include if due today or earlier
+        return task_due_date <= today
+    except (ValueError, AttributeError, TypeError) as e:
+        # If there's any error parsing the date, include the task by default
+        print(f"[yellow]Warning: Error checking due date for task: {e}[/yellow]")
+        return True
+
 def handle_recurring_task(api, task):
     """Complete a recurring task.
     
@@ -300,11 +325,14 @@ def get_categorized_tasks(api):
             
             print(f"[green]Successfully indexed {len(unindexed_tasks)} tasks.[/green]")
             
+        # Filter tasks that are due today or earlier
+        filtered_tasks = [task for task in tasks if is_task_due_today_or_earlier(task)]
+            
         # Categorize tasks
         one_shot_tasks = []
         recurring_tasks = []
         
-        for task in tasks:
+        for task in filtered_tasks:
             if is_task_recurring(task):
                 recurring_tasks.append(task)
             else:
@@ -348,6 +376,9 @@ def fetch_tasks(api, prefix=None):
         # Get all tasks in project
         tasks = api.get_tasks(project_id=project_id)
             
+        # Filter tasks that are due today or earlier
+        filtered_tasks = [task for task in tasks if is_task_due_today_or_earlier(task)]
+            
         # Sort by due date (oldest first), then by index for tasks with same date
         def sort_key(task):
             # If no due date, treat as oldest
@@ -360,9 +391,9 @@ def fetch_tasks(api, prefix=None):
             match = re.match(r'\[(\d+)\]', task.content)
             return int(match.group(1)) if match else float('inf')
             
-        tasks.sort(key=sort_key)
+        filtered_tasks.sort(key=sort_key)
         
-        return tasks
+        return filtered_tasks
         
     except Exception as error:
         print(f"[red]Error fetching tasks: {error}[/red]")
