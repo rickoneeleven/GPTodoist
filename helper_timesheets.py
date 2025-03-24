@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from rich import print
 from todoist_api_python.api import TodoistAPI
 import helper_todoist_part2
-import helper_tasks, module_call_counter
+import module_call_counter, helper_todoist_long
 
 def prompt_user(message: str) -> str:
     """Display a formatted prompt and get user input."""
@@ -392,6 +392,9 @@ def timesheet():
 
         # Save timesheet and handle final tasks
         save_timesheet(timesheet_entries, timesheet_date, diary)
+
+        # Display long-term tasks
+        helper_todoist_long.display_tasks(api)
 
         # Display current tasks
         print("\nCurrent Todoist tasks:")
