@@ -35,7 +35,7 @@ def add_completed_task(user_message):
     with open("j_todays_completed_tasks.json", "w") as file:
         json.dump(completed_tasks, file, indent=2)
 
-    print(f"Task added to completed daily tasks: {task_content} (ID: {task_entry['id']})")
+    print(f"[bright_magenta]Task added to completed daily tasks:[/bright_magenta] {task_content} (ID: {task_entry['id']})")
 
 
 def display_completed_tasks():
