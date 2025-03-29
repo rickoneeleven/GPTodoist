@@ -1,7 +1,9 @@
 import module_call_counter
 from rich import print
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
+import pytz
+from dateutil.parser import parse
 
 def get_long_term_project_id(api):
     """Get the ID of the Long Term Tasks project, or None if it doesn't exist."""
@@ -144,13 +146,13 @@ def is_task_recurring(task):
     return False
 
 def is_task_due_today_or_earlier(task):
-    """Check if a task is due today or earlier.
+    """Check if a task is due today or earlier, considering time for today's tasks.
     
     Args:
         task: Todoist task object
         
     Returns:
-        bool: True if the task is due today or earlier, False otherwise
+        bool: True if the task is due today or earlier (and time has passed if due today), False otherwise
     """
     # Tasks with no due date should be included (implicitly due now)
     if not task.due or not hasattr(task.due, 'date'):
@@ -161,8 +163,42 @@ def is_task_due_today_or_earlier(task):
         task_due_date = datetime.fromisoformat(task.due.date).date()
         today = datetime.now().date()
         
-        # Include if due today or earlier
-        return task_due_date <= today
+        # If due earlier than today, include it
+        if task_due_date < today:
+            return True
+            
+        # If due today, check the time if available
+        if task_due_date == today and hasattr(task.due, 'datetime') and task.due.datetime:
+            # Set up timezone for comparison
+            london_tz = pytz.timezone("Europe/London")
+            now = datetime.now()
+            
+            try:
+                # Parse the task's due datetime
+                task_due_datetime = parse(task.due.datetime)
+                
+                # Ensure the datetime is timezone-aware and convert to local time
+                if task_due_datetime.tzinfo is None:
+                    # If no timezone info, assume it's in UTC
+                    task_due_datetime = task_due_datetime.replace(tzinfo=timezone.utc)
+                
+                # Convert to London time for comparison
+                task_due_datetime_london = task_due_datetime.astimezone(london_tz)
+                now_london = now.astimezone(london_tz)
+                
+                # Only include if the current time is after or equal to the task's due time
+                return now_london >= task_due_datetime_london
+            except Exception as e:
+                print(f"[yellow]Warning: Error handling task datetime: {e}[/yellow]")
+                # If we can't handle the datetime properly, include it by default
+                return True
+        elif task_due_date == today:
+            # Due today but no specific time, so treat as all-day task
+            return True
+        
+        # Due in the future
+        return False
+        
     except (ValueError, AttributeError, TypeError) as e:
         # If there's any error parsing the date, include the task by default
         print(f"[yellow]Warning: Error checking due date for task: {e}[/yellow]")
