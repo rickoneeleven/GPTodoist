@@ -856,7 +856,7 @@ def update_recurrence_patterns(api):
     Updates recurring long tasks using 'every ' to 'every! ' for consistent scheduling.
     Logs actions and errors clearly.
     """
-    print("[cyan]Checking long-term task recurrence patterns...[/cyan]")
+    #print("[cyan]Successfully fetched and proceserns...[/cyan]")
     updated_count = 0
     error_count = 0
     try:
@@ -884,7 +884,7 @@ def update_recurrence_patterns(api):
                     tasks_to_update.append(task)
 
         if not tasks_to_update:
-            print("[cyan]No long-term tasks found needing recurrence pattern update.[/cyan]")
+            #print("[cyan]No long-term tasks found needing recurrence pattern update.[/cyan]")
             return
 
         print(f"[cyan]Found {len(tasks_to_update)} long-term tasks to potentially update ('every ' -> 'every!').[/cyan]")

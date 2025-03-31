@@ -91,7 +91,7 @@ def fetch_todoist_tasks(api):
                 signal.signal(signal.SIGALRM, handler)
                 signal.alarm(5) # 5-second timeout for this attempt
 
-            print(f"[cyan]Fetching tasks with filter: '{active_filter}' (Attempt {attempt + 1}/{retries})[/cyan]")
+            #print(f"[cyan]Fetching tasks with filter: '{active_filter}' (Attempt {attempt + 1}/{retries})[/cyan]")
             tasks = api.get_tasks(filter=active_filter)
 
             if hasattr(signal, 'SIGALRM'): signal.alarm(0) # Disable alarm after successful call
@@ -165,7 +165,7 @@ def fetch_todoist_tasks(api):
                 ),
             )
 
-            print(f"[green]Successfully fetched and processed {len(sorted_final_tasks)} tasks.[/green]")
+            #print(f"[green]Successfully fetched and processed {len(sorted_final_tasks)} tasks.[/green]")
             return sorted_final_tasks # Success
 
         except TimeoutError as te:
