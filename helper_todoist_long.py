@@ -204,12 +204,13 @@ def is_task_due_today_or_earlier(task):
         print(f"[yellow]Warning: Error checking due date for task: {e}[/yellow]")
         return True
 
-def handle_recurring_task(api, task):
+def handle_recurring_task(api, task, skip_logging=False):
     """Complete a recurring task by using the existing working function.
     
     Args:
         api: Todoist API instance
         task: Todoist task object
+        skip_logging: Whether to skip logging the task as completed
         
     Returns:
         True if task was completed successfully, False otherwise
@@ -218,7 +219,7 @@ def handle_recurring_task(api, task):
     from helper_todoist_part1 import complete_todoist_task_by_id
     
     # Use the existing function that works correctly
-    success = complete_todoist_task_by_id(api, task.id)
+    success = complete_todoist_task_by_id(api, task.id, skip_logging=skip_logging)
     
     if not success:
         print(f"[red]Failed to complete recurring task.[/red]")
@@ -247,12 +248,13 @@ def handle_non_recurring_task(api, task):
         print(f"[red]Error updating task due date: {error}[/red]")
         return None
         
-def touch_task(api, task_index):
+def touch_task(api, task_index, skip_logging=False):
     """Update the timestamp of a task by setting its due date to tomorrow or completing it if recurring.
     
     Args:
         api: Todoist API instance
         task_index: Index of task to touch
+        skip_logging: Whether to skip logging the task as completed
         
     Returns:
         Updated or completed task object or None if failed
@@ -279,7 +281,7 @@ def touch_task(api, task_index):
             
         # Check if task is recurring and handle appropriately
         if is_task_recurring(target_task):
-            return handle_recurring_task(api, target_task)
+            return handle_recurring_task(api, target_task, skip_logging=skip_logging)
         else:
             return handle_non_recurring_task(api, target_task)
         

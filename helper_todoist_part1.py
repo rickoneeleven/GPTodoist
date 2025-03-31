@@ -72,7 +72,7 @@ def read_long_term_tasks(filename):
         tasks = json.load(file)
     return tasks
 
-def complete_todoist_task_by_id(api, task_id):
+def complete_todoist_task_by_id(api, task_id, skip_logging=False):
     def handler(signum, frame):
         raise Exception("end of time")
     signal.signal(signal.SIGALRM, handler)
@@ -82,8 +82,9 @@ def complete_todoist_task_by_id(api, task_id):
         task_name = task.content
         if task:
             api.close_task(task_id=task_id)
-            log_completed_task(task_name)
-            print(f"[yellow]{task_name} [/yellow] -- COMPLETED")
+            if not skip_logging:
+                log_completed_task(task_name)
+            print(f"[yellow]{task_name} [/yellow] -- {'SKIPPED' if skip_logging else 'COMPLETED'}")
         else:
             print("No task was found with the given id.")
             return False

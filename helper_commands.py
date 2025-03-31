@@ -97,6 +97,15 @@ def ifelse_commands(api, user_message):
         subprocess.call("reset")
         change_active_task()
         return True
+    elif command.startswith("skip long"):  # Handle skip long command
+        try:
+            index = int(user_message.split()[-1])  # Extract index from command
+            subprocess.call("reset")
+            helper_todoist_long.touch_task(api, index, skip_logging=True)
+            return True
+        except ValueError:
+            print("[red]Invalid index format. Usage: 'skip long <index>'[/red]")
+            return True
     elif command.startswith("add long"):
         task_name = user_message[9:].strip()  # Extract task name after "add long"
         helper_todoist_long.add_task(api, task_name)
