@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import re
 import pytz
 from dateutil.parser import parse
+import helper_tasks  # Added for add_to_completed_tasks
 
 def get_long_term_project_id(api):
     """Get the ID of the Long Term Tasks project, or None if it doesn't exist."""
@@ -226,23 +227,34 @@ def handle_recurring_task(api, task, skip_logging=False):
         
     return success
 
-def handle_non_recurring_task(api, task):
-    """Update a non-recurring task's due date to tomorrow.
+def handle_non_recurring_task(api, task, skip_logging=False):
+    """Update a non-recurring task's due date to tomorrow and add to completed tasks if needed.
     
     Args:
         api: Todoist API instance
         task: Todoist task object
+        skip_logging: Whether to skip logging the task as completed
         
     Returns:
         Updated task object or None if failed
     """
     try:
+        # Log task as completed if skip_logging is False
+        if not skip_logging:
+            # Create a task object to pass to add_to_completed_tasks
+            completed_task = {
+                'task_name': task.content
+            }
+            helper_tasks.add_to_completed_tasks(completed_task)
+            print(f"[green]Added to completed tasks: {task.content}[/green]")
+
+        # Update due date to tomorrow
         tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
         updated_task = api.update_task(
             task_id=task.id,
             due_string=tomorrow
         )
-        print(f"[green]Updated task: {task.content}[/green]")
+        print(f"[green]Updated task due date to tomorrow: {task.content}[/green]")
         return updated_task
     except Exception as error:
         print(f"[red]Error updating task due date: {error}[/red]")
@@ -283,7 +295,7 @@ def touch_task(api, task_index, skip_logging=False):
         if is_task_recurring(target_task):
             return handle_recurring_task(api, target_task, skip_logging=skip_logging)
         else:
-            return handle_non_recurring_task(api, target_task)
+            return handle_non_recurring_task(api, target_task, skip_logging=skip_logging)
         
     except Exception as error:
         print(f"[red]Error touching task: {error}[/red]")
