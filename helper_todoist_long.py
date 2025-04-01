@@ -1,14 +1,16 @@
+# File: helper_todoist_long.py
 import module_call_counter
 from rich import print
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo # Ensure tzinfo is imported
 import re
-import pytz # Ensure pytz is imported if used directly (e.g., london_tz)
+import pytz # Ensure pytz is imported
 from dateutil.parser import parse
-import helper_tasks  # Keep if handle_non_recurring_task uses it
+import helper_tasks
+import time
+import traceback
+
 # Import API type hint if needed
 # from todoist_api_python.api import TodoistAPI
-import time # <-- Added missing import here
-import traceback # Import traceback for logging
 
 
 def get_long_term_project_id(api):
@@ -32,7 +34,6 @@ def get_long_term_project_id(api):
         return None
     except Exception as error:
         print(f"[red]Error accessing Todoist projects: {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return None
 
@@ -63,7 +64,6 @@ def _find_task_by_index(api, project_id, index):
         return None
     except Exception as error:
         print(f"[red]Error searching for task with index [{index}] in project {project_id}: {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return None
 
@@ -96,7 +96,6 @@ def delete_task(api, index):
 
     except Exception as error:
         print(f"[red]An unexpected error occurred deleting task with index [{index}]: {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return None
 
@@ -136,7 +135,6 @@ def reschedule_task(api, index, schedule):
         updated_task = api.update_task(
             task_id=target_task.id,
             due_string=schedule
-            # description=target_task.description # Preserved by default
         )
 
         if not updated_task:
@@ -161,7 +159,6 @@ def reschedule_task(api, index, schedule):
 
     except Exception as error:
         print(f"[red]An unexpected error occurred rescheduling task index [{index}]: {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return None
 
@@ -179,8 +176,6 @@ def is_task_recurring(task):
         # Secondary check: look for keywords in the due string (less reliable)
         if hasattr(task.due, 'string') and isinstance(task.due.string, str):
             due_string_lower = task.due.string.lower()
-            # Use specific patterns to avoid false positives (e.g., 'everyday clothes')
-            # Regex might be more robust here: r'\b(every|daily|weekly|monthly|yearly)\b'
             recurrence_patterns = ['every ', 'every!', 'daily', 'weekly', 'monthly', 'yearly']
             if any(pattern in due_string_lower for pattern in recurrence_patterns):
                  # Double-check common non-recurring phrases containing 'every'
@@ -193,57 +188,77 @@ def is_task_recurring(task):
         print(f"[yellow]Warning: Error checking recurrence for task {task.id}: {e}[/yellow]")
         return False # Assume not recurring on error
 
-
+# <<< START REFACTORED FUNCTION >>>
 def is_task_due_today_or_earlier(task):
-    """Checks if a task is due today or earlier, considering timezones and all-day tasks."""
-    if not task: return False # Handle null task object
-
-    if not task.due:
-        # print(f"[dim]Task '{task.content}' has no due date.[/dim]") # Debugging
-        return False # Treat tasks without due dates as not due "today or earlier" for this specific check
+    """
+    Checks if a task is due today or earlier, handling timezones and specific times.
+    Returns True if due, False otherwise.
+    """
+    if not task or not task.due:
+        # No due date means it's not considered "due today or earlier"
+        return False
 
     try:
         london_tz = pytz.timezone("Europe/London")
-        now_london = datetime.now(london_tz) # Current time in London
+        now_london = datetime.now(london_tz) # Current time in London (aware)
 
-        task_due_datetime_london = None
-        is_all_day = True
-
+        # --- Case 1: Task has a specific datetime ---
         if task.due.datetime:
-            # Task has a specific time
-            utc_dt = parse(task.due.datetime)
-            # Ensure timezone awareness
-            if utc_dt.tzinfo is None or utc_dt.tzinfo.utcoffset(utc_dt) is None:
-                utc_dt = pytz.utc.localize(utc_dt) # Assume UTC if naive
-            task_due_datetime_london = utc_dt.astimezone(london_tz)
-            is_all_day = False
-            # print(f"[dim]Task '{task.content}' due datetime: {task_due_datetime_london}[/dim]") # Debugging
+            task_due_datetime_london = None
+            try:
+                raw_dt_str = task.due.datetime
+                parsed_dt = parse(raw_dt_str)
+
+                # Ensure parsed_dt becomes timezone-aware in London time
+                if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
+                    # Naive datetime: Assume it represents London time, make it aware
+                    try:
+                        task_due_datetime_london = london_tz.localize(parsed_dt, is_dst=None) # Auto-handle DST
+                    except (pytz.exceptions.AmbiguousTimeError, pytz.exceptions.NonExistentTimeError) as dst_err:
+                        print(f"[yellow]Warning: DST ambiguity/non-existence for task '{task.content}' (ID: {task.id}) due '{raw_dt_str}': {dst_err}. Treating as not due.[/yellow]")
+                        # Decide handling: here we treat ambiguous/non-existent as not due for safety
+                        return False
+                else:
+                    # Aware datetime (e.g., UTC): Convert to London time
+                    task_due_datetime_london = parsed_dt.astimezone(london_tz)
+
+                # Perform the comparison: Task due time <= Current time
+                if task_due_datetime_london:
+                    # print(f"[dim]Task '{task.content}' due: {task_due_datetime_london}, Now: {now_london}, Due? {task_due_datetime_london <= now_london}[/dim]") # Debugging
+                    return task_due_datetime_london <= now_london
+                else:
+                     # Should not happen if parsing/localization worked, but safety check
+                     print(f"[yellow]Warning: Failed to determine valid London due time for task '{task.content}' (ID: {task.id}). Treating as not due.[/yellow]")
+                     return False # Treat as not due if time calculation failed
+
+            except (ValueError, TypeError) as parse_err:
+                print(f"[yellow]Warning: Error parsing due datetime '{task.due.datetime}' for task '{task.content}' (ID: {task.id}): {parse_err}. Treating as not due.[/yellow]")
+                return False # Treat as not due if parsing fails
+
+        # --- Case 2: Task has only a date (all-day) ---
         elif task.due.date:
-            # Task has only a date (all-day task)
-            task_due_date = parse(task.due.date).date()
-            # Consider an all-day task "due" for the entire day. Compare dates only.
-            # print(f"[dim]Task '{task.content}' due date: {task_due_date}[/dim]") # Debugging
-            return task_due_date <= now_london.date()
+            try:
+                task_due_date = parse(task.due.date).date()
+                # print(f"[dim]Task '{task.content}' due date: {task_due_date}, Today: {now_london.date()}, Due? {task_due_date <= now_london.date()}[/dim]") # Debugging
+                # An all-day task is due if its date is today or in the past
+                return task_due_date <= now_london.date()
+            except (ValueError, TypeError) as parse_err:
+                print(f"[yellow]Warning: Error parsing due date '{task.due.date}' for task '{task.content}' (ID: {task.id}): {parse_err}. Treating as not due.[/yellow]")
+                return False # Treat as not due if parsing fails
+
+        # --- Case 3: Task.due exists but has neither .datetime nor .date ---
         else:
-            # Should not happen if task.due exists, but safety check
-            # print(f"[dim]Task '{task.content}' has due object but no date/datetime.[/dim]") # Debugging
+            # This shouldn't normally happen per Todoist API structure, but handle defensively
+            # print(f"[dim]Task '{task.content}' has due object but no date/datetime. Treating as not due.[/dim]") # Debugging
             return False # Cannot determine due status
 
-        # If it has a specific time, compare datetime
-        if not is_all_day and task_due_datetime_london:
-            return task_due_datetime_london <= now_london
-        else:
-            # Should have returned based on date comparison already
-            return False
-
-    except (ValueError, TypeError, AttributeError) as e:
-        print(f"[yellow]Warning: Error parsing due date for task '{task.content}' (ID: {task.id}): {e}. Treating as not due.[/yellow]")
-        return False # Treat as not due if parsing fails
     except Exception as e:
-        print(f"[red]Unexpected error checking due date for task '{task.content}' (ID: {task.id}): {e}. Treating as not due.[/red]")
-        # Log stack trace
+        # Catch-all for unexpected errors during the check
+        print(f"[red]Unexpected error checking due status for task '{task.content}' (ID: {task.id}): {e}[/red]")
         traceback.print_exc()
-        return False
+        return False # Treat as not due on unexpected error
+
+# <<< END REFACTORED FUNCTION >>>
 
 
 def handle_recurring_task(api, task, skip_logging=False):
@@ -255,7 +270,6 @@ def handle_recurring_task(api, task, skip_logging=False):
     print(f"[cyan]Completing recurring task: '{task.content}' (ID: {task.id})[/cyan]")
     try:
         # Import the function known to work for completions (potentially from part1)
-        # Ensure the import path is correct based on file structure
         from helper_todoist_part1 import complete_todoist_task_by_id
 
         success = complete_todoist_task_by_id(api, task.id, skip_logging=skip_logging)
@@ -271,7 +285,6 @@ def handle_recurring_task(api, task, skip_logging=False):
          return False
     except Exception as e:
          print(f"[red]Unexpected error handling recurring task '{task.content}': {e}[/red]")
-         # Log stack trace
          traceback.print_exc()
          return False
 
@@ -290,22 +303,15 @@ def handle_non_recurring_task(api, task, skip_logging=False):
         # Log as completed if not skipped
         if not skip_logging:
             try:
-                # Use helper_tasks to log it (ensure helper_tasks is imported)
-                # Pass a dictionary structure if that's what add_to_completed_tasks expects
                 completed_task_log_entry = {
                     'task_name': f"(Touched Long Task) {task.content}" # Add prefix for clarity
                 }
-                # Assuming add_to_completed_tasks exists and works
                 helper_tasks.add_to_completed_tasks(completed_task_log_entry)
                 print(f"  [green]Logged task touch to completed tasks.[/green]")
             except AttributeError:
                  print("[red]Error: 'helper_tasks.add_to_completed_tasks' not found or import failed. Cannot log task touch.[/red]")
-                 # Decide whether to continue or fail here
             except Exception as log_error:
                  print(f"[red]Error logging non-recurring task touch: {log_error}[/red]")
-                 # Log stack trace if needed
-                 # traceback.print_exc()
-                 # Continue with the due date update regardless of logging failure?
 
         # Update due date to tomorrow (relative to today in London timezone)
         london_tz = pytz.timezone("Europe/London")
@@ -326,7 +332,6 @@ def handle_non_recurring_task(api, task, skip_logging=False):
 
     except Exception as error:
         print(f"[red]An unexpected error occurred handling non-recurring task '{task.content}': {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return None
 
@@ -358,7 +363,6 @@ def touch_task(api, task_index, skip_logging=False):
 
     except Exception as error:
         print(f"[red]An unexpected error occurred touching task index [{task_index}]: {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return None
 
@@ -384,12 +388,8 @@ def add_task(api, task_name):
         )
 
         if task:
-            # Factory should handle logging success
-            # print(f"[green]Successfully added long-term task: {task.content}[/green]")
             return task # Return the created task object
         else:
-            # Factory should handle logging failure
-            # print(f"[red]Failed to add long-term task using factory.[/red]")
             return None # Indicate failure
 
     except ImportError:
@@ -397,7 +397,6 @@ def add_task(api, task_name):
          return None
     except Exception as error:
         print(f"[red]An unexpected error occurred adding long-term task: {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return None
 
@@ -469,16 +468,14 @@ def get_categorized_tasks(api):
 
             if fixed_indices_count > 0: # Only print if something was fixed
                 print(f"[green]Finished auto-indexing. Assigned indices to {fixed_indices_count} tasks.[/green]")
-            # Re-fetch tasks after indexing? Might be safer but adds API calls.
-            # For now, work with the modified local list. Tasks reference objects, so changes persist.
 
 
         # --- Filtering and Categorization ---
-        # Use the comprehensive due date checker
+        # Use the REFACTORED due date checker
         # print("[cyan]Filtering tasks due today or earlier...[/cyan]") # Debug
         filtered_tasks = [
              task for task_id, task in indexed_tasks_map.items() # Iterate over indexed tasks
-             if is_task_due_today_or_earlier(task)
+             if is_task_due_today_or_earlier(task) # Use the refactored function
         ]
         # print(f"[cyan]Found {len(filtered_tasks)} tasks due today or earlier.[/cyan]") # Debug
 
@@ -501,13 +498,29 @@ def get_categorized_tasks(api):
 
         def sort_key(task):
              # Sort primarily by due date (earliest first), then by index
-             due_date = datetime.max.date() # Default for tasks with no due date (sorts last)
-             if task.due and task.due.date:
-                  try:
-                       due_date = parse(task.due.date).date()
-                  except (ValueError, TypeError): pass # Keep default on parse error
+             # Use datetime.max for consistent sorting of tasks without due dates
+             due_datetime_sort = datetime.max.replace(tzinfo=pytz.utc) # Default to far future, aware
 
-             return (due_date, get_sort_index(task))
+             if task.due:
+                  if task.due.datetime:
+                      # Attempt to parse and localize for sorting, similar to check function
+                      try:
+                          parsed_dt = parse(task.due.datetime)
+                          if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
+                               london_tz = pytz.timezone("Europe/London")
+                               due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
+                          else:
+                               due_datetime_sort = parsed_dt # Already aware
+                      except (ValueError, TypeError, pytz.exceptions.PyTZException): pass # Keep default on error
+                  elif task.due.date:
+                      # Sort all-day tasks as if they are due at the start of the day in UTC for consistency
+                      try:
+                           due_date = parse(task.due.date).date()
+                           due_datetime_sort = pytz.utc.localize(datetime.combine(due_date, datetime.min.time()))
+                      except (ValueError, TypeError): pass # Keep default on error
+
+             return (due_datetime_sort, get_sort_index(task))
+
 
         one_shot_tasks.sort(key=sort_key)
         recurring_tasks.sort(key=sort_key)
@@ -516,7 +529,6 @@ def get_categorized_tasks(api):
 
     except Exception as error:
         print(f"[red]An unexpected error occurred fetching and categorizing tasks: {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return [], [] # Return empty lists on error
 
@@ -534,7 +546,7 @@ def fetch_tasks(api, prefix=None):
         if tasks is None: return []
 
         # Filter tasks that are due today or earlier
-        filtered_tasks = [task for task in tasks if is_task_due_today_or_earlier(task)]
+        filtered_tasks = [task for task in tasks if is_task_due_today_or_earlier(task)] # Uses refactored check
 
         # Sort by due date (oldest first), then by index for tasks with same date
         def get_index(task):
@@ -543,11 +555,24 @@ def fetch_tasks(api, prefix=None):
              except ValueError: return float('inf')
 
         def sort_key(task):
-            due_date = datetime.max.date()
-            if task.due and task.due.date:
-                 try: due_date = parse(task.due.date).date()
-                 except (ValueError, TypeError): pass
-            return (due_date, get_index(task))
+            # Reuse sort key logic from get_categorized_tasks for consistency
+            due_datetime_sort = datetime.max.replace(tzinfo=pytz.utc) # Default to far future, aware
+            if task.due:
+                 if task.due.datetime:
+                     try:
+                         parsed_dt = parse(task.due.datetime)
+                         if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
+                              london_tz = pytz.timezone("Europe/London")
+                              due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
+                         else:
+                              due_datetime_sort = parsed_dt
+                     except (ValueError, TypeError, pytz.exceptions.PyTZException): pass
+                 elif task.due.date:
+                     try:
+                          due_date = parse(task.due.date).date()
+                          due_datetime_sort = pytz.utc.localize(datetime.combine(due_date, datetime.min.time()))
+                     except (ValueError, TypeError): pass
+            return (due_datetime_sort, get_index(task))
 
         filtered_tasks.sort(key=sort_key)
         return filtered_tasks
@@ -598,7 +623,6 @@ def format_task_for_display(task):
                  prefix += f"[bold {color}](p{display_p})[/bold {color}] "
 
         # Combine parts: Index Prefix Content
-        # Example: [12] [cyan](r) every day[/cyan] - [bold red](p1)[/bold red] Actual task content
         display_text = f"{task_index_str} {prefix}{content_without_index}"
 
         return display_text
@@ -627,7 +651,6 @@ def display_tasks(api, task_type=None):
                 print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
                 # Display description indented below the task
                 if task.description:
-                    # Limit description length?
                     desc_preview = (task.description[:75] + '...') if len(task.description) > 75 else task.description
                     print(f"  [italic blue]Desc: {desc_preview.replace(chr(10), ' ')}[/italic blue]") # Replace newlines
         else:
@@ -647,7 +670,6 @@ def display_tasks(api, task_type=None):
 
     except Exception as e:
          print(f"[red]An error occurred displaying long-term tasks: {e}[/red]")
-         # Log stack trace
          traceback.print_exc()
 
 def rename_task(api, index, new_name):
@@ -694,7 +716,6 @@ def rename_task(api, index, new_name):
 
     except Exception as error:
         print(f"[red]An unexpected error occurred renaming task index [{index}]: {error}[/red]")
-        # Log stack trace
         traceback.print_exc()
         return None
 
