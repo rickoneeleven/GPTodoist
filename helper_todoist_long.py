@@ -8,6 +8,7 @@ import helper_tasks  # Keep if handle_non_recurring_task uses it
 # Import API type hint if needed
 # from todoist_api_python.api import TodoistAPI
 import time # <-- Added missing import here
+import traceback # Import traceback for logging
 
 
 def get_long_term_project_id(api):
@@ -32,7 +33,6 @@ def get_long_term_project_id(api):
     except Exception as error:
         print(f"[red]Error accessing Todoist projects: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return None
 
@@ -64,7 +64,6 @@ def _find_task_by_index(api, project_id, index):
     except Exception as error:
         print(f"[red]Error searching for task with index [{index}] in project {project_id}: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return None
 
@@ -98,7 +97,6 @@ def delete_task(api, index):
     except Exception as error:
         print(f"[red]An unexpected error occurred deleting task with index [{index}]: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return None
 
@@ -147,7 +145,7 @@ def reschedule_task(api, index, schedule):
 
         # Verification (optional, especially tricky for recurring)
         print("[cyan]Verifying reschedule...[/cyan]")
-        time.sleep(1) # Delay for API consistency # <--- This is Line 150 (approx)
+        time.sleep(1) # Delay for API consistency
         verification_task = api.get_task(target_task.id)
 
         if verification_task and verification_task.due and verification_task.due.string:
@@ -164,7 +162,6 @@ def reschedule_task(api, index, schedule):
     except Exception as error:
         print(f"[red]An unexpected error occurred rescheduling task index [{index}]: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return None
 
@@ -245,7 +242,6 @@ def is_task_due_today_or_earlier(task):
     except Exception as e:
         print(f"[red]Unexpected error checking due date for task '{task.content}' (ID: {task.id}): {e}. Treating as not due.[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return False
 
@@ -276,7 +272,6 @@ def handle_recurring_task(api, task, skip_logging=False):
     except Exception as e:
          print(f"[red]Unexpected error handling recurring task '{task.content}': {e}[/red]")
          # Log stack trace
-         import traceback
          traceback.print_exc()
          return False
 
@@ -332,7 +327,6 @@ def handle_non_recurring_task(api, task, skip_logging=False):
     except Exception as error:
         print(f"[red]An unexpected error occurred handling non-recurring task '{task.content}': {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return None
 
@@ -365,7 +359,6 @@ def touch_task(api, task_index, skip_logging=False):
     except Exception as error:
         print(f"[red]An unexpected error occurred touching task index [{task_index}]: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return None
 
@@ -405,7 +398,6 @@ def add_task(api, task_name):
     except Exception as error:
         print(f"[red]An unexpected error occurred adding long-term task: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return None
 
@@ -475,7 +467,8 @@ def get_categorized_tasks(api):
                     print(f"  [red]Error assigning index [{next_index}] to task ID {task.id}: {index_error}[/red]")
                     # Stop trying to assign indices if one fails? Or just skip? Skip for now.
 
-            print(f"[green]Finished auto-indexing. Assigned indices to {fixed_indices_count} tasks.[/green]")
+            if fixed_indices_count > 0: # Only print if something was fixed
+                print(f"[green]Finished auto-indexing. Assigned indices to {fixed_indices_count} tasks.[/green]")
             # Re-fetch tasks after indexing? Might be safer but adds API calls.
             # For now, work with the modified local list. Tasks reference objects, so changes persist.
 
@@ -524,7 +517,6 @@ def get_categorized_tasks(api):
     except Exception as error:
         print(f"[red]An unexpected error occurred fetching and categorizing tasks: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return [], [] # Return empty lists on error
 
@@ -566,30 +558,35 @@ def fetch_tasks(api, prefix=None):
 
 
 def format_task_for_display(task):
-    """Formats a long-term task for display including index, recurrence, and priority."""
+    """Formats a long-term task for display including index, recurrence schedule, and priority."""
     if not task or not hasattr(task, 'content'):
         return "[red]Invalid Task Object[/red]"
 
     try:
         # Extract index
         match = re.match(r'\s*\[(\d+)\]', task.content)
-        if not match:
-            # Task is missing index (should have been fixed by get_categorized_tasks)
-            print(f"[yellow]Warning: Task '{task.content}' is missing index prefix for display.[/yellow]")
-            task_index_str = "[?]" # Placeholder
-            content_without_index = task.content # Display full content
-        else:
+        task_index_str = "[?]" # Placeholder
+        content_without_index = task.content # Default if no index found
+
+        if match:
             task_index_str = f"[{match.group(1)}]"
             # Remove index prefix for cleaner display
-            content_without_index = re.sub(r'^\s*\[\d+\]\s*', '', task.content)
+            content_without_index = re.sub(r'^\s*\[\d+\]\s*', '', task.content).strip()
+        else:
+            # Task is missing index (should have been fixed by get_categorized_tasks)
+            print(f"[yellow]Warning: Task '{task.content}' is missing index prefix for display.[/yellow]")
+
 
         prefix = ""
-        # Add recurring info
+        # Add recurring info (including schedule string)
         if is_task_recurring(task):
-             prefix += "[cyan](r)[/cyan] "
-             # Optionally add due string for recurring if helpful
-             # if task.due and hasattr(task.due, 'string') and task.due.string:
-             #      prefix += f"{task.due.string} | "
+             due_string = getattr(task.due, 'string', None) if task.due else None
+             if due_string:
+                  # Include the schedule string
+                  prefix += f"[cyan](r) {due_string}[/cyan] - "
+             else:
+                  # Fallback if recurring flag is true but no string (less likely)
+                  prefix += "[cyan](r)[/cyan] "
 
         # Add priority info
         if hasattr(task, 'priority') and isinstance(task.priority, int) and task.priority > 1: # P1, P2, P3
@@ -600,19 +597,17 @@ def format_task_for_display(task):
                  color = color_map.get(display_p, "white")
                  prefix += f"[bold {color}](p{display_p})[/bold {color}] "
 
-        # Combine parts
+        # Combine parts: Index Prefix Content
+        # Example: [12] [cyan](r) every day[/cyan] - [bold red](p1)[/bold red] Actual task content
         display_text = f"{task_index_str} {prefix}{content_without_index}"
-
-        # Add description if it exists? Might make output too verbose here.
-        # if task.description:
-        #    display_text += f"\n  [italic blue]Desc: {task.description}[/italic blue]"
 
         return display_text
 
     except Exception as error:
-        print(f"[red]Error formatting task for display (ID: {task.id}): {error}[/red]")
-        # Fallback to raw content
-        return f"[?err?] {task.content}"
+        print(f"[red]Error formatting task for display (ID: {getattr(task, 'id', 'N/A')}): {error}[/red]")
+        traceback.print_exc() # Log stack trace
+        # Fallback to raw content with error marker
+        return f"[?err {getattr(task, 'id', 'N/A')}] {task.content if task else 'N/A'}"
 
 
 def display_tasks(api, task_type=None):
@@ -621,11 +616,11 @@ def display_tasks(api, task_type=None):
     if task_type:
          print(f"[yellow]Warning: 'task_type' parameter in display_tasks is ignored.[/yellow]")
 
-    print("[cyan]Fetching and categorizing long-term tasks for display...[/cyan]")
+    print("\n[bold cyan]--- Long Term Tasks (Due) ---[/bold cyan]") # Moved title here
     try:
         one_shot_tasks, recurring_tasks = get_categorized_tasks(api) # Use the main function
 
-        print("\n[bold green]--- One-Shot Long-Term Tasks (Due) ---[/bold green]")
+        print("\nOne Shots:")
         if one_shot_tasks:
             for task in one_shot_tasks:
                 formatted_task = format_task_for_display(task)
@@ -638,21 +633,21 @@ def display_tasks(api, task_type=None):
         else:
             print("[dim]  No one-shot tasks due.[/dim]")
 
-        print("\n[bold green]--- Recurring Long-Term Tasks (Due) ---[/bold green]")
+        print("\nRecurring:")
         if recurring_tasks:
             for task in recurring_tasks:
-                formatted_task = format_task_for_display(task)
+                formatted_task = format_task_for_display(task) # Format function now includes schedule string
                 print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
                 if task.description:
                     desc_preview = (task.description[:75] + '...') if len(task.description) > 75 else task.description
                     print(f"  [italic blue]Desc: {desc_preview.replace(chr(10), ' ')}[/italic blue]")
         else:
             print("[dim]  No recurring tasks due.[/dim]")
+        print() # Add final newline for spacing
 
     except Exception as e:
          print(f"[red]An error occurred displaying long-term tasks: {e}[/red]")
          # Log stack trace
-         import traceback
          traceback.print_exc()
 
 def rename_task(api, index, new_name):
@@ -700,7 +695,6 @@ def rename_task(api, index, new_name):
     except Exception as error:
         print(f"[red]An unexpected error occurred renaming task index [{index}]: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return None
 

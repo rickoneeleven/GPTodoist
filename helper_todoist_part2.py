@@ -4,6 +4,7 @@ from datetime import timedelta
 import module_call_counter, helper_todoist_long
 from dateutil.parser import parse
 from rich import print
+import traceback # Import traceback for logging
 
 # Import necessary functions from part1
 from helper_todoist_part1 import (
@@ -62,8 +63,7 @@ def add_todoist_task(api, user_message):
     except Exception as error:
         print(f"[red]An unexpected error occurred adding task: {error}[/red]")
         # Log stack trace
-        # import traceback
-        # traceback.print_exc()
+        traceback.print_exc()
         return None
 
 def fetch_todoist_tasks(api):
@@ -112,6 +112,10 @@ def fetch_todoist_tasks(api):
                     task.has_time = False # Default
                     # Ensure task.due is not None before accessing attributes
                     if task.due:
+                        # Store the raw due string if available for later use
+                        task.due_string_raw = getattr(task.due, 'string', None)
+                        task.is_recurring_flag = getattr(task.due, 'is_recurring', False)
+
                         if task.due.datetime:
                             # Parse and localize datetime
                             utc_dt = parse(task.due.datetime)
@@ -132,12 +136,20 @@ def fetch_todoist_tasks(api):
                             # Assign a far future date/time for sorting last
                             task.due.datetime_localized = london_tz.localize(datetime.datetime.max - timedelta(days=1))
                             task.has_time = False
+                            task.due_string_raw = None # No meaningful string here
+                            task.is_recurring_flag = False
 
                     else:
                         # Task has no due date at all
                         # Assign a very far future date/time for sorting last
-                        task.due = type("Due", (object,), {"datetime_localized": london_tz.localize(datetime.datetime.max - timedelta(days=1))})()
+                        task.due = type("Due", (object,), {
+                            "datetime_localized": london_tz.localize(datetime.datetime.max - timedelta(days=1)),
+                            "string": None,
+                            "is_recurring": False
+                            })()
                         task.has_time = False
+                        task.due_string_raw = None # Store lack of due string
+                        task.is_recurring_flag = False # Store lack of recurrence
 
                     # Add creation time for tie-breaking if available
                     # Use a default far past date if 'created' attribute is missing
@@ -149,8 +161,7 @@ def fetch_todoist_tasks(api):
                     # Print specific error for easier debugging
                     print(f"[yellow]Warning: Error processing task ID {getattr(task, 'id', 'N/A')} ('{getattr(task, 'content', 'N/A')}'): {process_error}. Skipping task.[/yellow]")
                     # Log stack trace if needed for complex errors
-                    # import traceback
-                    # traceback.print_exc()
+                    traceback.print_exc()
 
 
             # Sort processed tasks
@@ -175,7 +186,6 @@ def fetch_todoist_tasks(api):
             if hasattr(signal, 'SIGALRM'): signal.alarm(0)
             print(f"[red]Attempt {attempt + 1}: Error fetching tasks: {e}[/red]")
             # Log stack trace
-            import traceback
             traceback.print_exc()
             # Consider returning None immediately on certain API errors (e.g., auth failure)
 
@@ -227,8 +237,21 @@ def get_next_todoist_task(api):
                 # Use the already fetched task data for display
                 task_display = next_task
 
-                display_info = get_task_display_info(task_display) # Use helper for formatting
+                # Get base display info (priority)
+                # We handle the (r) marker and schedule string separately now
+                base_display_info = get_task_display_info(task_display, include_recurring_marker=False)
                 due_display_str = ""
+                recurring_schedule_prefix = "" # Holds '(r) schedule - ' if applicable
+
+                # Check if recurring and build prefix
+                is_recurring = getattr(task_display, 'is_recurring_flag', False)
+                due_string = getattr(task_display, 'due_string_raw', None)
+
+                if is_recurring:
+                    if due_string:
+                        recurring_schedule_prefix = f"[cyan](r) {due_string}[/cyan] - "
+                    else:
+                        recurring_schedule_prefix = "[cyan](r)[/cyan] " # Fallback if no string
 
                 # Determine display string for due date/time
                 if task_display.due:
@@ -246,8 +269,8 @@ def get_next_todoist_task(api):
                          except Exception as fmt_err:
                               print(f"[yellow]Warning: Error formatting due date for display: {fmt_err}[/yellow]")
                               due_display_str = "(Due info error)"
-                     elif hasattr(task_display.due, 'string') and task_display.due.string: # Fallback to due string
-                          due_display_str = f"(Due: {task_display.due.string})"
+                     elif due_string: # Fallback to raw due string if localized failed but string exists
+                          due_display_str = f"(Due: {due_string})"
 
 
                 # Check if task is in the future (using localized times)
@@ -268,11 +291,11 @@ def get_next_todoist_task(api):
                          print(f"[yellow]Warning: Error checking if task is in the future: {future_check_err}[/yellow]")
 
 
-                # Print the task line
+                # Print the task line, incorporating the recurring schedule prefix
                 if is_future:
-                    print(f"                   [orange1]{display_info}{original_task_name} (next task due at {future_time_str})[/orange1]")
+                    print(f"                   [orange1]{base_display_info}{recurring_schedule_prefix}{original_task_name} (next task due at {future_time_str})[/orange1]")
                 else:
-                     print(f"                   [green]{display_info}{original_task_name} {due_display_str}[/green]")
+                     print(f"                   [green]{base_display_info}{recurring_schedule_prefix}{original_task_name} {due_display_str}[/green]")
 
                 # Print description if it exists
                 if getattr(task_display, 'description', None):
@@ -284,7 +307,6 @@ def get_next_todoist_task(api):
             except Exception as display_error:
                  print(f"[red]Error preparing next task display: {display_error}[/red]")
                  # Log stack trace
-                 import traceback
                  traceback.print_exc()
                  # Fallback display
                  print(f"                   [green]{original_task_name}[/green]")
@@ -316,63 +338,37 @@ def get_next_todoist_task(api):
 
 
         # Display long-term tasks (consider making this optional or a separate command)
-        print("[bold cyan]--- Long Term Tasks (Due) ---[/bold cyan]")
+        # print("[bold cyan]--- Long Term Tasks (Due) ---[/bold cyan]") # Title moved to helper_todoist_long.display_tasks
         try:
-            # Get categorized tasks
-            one_shot_tasks, recurring_tasks = helper_todoist_long.get_categorized_tasks(api)
-
-            # Display one-shot tasks
-            print("\nOne Shots:")
-            if one_shot_tasks:
-                for task in one_shot_tasks:
-                    formatted_task = helper_todoist_long.format_task_for_display(task)
-                    print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
-            else:
-                print("[dim]  No one-shot tasks due.[/dim]")
-
-            # Display recurring tasks
-            print("\nRecurring:")
-            if recurring_tasks:
-                for task in recurring_tasks:
-                    formatted_task = helper_todoist_long.format_task_for_display(task)
-                    print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
-            else:
-                print("[dim]  No recurring tasks due.[/dim]")
-            print()
+            # Display long term tasks (function now handles its own title printing)
+            helper_todoist_long.display_tasks(api)
         except Exception as long_term_error:
             print(f"[red]Error processing or displaying long-term tasks: {long_term_error}[/red]")
             # Log stack trace
-            # import traceback
-            # traceback.print_exc()
+            traceback.print_exc()
             print()
 
     except Exception as e:
         print(f"[red]An unexpected error occurred in get_next_todoist_task: {e}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         print("Continuing...")
         print()
         return # Exit function on major error
 
-def get_task_display_info(task):
-    """Generates a prefix string for task display including recurring and priority info."""
+def get_task_display_info(task, include_recurring_marker=True):
+    """
+    Generates a prefix string for task display including recurring (optional) and priority info.
+    """
     display_info = ""
     if not task: return "" # Handle case where task is None
 
     try:
-        # Check recurrence
-        is_recurring = False
-        if task.due:
-             if hasattr(task.due, 'is_recurring') and task.due.is_recurring:
-                  is_recurring = True
-             elif hasattr(task.due, 'string') and isinstance(task.due.string, str):
-                  recurrence_patterns = ['every', 'daily', 'weekly', 'monthly', 'yearly']
-                  if any(pattern in task.due.string.lower() for pattern in recurrence_patterns):
-                       is_recurring = True
-
-        if is_recurring:
-            display_info += "[cyan](r)[/cyan] "
+        # Check recurrence if requested
+        if include_recurring_marker:
+            is_recurring = getattr(task, 'is_recurring_flag', False)
+            if is_recurring:
+                display_info += "[cyan](r)[/cyan] "
 
         # Check priority
         priority = getattr(task, 'priority', None)
@@ -395,7 +391,6 @@ def display_todoist_tasks(api):
     """Fetches and displays all tasks from the active filter, formatted."""
     print("[cyan]Fetching tasks for display...[/cyan]")
     tasks = fetch_todoist_tasks(api) # Reuse the main fetching logic
-    # london_tz = pytz.timezone("Europe/London") # Not needed directly here if fetch_tasks adds localized
 
     if tasks is None:
         print("[red]Could not fetch tasks to display.[/red]")
@@ -410,9 +405,21 @@ def display_todoist_tasks(api):
     # Pre-process tasks for display data
     for task in tasks:
         try:
-            prefix = get_task_display_info(task)
+            # Get base info (priority)
+            base_display_info = get_task_display_info(task, include_recurring_marker=False)
+            recurring_schedule_prefix = ""
             due_display = "(No due date)" # Default
 
+            # Check recurring and build prefix
+            is_recurring = getattr(task, 'is_recurring_flag', False)
+            due_string = getattr(task, 'due_string_raw', None)
+            if is_recurring:
+                if due_string:
+                    recurring_schedule_prefix = f"[cyan](r) {due_string}[/cyan] - "
+                else:
+                    recurring_schedule_prefix = "[cyan](r)[/cyan] "
+
+            # Format due date/time
             if task.due and hasattr(task.due, 'datetime_localized') and task.due.datetime_localized:
                  try:
                      london_tz = pytz.timezone("Europe/London") # Define here or pass in
@@ -425,25 +432,27 @@ def display_todoist_tasks(api):
                  except Exception as fmt_err:
                       print(f"[yellow]Warn: Err fmt due for disp {getattr(task, 'id', 'N/A')}: {fmt_err}[/yellow]")
                       due_display = "(Due Error)"
-
-            elif task.due and hasattr(task.due, 'string') and task.due.string: # Fallback
-                 due_display = task.due.string
+            elif due_string: # Fallback to raw string
+                 due_display = due_string
 
 
             display_data.append({
-                "prefix": prefix,
+                "prefix": base_display_info, # Just priority marker
+                "recurring_prefix": recurring_schedule_prefix, # (r) schedule -
                 "due": due_display,
                 "content": getattr(task, 'content', 'Unknown Content'),
                 "description": getattr(task, 'description', None)
             })
         except Exception as e:
              print(f"[yellow]Warning: Error processing task {getattr(task, 'id', 'N/A')} for display: {e}[/yellow]")
+             traceback.print_exc() # Log stack trace for processing errors
 
 
     # Print formatted tasks - Simpler alignment approach
     max_due_len = 0
     if display_data:
         try:
+            # Find max length considering only the date/time part for alignment
             max_due_len = max(len(data['due']) for data in display_data)
         except ValueError: # Handle empty display_data case
              pass
@@ -451,16 +460,24 @@ def display_todoist_tasks(api):
     tab = "    " # 4 spaces for indentation
 
     for data in display_data:
-        # Pad due string for alignment
-        due_padded = data['due'].ljust(max_due_len)
-        line = f"{due_padded}{tab}{data['prefix']}{data['content']}"
-        print(line)
+        try:
+            # Pad due string for alignment
+            due_padded = data['due'].ljust(max_due_len)
+            # Combine prefixes and content
+            full_prefix = data['prefix'] + data['recurring_prefix']
+            line = f"{due_padded}{tab}{full_prefix}{data['content']}"
+            print(line)
 
-        # Display description if it exists, indented
-        if data['description']:
-            desc_indent = " " * (max_due_len + len(tab)) # Align under content
-            for desc_line in data['description'].splitlines():
-                 print(f"{desc_indent}[italic blue]Desc: {desc_line}[/italic blue]")
+            # Display description if it exists, indented
+            if data['description']:
+                # Calculate indent based on padded due length and tab
+                desc_indent = " " * (max_due_len + len(tab))
+                for desc_line in data['description'].splitlines():
+                     print(f"{desc_indent}[italic blue]Desc: {desc_line}[/italic blue]")
+        except Exception as e:
+            print(f"[red]Error printing line for task '{data.get('content', 'N/A')}': {e}[/red]")
+            traceback.print_exc()
+
 
     print("[bold magenta]---------------------[/bold magenta]")
 
@@ -494,6 +511,7 @@ def check_if_grafting(api):
               return False
          except Exception as e:
               print(f"[red]Unexpected error checking graft status: {e}[/red]")
+              traceback.print_exc() # Log unexpected errors
               return False
      else:
          return False
@@ -552,7 +570,6 @@ def rename_todoist_task(api, user_message):
     except Exception as error:
         print(f"[red]An unexpected error occurred renaming task: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return False
 
@@ -611,7 +628,6 @@ def change_active_task_priority(api, user_message):
     except Exception as error:
         print(f"[red]An unexpected error occurred changing task priority: {error}[/red]")
         # Log stack trace
-        import traceback
         traceback.print_exc()
         return False
 
