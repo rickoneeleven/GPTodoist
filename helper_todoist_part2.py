@@ -1,3 +1,5 @@
+# File: helper_todoist_part2.py
+
 import re, json, pytz, datetime, time, os, signal, subprocess
 # Import timedelta here
 from datetime import timedelta
@@ -16,6 +18,7 @@ from helper_todoist_part1 import (
 
 
 def add_todoist_task(api, user_message):
+    # ... (function remains unchanged) ...
     """Adds a new task to Todoist based on the active filter's project ID."""
     try:
         # Import locally to avoid circular dependency issues at module level
@@ -66,8 +69,10 @@ def add_todoist_task(api, user_message):
         traceback.print_exc()
         return None
 
+
+# <<< START REFACTORED FUNCTION >>>
 def fetch_todoist_tasks(api):
-    """Fetches and sorts tasks based on the active filter with timeout and retries."""
+    """Fetches and sorts tasks based on the active filter with timeout, retries, and correct timezone handling."""
     # Timeout logic (Unix specific)
     if hasattr(signal, 'SIGALRM'):
         def handler(signum, frame):
@@ -78,11 +83,9 @@ def fetch_todoist_tasks(api):
 
     active_filter, project_id = get_active_filter() # project_id not used here, only filter
     if not active_filter:
-        # Message handled by get_active_filter
-        # print("[yellow]No active filter configured. Cannot fetch tasks.[/yellow]")
         return None # Return None to indicate failure
 
-    retries = 3 # Reduced retries from 99 to a more reasonable number
+    retries = 3
     retry_delay = 2 # seconds
 
     for attempt in range(retries):
@@ -91,15 +94,13 @@ def fetch_todoist_tasks(api):
                 signal.signal(signal.SIGALRM, handler)
                 signal.alarm(5) # 5-second timeout for this attempt
 
-            #print(f"[cyan]Fetching tasks with filter: '{active_filter}' (Attempt {attempt + 1}/{retries})[/cyan]")
             tasks = api.get_tasks(filter=active_filter)
 
             if hasattr(signal, 'SIGALRM'): signal.alarm(0) # Disable alarm after successful call
 
-            # Basic validation
             if not isinstance(tasks, list):
                 print(f"[red]Error: Todoist API returned unexpected data type: {type(tasks)}[/red]")
-                return None # Cannot proceed
+                return None
 
             london_tz = pytz.timezone("Europe/London")
             now_utc = datetime.datetime.now(datetime.timezone.utc)
@@ -107,76 +108,75 @@ def fetch_todoist_tasks(api):
 
             processed_tasks = []
             for task in tasks:
-                # Add error handling for task processing
                 try:
                     task.has_time = False # Default
-                    # Ensure task.due is not None before accessing attributes
                     if task.due:
-                        # Store the raw due string if available for later use
                         task.due_string_raw = getattr(task.due, 'string', None)
                         task.is_recurring_flag = getattr(task.due, 'is_recurring', False)
 
                         if task.due.datetime:
-                            # Parse and localize datetime
-                            utc_dt = parse(task.due.datetime)
-                            # Ensure it's timezone-aware before converting
-                            if utc_dt.tzinfo is None or utc_dt.tzinfo.utcoffset(utc_dt) is None:
-                                utc_dt = pytz.utc.localize(utc_dt) # Assume UTC if naive
-                            london_dt = utc_dt.astimezone(london_tz)
-                            task.due.datetime_localized = london_dt # Store localized version
+                            parsed_dt = parse(task.due.datetime)
+
+                            # --- CORRECTED TIMEZONE LOGIC ---
+                            if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
+                                # Naive datetime from API: ASSUME it's in the user's local timezone (London)
+                                try:
+                                    london_dt = london_tz.localize(parsed_dt, is_dst=None) # is_dst=None handles DST ambiguity automatically
+                                except pytz.exceptions.AmbiguousTimeError:
+                                     print(f"[yellow]Warning: Ambiguous time encountered for task {task.id} ('{task.content}') during DST changeover. Using first occurrence.[/yellow]")
+                                     london_dt = london_tz.localize(parsed_dt, is_dst=True) # Or False, depending on preferred handling
+                                except pytz.exceptions.NonExistentTimeError:
+                                     print(f"[yellow]Warning: Non-existent time encountered for task {task.id} ('{task.content}') during DST changeover. Skipping time assignment.[/yellow]")
+                                     # Assign a default or skip setting time? For now, let's assign the parsed naive time.
+                                     london_dt = parsed_dt # Keep it naive, will sort later but display might be odd
+                            else:
+                                # Aware datetime from API (e.g., UTC 'Z'): Convert to London time
+                                london_dt = parsed_dt.astimezone(london_tz)
+                            # --- END CORRECTED TIMEZONE LOGIC ---
+
+                            task.due.datetime_localized = london_dt # Store localized/converted version
                             task.has_time = True
                         elif task.due.date:
-                            # Handle date-only tasks - assign a time for sorting (e.g., start of day in London)
+                            # Handle date-only tasks
                             due_date = parse(task.due.date).date()
-                            # Assign noon London time for sorting all-day tasks consistently
                             london_dt = london_tz.localize(datetime.datetime.combine(due_date, datetime.time(12, 0)))
                             task.due.datetime_localized = london_dt
-                            task.has_time = False # Still considered 'all-day'
-                        else: # Due object exists but no date/datetime (should be rare)
-                            # Assign a far future date/time for sorting last
+                            task.has_time = False
+                        else: # Due object exists but no date/datetime
                             task.due.datetime_localized = london_tz.localize(datetime.datetime.max - timedelta(days=1))
                             task.has_time = False
-                            task.due_string_raw = None # No meaningful string here
+                            task.due_string_raw = None
                             task.is_recurring_flag = False
 
                     else:
                         # Task has no due date at all
-                        # Assign a very far future date/time for sorting last
                         task.due = type("Due", (object,), {
                             "datetime_localized": london_tz.localize(datetime.datetime.max - timedelta(days=1)),
                             "string": None,
                             "is_recurring": False
                             })()
                         task.has_time = False
-                        task.due_string_raw = None # Store lack of due string
-                        task.is_recurring_flag = False # Store lack of recurrence
+                        task.due_string_raw = None
+                        task.is_recurring_flag = False
 
-                    # Add creation time for tie-breaking if available
-                    # Use a default far past date if 'created' attribute is missing
                     task.created_at_sortable = parse(task.created_at) if hasattr(task, 'created_at') and task.created_at else datetime.datetime.min.replace(tzinfo=pytz.utc)
-
                     processed_tasks.append(task)
 
                 except Exception as process_error:
-                    # Print specific error for easier debugging
                     print(f"[yellow]Warning: Error processing task ID {getattr(task, 'id', 'N/A')} ('{getattr(task, 'content', 'N/A')}'): {process_error}. Skipping task.[/yellow]")
-                    # Log stack trace if needed for complex errors
                     traceback.print_exc()
 
-
             # Sort processed tasks
-            # Sort by: Priority (high first), Due Date/Time (earliest first), Has Time (no time sorts later), Creation Time (earliest first)
             sorted_final_tasks = sorted(
                 processed_tasks,
                 key=lambda t: (
-                    -getattr(t, 'priority', 1), # Default to lowest priority (P4=1) if missing
-                    getattr(t.due, 'datetime_localized', now_london) if t.due else now_london, # Sort by localized time, default now
-                    getattr(t, 'has_time', False), # False (no time) sorts after True (has time)
-                    getattr(t, 'created_at_sortable', datetime.datetime.min.replace(tzinfo=pytz.utc)) # Earliest created first
+                    -getattr(t, 'priority', 1),
+                    getattr(t.due, 'datetime_localized', now_london) if t.due else now_london,
+                    getattr(t, 'has_time', False),
+                    getattr(t, 'created_at_sortable', datetime.datetime.min.replace(tzinfo=pytz.utc))
                 ),
             )
 
-            #print(f"[green]Successfully fetched and processed {len(sorted_final_tasks)} tasks.[/green]")
             return sorted_final_tasks # Success
 
         except TimeoutError as te:
@@ -185,21 +185,19 @@ def fetch_todoist_tasks(api):
         except Exception as e:
             if hasattr(signal, 'SIGALRM'): signal.alarm(0)
             print(f"[red]Attempt {attempt + 1}: Error fetching tasks: {e}[/red]")
-            # Log stack trace
             traceback.print_exc()
-            # Consider returning None immediately on certain API errors (e.g., auth failure)
 
-        # Wait before retrying
         if attempt < retries - 1:
             print(f"Retrying in {retry_delay} seconds...")
             time.sleep(retry_delay)
 
-    # If loop finishes without success
     print(f"[red]Failed to fetch tasks after {retries} attempts.[/red]")
     return None
+# <<< END REFACTORED FUNCTION >>>
 
 
 def get_next_todoist_task(api):
+    # ... (function remains unchanged) ...
     """Gets the next task, displays it, and saves it as the active task."""
     try:
         tasks = fetch_todoist_tasks(api)
@@ -223,7 +221,11 @@ def get_next_todoist_task(api):
             task_due_iso = None
             if next_task.due and hasattr(next_task.due, 'datetime_localized') and next_task.due.datetime_localized:
                  try:
-                      task_due_iso = next_task.due.datetime_localized.isoformat()
+                      # Ensure the datetime object is not naive before calling isoformat if pytz errors occurred during localize
+                      if hasattr(next_task.due.datetime_localized, 'tzinfo') and next_task.due.datetime_localized.tzinfo is not None:
+                          task_due_iso = next_task.due.datetime_localized.isoformat()
+                      else:
+                          print(f"[yellow]Warning: Skipping ISO format save for task {task_id} due to missing timezone info after processing.[/yellow]")
                  except Exception as iso_err:
                       print(f"[yellow]Warning: Could not format localized due date for saving: {iso_err}[/yellow]")
 
@@ -260,12 +262,17 @@ def get_next_todoist_task(api):
                               # Check if it's the far future date we assigned
                               london_tz = pytz.timezone("Europe/London")
                               far_future = london_tz.localize(datetime.datetime.max - timedelta(days=1))
-                              if task_display.due.datetime_localized == far_future:
-                                   due_display_str = "(No due date)"
-                              elif getattr(task_display, 'has_time', False):
-                                   due_display_str = f"(Due: {task_display.due.datetime_localized.strftime('%Y-%m-%d %H:%M')})"
-                              else: # All day task
-                                   due_display_str = f"(Due: {task_display.due.datetime_localized.strftime('%Y-%m-%d')} All day)"
+                              # Check if datetime_localized is aware before comparing/formatting
+                              if hasattr(task_display.due.datetime_localized, 'tzinfo') and task_display.due.datetime_localized.tzinfo is not None:
+                                  if task_display.due.datetime_localized == far_future:
+                                       due_display_str = "(No due date)"
+                                  elif getattr(task_display, 'has_time', False):
+                                       due_display_str = f"(Due: {task_display.due.datetime_localized.strftime('%Y-%m-%d %H:%M')})"
+                                  else: # All day task
+                                       due_display_str = f"(Due: {task_display.due.datetime_localized.strftime('%Y-%m-%d')} All day)"
+                              else: # It remained naive after processing (e.g., NonExistentTimeError)
+                                   due_display_str = f"(Due: {task_display.due.datetime_localized.strftime('%Y-%m-%d %H:%M')} ?TZ?)" # Indicate missing TZ
+
                          except Exception as fmt_err:
                               print(f"[yellow]Warning: Error formatting due date for display: {fmt_err}[/yellow]")
                               due_display_str = "(Due info error)"
@@ -280,13 +287,14 @@ def get_next_todoist_task(api):
                     try:
                         london_tz = pytz.timezone("Europe/London")
                         now_london = datetime.datetime.now(london_tz)
-                        # Add a small buffer (e.g., 1 minute) to avoid marking tasks due 'right now' as future
-                        if task_display.due.datetime_localized > (now_london + timedelta(minutes=1)):
-                             # Avoid showing future if it's the 'far future' placeholder date
-                             far_future = london_tz.localize(datetime.datetime.max - timedelta(days=1))
-                             if task_display.due.datetime_localized != far_future and getattr(task_display, 'has_time', False):
-                                  is_future = True
-                                  future_time_str = task_display.due.datetime_localized.strftime('%H:%M')
+                        # Check if aware before comparing
+                        if hasattr(task_display.due.datetime_localized, 'tzinfo') and task_display.due.datetime_localized.tzinfo is not None:
+                            if task_display.due.datetime_localized > (now_london + timedelta(minutes=1)):
+                                # Avoid showing future if it's the 'far future' placeholder date
+                                far_future = london_tz.localize(datetime.datetime.max - timedelta(days=1))
+                                if task_display.due.datetime_localized != far_future and getattr(task_display, 'has_time', False):
+                                     is_future = True
+                                     future_time_str = task_display.due.datetime_localized.strftime('%H:%M')
                     except Exception as future_check_err:
                          print(f"[yellow]Warning: Error checking if task is in the future: {future_check_err}[/yellow]")
 
@@ -356,7 +364,9 @@ def get_next_todoist_task(api):
         print()
         return # Exit function on major error
 
+
 def get_task_display_info(task, include_recurring_marker=True):
+    # ... (function remains unchanged) ...
     """
     Generates a prefix string for task display including recurring (optional) and priority info.
     """
@@ -388,6 +398,7 @@ def get_task_display_info(task, include_recurring_marker=True):
 
 
 def display_todoist_tasks(api):
+    # ... (function remains unchanged) ...
     """Fetches and displays all tasks from the active filter, formatted."""
     print("[cyan]Fetching tasks for display...[/cyan]")
     tasks = fetch_todoist_tasks(api) # Reuse the main fetching logic
@@ -424,11 +435,16 @@ def display_todoist_tasks(api):
                  try:
                      london_tz = pytz.timezone("Europe/London") # Define here or pass in
                      far_future = london_tz.localize(datetime.datetime.max - timedelta(days=1))
-                     if task.due.datetime_localized != far_future:
-                         if getattr(task, 'has_time', False):
-                              due_display = task.due.datetime_localized.strftime("%Y-%m-%d %H:%M")
-                         else: # All day
-                              due_display = task.due.datetime_localized.strftime("%Y-%m-%d") + " All day"
+                     # Check if datetime_localized is aware before comparing/formatting
+                     if hasattr(task.due.datetime_localized, 'tzinfo') and task.due.datetime_localized.tzinfo is not None:
+                         if task.due.datetime_localized != far_future:
+                             if getattr(task, 'has_time', False):
+                                  due_display = task.due.datetime_localized.strftime("%Y-%m-%d %H:%M")
+                             else: # All day
+                                  due_display = task.due.datetime_localized.strftime("%Y-%m-%d") + " All day"
+                     else: # Remained naive
+                         due_display = f"{task.due.datetime_localized.strftime('%Y-%m-%d %H:%M')} ?TZ?" # Indicate TZ issue
+
                  except Exception as fmt_err:
                       print(f"[yellow]Warn: Err fmt due for disp {getattr(task, 'id', 'N/A')}: {fmt_err}[/yellow]")
                       due_display = "(Due Error)"
@@ -483,6 +499,7 @@ def display_todoist_tasks(api):
 
 
 def check_if_grafting(api):
+    # ... (function remains unchanged) ...
      """Checks if the graft file exists and displays graft status."""
      graft_file_path = "j_grafted_tasks.json"
      if os.path.exists(graft_file_path):
@@ -518,6 +535,7 @@ def check_if_grafting(api):
 
 
 def rename_todoist_task(api, user_message):
+    # ... (function remains unchanged) ...
     """Renames the active Todoist task."""
     active_task_file = "j_active_task.json"
     try:
@@ -575,6 +593,7 @@ def rename_todoist_task(api, user_message):
 
 
 def change_active_task_priority(api, user_message):
+    # ... (function remains unchanged) ...
     """Changes the priority of the active Todoist task."""
     active_task_file = "j_active_task.json"
     try:
