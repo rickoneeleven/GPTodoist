@@ -1,8 +1,15 @@
+# File: helper_commands.py
 import subprocess
-import module_call_counter, helper_diary
+import module_call_counter
+import helper_diary
+import helper_tasks
+import helper_regex
+import helper_timesheets
+import helper_todoist_long
 from rich import print
+import traceback
 
-# Import from helper_todoist_part1
+# Import specific functions from todoist helpers to clarify dependencies
 from helper_todoist_part1 import (
     complete_active_todoist_task,
     check_and_update_task_due_date,
@@ -10,206 +17,348 @@ from helper_todoist_part1 import (
     delete_todoist_task,
     change_active_task,
 )
-
-# Import from helper_todoist_part2
 from helper_todoist_part2 import (
-    # graft, # Removed - Functionality removed
     display_todoist_tasks,
     add_todoist_task,
     rename_todoist_task,
     change_active_task_priority,
 )
 
-# Import from other helper modules
-# Ensure all necessary imports are still present after removals
-import helper_tasks, helper_regex, helper_timesheets, helper_todoist_long, helper_task_factory
+# --- Command Constants ---
+# Exact Commands
+CMD_DONE = "done"
+CMD_SKIP = "skip"
+CMD_DELETE = "delete"
+CMD_FLIP = "flip"
+CMD_ALL = "all"
+CMD_SHOW_ALL = "show all"
+CMD_COMPLETED = "completed"
+CMD_SHOW_COMPLETED = "show completed"
+CMD_SHOW_LONG = "show long"
+CMD_DIARY = "diary"
+CMD_TIMESHEET = "timesheet"
+CMD_CLEAR = "clear"
 
-def ifelse_commands(api, user_message):
-    """Processes user commands using a large if/elif structure."""
-    command = user_message.lower().strip() # Ensure consistent stripping
+# Prefix Commands
+PREFIX_FUZZY_COMPLETE = "~~~"
+PREFIX_ADHOC_COMPLETE = "xx "
+PREFIX_TIME = "time "
+PREFIX_POSTPONE = "postpone "
+PREFIX_RENAME = "rename "
+PREFIX_PRIORITY = "priority "
+PREFIX_ADD_TASK = "add task "
+PREFIX_TIME_LONG = "time long "
+PREFIX_SKIP_LONG = "skip long "
+PREFIX_TOUCH_LONG = "touch long "
+PREFIX_ADD_LONG = "add long "
+PREFIX_RENAME_LONG = "rename long "
+PREFIX_DELETE_LONG = "delete long "
+PREFIX_FUZZY_SEARCH = "|||"
+PREFIX_DIARY_UPDATE = "diary "
 
-    # --- Task Completion ---
-    if command == "done":
-        subprocess.call("reset")
-        complete_active_todoist_task(api)
-        return True
-    elif command == "skip":
-        subprocess.call("reset")
-        complete_active_todoist_task(api, skip_logging=True)
-        return True
-    elif command.startswith("~~~"): # Fuzzy complete by title
-        helper_regex.complete_todoist_task_by_title(user_message) # Assumes user_message has prefix
-        display_todoist_tasks(api) # Show updated tasks
-        return True
-    elif command.startswith("xx "): # Add ad-hoc completed task
-        helper_tasks.add_completed_task(user_message) # Assumes user_message has prefix
-        return True
+# --- Helper Functions ---
 
-    # --- Task Modification ---
-    elif command.startswith("time "):
-        # Handles regular task time updates
-        check_and_update_task_due_date(api, user_message) # Assumes user_message has prefix
-        return True
-    elif command.startswith("postpone "):
-        postpone_due_date(api, user_message) # Assumes user_message has prefix
-        return True
-    elif command.startswith("rename "):
-        subprocess.call("reset")
-        rename_todoist_task(api, user_message) # Assumes user_message has prefix
-        return True
-    elif command.startswith("priority "):
-        subprocess.call("reset")
-        change_active_task_priority(api, user_message) # Assumes user_message has prefix
-        return True
-    elif command == "delete": # Delete active task
-        delete_todoist_task(api)
-        # The delete function should handle showing next task prompt
-        return True
-    elif command == "flip": # Toggle active filter
-        subprocess.call("reset")
-        change_active_task()
-        return True
-    elif command.startswith("add task "):
-        add_todoist_task(api, user_message) # Assumes user_message has prefix
-        # Consider calling display_todoist_tasks(api) after adding?
-        return True
+def _parse_long_task_index(user_message: str, command_prefix: str) -> (int | None):
+    """Parses the index from commands like 'skip long <index>'."""
+    try:
+        parts = user_message.split()
+        if len(parts) < 3:
+            print(f"[red]Invalid format. Usage: '{command_prefix.strip()} <index>'[/red]")
+            return None
+        index = int(parts[-1]) # Takes the last part as index
+        return index
+    except (ValueError, IndexError):
+        print("[red]Invalid or missing index. Index must be a number.[/red]")
+        return None
 
-    # --- Long Term Task Commands ---
-    elif command.startswith("time long "):
-        parts = user_message.split(None, 3)
-        if len(parts) < 4:
-            print("[red]Invalid format. Usage: 'time long <index> <schedule>'[/red]")
-            return True # Handled command (invalidly)
-        try:
-            index = int(parts[2])
-            schedule = parts[3]
-            helper_todoist_long.reschedule_task(api, index, schedule)
-        except ValueError:
-            print("[red]Invalid index format. Index must be a number.[/red]")
-        except Exception as e:
-             print(f"[red]Error rescheduling long task: {e}[/red]")
-        return True
-    elif command.startswith("skip long "):
-        try:
-            parts = user_message.split()
-            if len(parts) < 3:
-                 print("[red]Invalid format. Usage: 'skip long <index>'[/red]")
-                 return True
-            index = int(parts[-1])
-            subprocess.call("reset")
-            helper_todoist_long.touch_task(api, index, skip_logging=True)
-        except (ValueError, IndexError):
-            print("[red]Invalid index format. Index must be a number.[/red]")
-        except Exception as e:
-             print(f"[red]Error skipping long task: {e}[/red]")
-        return True
-    elif command.startswith("touch long "):
-         try:
-            parts = user_message.split()
-            if len(parts) < 3:
-                 print("[red]Invalid format. Usage: 'touch long <index>'[/red]")
-                 return True
-            index = int(parts[-1])
-            subprocess.call("reset")
-            helper_todoist_long.touch_task(api, index, skip_logging=False) # Default, log completion
-         except (ValueError, IndexError):
-            print("[red]Invalid index format. Index must be a number.[/red]")
-         except Exception as e:
-             print(f"[red]Error touching long task: {e}[/red]")
-         return True
-    elif command.startswith("add long "):
-        task_name = user_message[len("add long "):].strip()
-        if not task_name:
-             print("[yellow]No task name provided for 'add long'.[/yellow]")
-             return True
+def _parse_long_task_index_and_value(user_message: str, command_prefix: str, value_name: str) -> (tuple[int, str] | None):
+    """Parses index and remaining value for commands like 'time long <index> <schedule>'."""
+    if len(user_message) <= len(command_prefix):
+        print(f"[red]Invalid format. Usage: '{command_prefix.strip()} <index> <{value_name}>'[/red]")
+        return None
+
+    remainder = user_message[len(command_prefix):].strip()
+    parts = remainder.split(None, 1) # Split into index and the rest
+
+    if len(parts) < 2:
+        print(f"[red]Invalid format. Missing index or {value_name}. Usage: '{command_prefix.strip()} <index> <{value_name}>'[/red]")
+        return None
+
+    index_str = parts[0]
+    value = parts[1].strip()
+
+    if not value:
+         print(f"[red]Invalid format. The {value_name} part cannot be empty.[/red]")
+         return None
+
+    try:
+        index = int(index_str)
+        return index, value
+    except ValueError:
+        print(f"[red]Invalid index format '{index_str}'. Index must be a number.[/red]")
+        return None
+
+# --- Command Handler Functions ---
+# Each handler returns True if the command was recognized and handled (even if an error occurred during handling),
+# otherwise it shouldn't be called or would implicitly return None (interpreted as False by the dispatcher).
+
+def _handle_done(api, user_message):
+    subprocess.call("reset")
+    complete_active_todoist_task(api)
+    return True
+
+def _handle_skip(api, user_message):
+    subprocess.call("reset")
+    complete_active_todoist_task(api, skip_logging=True)
+    return True
+
+def _handle_fuzzy_complete(api, user_message):
+    helper_regex.complete_todoist_task_by_title(user_message)
+    display_todoist_tasks(api) # Show updated tasks
+    return True
+
+def _handle_adhoc_complete(api, user_message):
+    helper_tasks.add_completed_task(user_message)
+    return True
+
+def _handle_time(api, user_message):
+    check_and_update_task_due_date(api, user_message)
+    return True
+
+def _handle_postpone(api, user_message):
+    postpone_due_date(api, user_message)
+    return True
+
+def _handle_rename(api, user_message):
+    subprocess.call("reset")
+    rename_todoist_task(api, user_message)
+    return True
+
+def _handle_priority(api, user_message):
+    subprocess.call("reset")
+    change_active_task_priority(api, user_message)
+    return True
+
+def _handle_delete(api, user_message):
+    delete_todoist_task(api)
+    return True
+
+def _handle_flip(api, user_message):
+    subprocess.call("reset")
+    change_active_task()
+    return True
+
+def _handle_add_task(api, user_message):
+    add_todoist_task(api, user_message)
+    # Consider calling display_todoist_tasks(api) after adding?
+    return True
+
+def _handle_time_long(api, user_message):
+    parsed = _parse_long_task_index_and_value(user_message, PREFIX_TIME_LONG, "schedule")
+    if parsed is None:
+        return True # Error message already printed by parser
+
+    index, schedule = parsed
+    try:
+        helper_todoist_long.reschedule_task(api, index, schedule)
+    except Exception as e:
+         print(f"[red]Error rescheduling long task (Index: {index}, Schedule: '{schedule}'): {e}[/red]")
+         traceback.print_exc()
+    return True
+
+def _handle_skip_long(api, user_message):
+    index = _parse_long_task_index(user_message, PREFIX_SKIP_LONG)
+    if index is None:
+        return True # Error handled by parser
+
+    try:
+        subprocess.call("reset")
+        helper_todoist_long.touch_task(api, index, skip_logging=True)
+    except Exception as e:
+         print(f"[red]Error skipping long task (Index: {index}): {e}[/red]")
+         traceback.print_exc()
+    return True
+
+def _handle_touch_long(api, user_message):
+    index = _parse_long_task_index(user_message, PREFIX_TOUCH_LONG)
+    if index is None:
+        return True # Error handled by parser
+
+    try:
+        subprocess.call("reset")
+        helper_todoist_long.touch_task(api, index, skip_logging=False)
+    except Exception as e:
+         print(f"[red]Error touching long task (Index: {index}): {e}[/red]")
+         traceback.print_exc()
+    return True
+
+def _handle_add_long(api, user_message):
+    task_name = user_message[len(PREFIX_ADD_LONG):].strip()
+    if not task_name:
+         print("[yellow]No task name provided for 'add long'.[/yellow]")
+         return True # Handled (as invalid)
+    try:
         helper_todoist_long.add_task(api, task_name)
         # Consider calling helper_todoist_long.display_tasks(api) after adding?
-        return True
-    elif command.startswith("rename long "):
-        try:
-            parts = user_message.split(None, 3)
-            if len(parts) < 4:
-                print("[red]Invalid format. Usage: 'rename long <index> <new_name>'[/red]")
-                return True
-            index = int(parts[2])
-            new_name = parts[3].strip()
-            if not new_name:
-                 print("[yellow]No new name provided for 'rename long'.[/yellow]")
-                 return True
-            renamed_task = helper_todoist_long.rename_task(api, index, new_name)
-            if renamed_task:
-                subprocess.call("reset")
-                # Optionally display long tasks after rename:
-                # helper_todoist_long.display_tasks(api)
-        except ValueError:
-            print("[red]Invalid index format. Index must be a number.[/red]")
-        except Exception as e:
-             print(f"[red]Error renaming long task: {e}[/red]")
-        return True
-    elif command.startswith("delete long "):
-        try:
-            parts = user_message.split()
-            if len(parts) < 3:
-                 print("[red]Invalid format. Usage: 'delete long <index>'[/red]")
-                 return True
-            index = int(parts[-1])
-            deleted_task = helper_todoist_long.delete_task(api, index)
-            if deleted_task:
-                subprocess.call("reset")
-                 # Optionally display long tasks after delete:
-                 # helper_todoist_long.display_tasks(api)
-        except (ValueError, IndexError):
-            print("[red]Invalid index format. Index must be a number.[/red]")
-        except Exception as e:
-             print(f"[red]Error deleting long task: {e}[/red]")
-        return True
+    except Exception as e:
+        print(f"[red]Error adding long task ('{task_name}'): {e}[/red]")
+        traceback.print_exc()
+    return True
 
-    # --- Display and Info ---
-    elif command == "all" or command == "show all": # Show current tasks
-        subprocess.call("reset")
-        display_todoist_tasks(api)
-        print("###################################################################################################")
-        return True
-    elif command == "completed" or command == "show completed": # Show logged completed tasks
-        subprocess.call("reset")
-        helper_tasks.display_completed_tasks()
-        return True
-    elif command == "show long": # Show long term tasks
-        subprocess.call("reset")
-        helper_todoist_long.display_tasks(api)
-        return True
-    elif command.startswith("|||"): # Fuzzy search tasks
-        helper_regex.search_todoist_tasks(user_message) # Assumes user_message has prefix
-        return True
+def _handle_rename_long(api, user_message):
+    parsed = _parse_long_task_index_and_value(user_message, PREFIX_RENAME_LONG, "new_name")
+    if parsed is None:
+        return True # Error handled by parser
 
-    # --- Diary and Timesheets ---
-    elif command == "diary":
-        helper_diary.diary()
-        return True
-    elif command.startswith("diary "):
-        new_objective = user_message[len("diary "):].strip()
-        if not new_objective:
-             print("[yellow]No objective provided for 'diary'.[/yellow]")
-             return True
+    index, new_name = parsed
+    try:
+        renamed_task = helper_todoist_long.rename_task(api, index, new_name)
+        if renamed_task:
+            subprocess.call("reset")
+            # Optionally display long tasks after rename:
+            # helper_todoist_long.display_tasks(api)
+    except Exception as e:
+        print(f"[red]Error renaming long task (Index: {index}, New Name: '{new_name}'): {e}[/red]")
+        traceback.print_exc()
+    return True
+
+def _handle_delete_long(api, user_message):
+    index = _parse_long_task_index(user_message, PREFIX_DELETE_LONG)
+    if index is None:
+        return True # Error handled by parser
+
+    try:
+        deleted_task = helper_todoist_long.delete_task(api, index)
+        if deleted_task:
+            subprocess.call("reset")
+             # Optionally display long tasks after delete:
+             # helper_todoist_long.display_tasks(api)
+    except Exception as e:
+        print(f"[red]Error deleting long task (Index: {index}): {e}[/red]")
+        traceback.print_exc()
+    return True
+
+def _handle_all(api, user_message):
+    subprocess.call("reset")
+    display_todoist_tasks(api)
+    print("###################################################################################################")
+    return True
+
+def _handle_completed(api, user_message):
+    subprocess.call("reset")
+    helper_tasks.display_completed_tasks()
+    return True
+
+def _handle_show_long(api, user_message):
+    subprocess.call("reset")
+    helper_todoist_long.display_tasks(api)
+    return True
+
+def _handle_fuzzy_search(api, user_message):
+    helper_regex.search_todoist_tasks(user_message)
+    return True
+
+def _handle_diary(api, user_message):
+    helper_diary.diary()
+    return True
+
+def _handle_diary_update(api, user_message):
+    new_objective = user_message[len(PREFIX_DIARY_UPDATE):].strip()
+    if not new_objective:
+         print("[yellow]No objective provided for 'diary'.[/yellow]")
+         return True # Handled (as invalid)
+    try:
         helper_diary.update_todays_objective(new_objective)
-        return True
-    elif command == "timesheet":
-        # Consider adding a check or prompt if timesheets are disabled/unused?
-        helper_timesheets.timesheet()
-        return True
+    except Exception as e:
+        print(f"[red]Error updating diary objective ('{new_objective}'): {e}[/red]")
+        traceback.print_exc()
+    return True
 
-    # --- Utility ---
-    elif command == "clear":
-        subprocess.call("reset")
-        return True
+def _handle_timesheet(api, user_message):
+    # Consider adding a check or prompt if timesheets are disabled/unused?
+    helper_timesheets.timesheet()
+    return True
 
-    # --- Graft Commands (Removed) ---
-    # elif command.startswith("graft"):
-    #    print("[yellow]Graft functionality has been removed.[/yellow]")
-    #    return True # Command was recognized but is defunct
+def _handle_clear(api, user_message):
+    subprocess.call("reset")
+    return True
 
-    # --- If command not recognized ---
-    return False # Indicate command was not handled by this function
+
+# --- Main Dispatcher Function ---
+
+# Order matters: Check more specific prefixes before shorter ones.
+# Tuples: (prefix_or_command, handler_function, is_prefix_check)
+COMMAND_DISPATCH = [
+    # --- Long Task Prefixes ---
+    (PREFIX_TIME_LONG, _handle_time_long, True),
+    (PREFIX_SKIP_LONG, _handle_skip_long, True),
+    (PREFIX_TOUCH_LONG, _handle_touch_long, True),
+    (PREFIX_ADD_LONG, _handle_add_long, True),
+    (PREFIX_RENAME_LONG, _handle_rename_long, True),
+    (PREFIX_DELETE_LONG, _handle_delete_long, True),
+    # --- Other Prefixes ---
+    (PREFIX_FUZZY_COMPLETE, _handle_fuzzy_complete, True),
+    (PREFIX_ADHOC_COMPLETE, _handle_adhoc_complete, True),
+    (PREFIX_TIME, _handle_time, True), # Checked AFTER "time long "
+    (PREFIX_POSTPONE, _handle_postpone, True),
+    (PREFIX_RENAME, _handle_rename, True), # Checked AFTER "rename long " if it existed
+    (PREFIX_PRIORITY, _handle_priority, True),
+    (PREFIX_ADD_TASK, _handle_add_task, True),
+    (PREFIX_FUZZY_SEARCH, _handle_fuzzy_search, True),
+    (PREFIX_DIARY_UPDATE, _handle_diary_update, True),
+    # --- Exact Commands ---
+    (CMD_DONE, _handle_done, False),
+    (CMD_SKIP, _handle_skip, False),
+    (CMD_DELETE, _handle_delete, False),
+    (CMD_FLIP, _handle_flip, False),
+    (CMD_ALL, _handle_all, False),
+    (CMD_SHOW_ALL, _handle_all, False), # Alias for "all"
+    (CMD_COMPLETED, _handle_completed, False),
+    (CMD_SHOW_COMPLETED, _handle_completed, False), # Alias for "completed"
+    (CMD_SHOW_LONG, _handle_show_long, False),
+    (CMD_DIARY, _handle_diary, False), # Checked AFTER "diary "
+    (CMD_TIMESHEET, _handle_timesheet, False),
+    (CMD_CLEAR, _handle_clear, False),
+]
+
+def process_command(api, user_message):
+    """
+    Processes the user command by finding the appropriate handler in the dispatch table.
+    Returns True if a handler was found and executed, False otherwise.
+    """
+    command_lower = user_message.lower().strip()
+    if not command_lower:
+        return False # Ignore empty input
+
+    for trigger, handler, is_prefix in COMMAND_DISPATCH:
+        match = False
+        if is_prefix:
+            if command_lower.startswith(trigger):
+                match = True
+        else:
+            if command_lower == trigger:
+                match = True
+
+        if match:
+            try:
+                # Execute the handler
+                handler(api, user_message) # Pass the original user_message for parsing
+                return True # Indicate command was handled
+            except Exception as handler_error:
+                # Catch unexpected errors within the handler itself (should be rare if handlers are robust)
+                print(f"[bold red]Unexpected error during execution of handler '{handler.__name__}' for command '{command_lower}':[/bold red]")
+                print(f"[red]{handler_error}[/red]")
+                traceback.print_exc()
+                return True # Still return True as the command was recognized, even if it failed
+
+    # If no handler was found
+    return False
+
+# Keep the old function name for compatibility with main.py, but it now calls the new dispatcher
+def ifelse_commands(api, user_message):
+    return process_command(api, user_message)
+
 
 # Apply call counter decorator to all functions defined in this module
+# Note: This will now decorate the individual handlers as well
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
