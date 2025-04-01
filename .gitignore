@@ -1,6 +1,5 @@
 system_message.txt
 *.json
-!j_function_calls.json
 venv/
 __pycache__/
 .breakpoints
