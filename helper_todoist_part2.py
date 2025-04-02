@@ -139,7 +139,16 @@ def fetch_todoist_tasks(api):
                         elif task.due.date:
                             # Handle date-only tasks
                             due_date = parse(task.due.date).date()
-                            london_dt = london_tz.localize(datetime.datetime.combine(due_date, datetime.time(12, 0)))
+                            
+                            # If due date is today or earlier, set the time to current time
+                            # so it appears in the correct position relative to time-specific tasks
+                            if due_date <= now_london.date():
+                                # Use current time for today's or overdue all-day tasks
+                                london_dt = london_tz.localize(datetime.datetime.combine(due_date, now_london.time()))
+                            else:
+                                # Future all-day tasks still get early morning time
+                                london_dt = london_tz.localize(datetime.datetime.combine(due_date, datetime.time(0, 1)))
+                            
                             task.due.datetime_localized = london_dt
                             task.has_time = False
                         else: # Due object exists but no date/datetime
