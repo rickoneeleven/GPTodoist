@@ -1,7 +1,7 @@
 # File: helper_todoist_part2.py
 
 import re, json, pytz, datetime, time, os, signal, subprocess
-# Import timedelta here
+# Import timedelta
 from datetime import timedelta
 import module_call_counter, helper_todoist_long
 from dateutil.parser import parse
@@ -18,7 +18,6 @@ from helper_todoist_part1 import (
 
 
 def add_todoist_task(api, user_message):
-    # ... (function remains unchanged) ...
     """Adds a new task to Todoist based on the active filter's project ID."""
     try:
         # Import locally to avoid circular dependency issues at module level
@@ -70,7 +69,6 @@ def add_todoist_task(api, user_message):
         return None
 
 
-# <<< START REFACTORED FUNCTION >>>
 def fetch_todoist_tasks(api):
     """Fetches and sorts tasks based on the active filter with timeout, retries, and correct timezone handling."""
     # Timeout logic (Unix specific)
@@ -202,11 +200,9 @@ def fetch_todoist_tasks(api):
 
     print(f"[red]Failed to fetch tasks after {retries} attempts.[/red]")
     return None
-# <<< END REFACTORED FUNCTION >>>
 
 
 def get_next_todoist_task(api):
-    # ... (function remains unchanged) ...
     """Gets the next task, displays it, and saves it as the active task."""
     try:
         tasks = fetch_todoist_tasks(api)
@@ -375,7 +371,6 @@ def get_next_todoist_task(api):
 
 
 def get_task_display_info(task, include_recurring_marker=True):
-    # ... (function remains unchanged) ...
     """
     Generates a prefix string for task display including recurring (optional) and priority info.
     """
@@ -407,7 +402,6 @@ def get_task_display_info(task, include_recurring_marker=True):
 
 
 def display_todoist_tasks(api):
-    # ... (function remains unchanged) ...
     """Fetches and displays all tasks from the active filter, formatted."""
     print("[cyan]Fetching tasks for display...[/cyan]")
     tasks = fetch_todoist_tasks(api) # Reuse the main fetching logic
@@ -508,7 +502,6 @@ def display_todoist_tasks(api):
 
 
 def check_if_grafting(api):
-    # ... (function remains unchanged) ...
      """Checks if the graft file exists and displays graft status."""
      graft_file_path = "j_grafted_tasks.json"
      if os.path.exists(graft_file_path):
@@ -544,7 +537,6 @@ def check_if_grafting(api):
 
 
 def rename_todoist_task(api, user_message):
-    # ... (function remains unchanged) ...
     """Renames the active Todoist task."""
     active_task_file = "j_active_task.json"
     try:
@@ -602,7 +594,6 @@ def rename_todoist_task(api, user_message):
 
 
 def change_active_task_priority(api, user_message):
-    # ... (function remains unchanged) ...
     """Changes the priority of the active Todoist task."""
     active_task_file = "j_active_task.json"
     try:

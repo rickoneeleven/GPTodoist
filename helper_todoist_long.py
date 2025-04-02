@@ -1,12 +1,12 @@
 # File: helper_todoist_long.py
 import module_call_counter
 from rich import print
-from datetime import datetime, timedelta, timezone, tzinfo # Ensure tzinfo is imported
+from datetime import datetime, timedelta, timezone, tzinfo, time # Import time class as well
 import re
 import pytz # Ensure pytz is imported
 from dateutil.parser import parse
 import helper_tasks
-import time
+import time as time_module  # Import time module with alias to avoid conflicts
 import traceback
 
 # Import API type hint if needed
@@ -143,7 +143,7 @@ def reschedule_task(api, index, schedule):
 
         # Verification (optional, especially tricky for recurring)
         print("[cyan]Verifying reschedule...[/cyan]")
-        time.sleep(1) # Delay for API consistency
+        time_module.sleep(1) # Delay for API consistency
         verification_task = api.get_task(target_task.id)
 
         if verification_task and verification_task.due and verification_task.due.string:
@@ -188,7 +188,6 @@ def is_task_recurring(task):
         print(f"[yellow]Warning: Error checking recurrence for task {task.id}: {e}[/yellow]")
         return False # Assume not recurring on error
 
-# <<< START REFACTORED FUNCTION >>>
 def is_task_due_today_or_earlier(task):
     """
     Checks if a task is due today or earlier, handling timezones and specific times.
@@ -257,8 +256,6 @@ def is_task_due_today_or_earlier(task):
         print(f"[red]Unexpected error checking due status for task '{task.content}' (ID: {task.id}): {e}[/red]")
         traceback.print_exc()
         return False # Treat as not due on unexpected error
-
-# <<< END REFACTORED FUNCTION >>>
 
 
 def handle_recurring_task(api, task, skip_logging=False):
@@ -406,6 +403,10 @@ def get_categorized_tasks(api):
     if not project_id:
         return [], [] # Return empty lists if project not found
 
+    # Define timezone variables at the outer scope so nested functions can access them
+    london_tz = pytz.timezone("Europe/London")
+    now_london = datetime.now(london_tz)  # Current time in London (aware)
+
     try:
         # Get all tasks in the project
         tasks = api.get_tasks(project_id=project_id)
@@ -496,6 +497,7 @@ def get_categorized_tasks(api):
              except ValueError:
                   return float('inf') # Sort invalid index last
 
+        # The nested sort_key function now properly accesses london_tz and now_london from outer scope
         def sort_key(task):
              # Sort primarily by due date (earliest first), then by index
              # Use datetime.max for consistent sorting of tasks without due dates
@@ -507,20 +509,28 @@ def get_categorized_tasks(api):
                       try:
                           parsed_dt = parse(task.due.datetime)
                           if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
-                               london_tz = pytz.timezone("Europe/London")
+                               # Using london_tz from parent scope
                                due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
                           else:
                                due_datetime_sort = parsed_dt # Already aware
                       except (ValueError, TypeError, pytz.exceptions.PyTZException): pass # Keep default on error
                   elif task.due.date:
-                      # Sort all-day tasks as if they are due at the start of the day in UTC for consistency
+                      # Sort all-day tasks
                       try:
-                           due_date = parse(task.due.date).date()
-                           due_datetime_sort = pytz.utc.localize(datetime.combine(due_date, datetime.min.time()))
-                      except (ValueError, TypeError): pass # Keep default on error
+                          due_date = parse(task.due.date).date()
+                           
+                          # If due date is today or earlier, set the time to current time
+                          # so it appears in the correct position relative to time-specific tasks
+                          if due_date <= now_london.date():
+                              # Use current time for today's or overdue all-day tasks
+                              # now_london and london_tz are accessed from parent scope
+                              due_datetime_sort = london_tz.localize(datetime.combine(due_date, now_london.time()))
+                          else:
+                              # Future all-day tasks still get early morning time
+                              due_datetime_sort = london_tz.localize(datetime.combine(due_date, time(0, 1)))
+                      except (ValueError, TypeError): pass  # Keep default on error
 
              return (due_datetime_sort, get_sort_index(task))
-
 
         one_shot_tasks.sort(key=sort_key)
         recurring_tasks.sort(key=sort_key)
@@ -541,6 +551,10 @@ def fetch_tasks(api, prefix=None):
     if not project_id:
         return []
 
+    # Define timezone variables at the outer scope so nested functions can access them
+    london_tz = pytz.timezone("Europe/London")
+    now_london = datetime.now(london_tz)  # Current time in London (aware)
+
     try:
         tasks = api.get_tasks(project_id=project_id)
         if tasks is None: return []
@@ -554,6 +568,7 @@ def fetch_tasks(api, prefix=None):
              try: return int(match.group(1)) if match else float('inf')
              except ValueError: return float('inf')
 
+        # The nested sort_key function now properly accesses london_tz and now_london from outer scope
         def sort_key(task):
             # Reuse sort key logic from get_categorized_tasks for consistency
             due_datetime_sort = datetime.max.replace(tzinfo=pytz.utc) # Default to far future, aware
@@ -562,16 +577,23 @@ def fetch_tasks(api, prefix=None):
                      try:
                          parsed_dt = parse(task.due.datetime)
                          if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
-                              london_tz = pytz.timezone("Europe/London")
+                              # Using london_tz from parent scope
                               due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
                          else:
                               due_datetime_sort = parsed_dt
                      except (ValueError, TypeError, pytz.exceptions.PyTZException): pass
                  elif task.due.date:
                      try:
-                          due_date = parse(task.due.date).date()
-                          due_datetime_sort = pytz.utc.localize(datetime.combine(due_date, datetime.min.time()))
-                     except (ValueError, TypeError): pass
+                         due_date = parse(task.due.date).date()
+                         # For backward compatibility, match the new behavior
+                         if due_date <= now_london.date():
+                             # Today or earlier all-day tasks get current time
+                             # now_london and london_tz are accessed from parent scope
+                             due_datetime_sort = london_tz.localize(datetime.combine(due_date, now_london.time()))
+                         else:
+                             # Future all-day tasks get early morning
+                             due_datetime_sort = london_tz.localize(datetime.combine(due_date, time(0, 1)))
+                     except (ValueError, TypeError): pass  # Keep default on error
             return (due_datetime_sort, get_index(task))
 
         filtered_tasks.sort(key=sort_key)
@@ -600,7 +622,6 @@ def format_task_for_display(task):
         else:
             # Task is missing index (should have been fixed by get_categorized_tasks)
             print(f"[yellow]Warning: Task '{task.content}' is missing index prefix for display.[/yellow]")
-
 
         prefix = ""
         # Add recurring info (including schedule string)
