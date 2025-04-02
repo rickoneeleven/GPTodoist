@@ -192,11 +192,16 @@ def is_task_due_today_or_earlier(task):
     """
     Checks if a task is due today or earlier, handling timezones and specific times.
     Returns True if due, False otherwise.
+    
+    Note: Tasks with no due date are considered "due" to ensure they appear in the list.
     """
-    if not task or not task.due:
-        # No due date means it's not considered "due today or earlier"
-        return False
-
+    if not task:
+        return False # Still return False if task itself is invalid
+        
+    # Consider tasks with no due date as "due" to show them in the list
+    if not task.due:
+        return True
+    
     try:
         london_tz = pytz.timezone("Europe/London")
         now_london = datetime.now(london_tz) # Current time in London (aware)
@@ -249,7 +254,7 @@ def is_task_due_today_or_earlier(task):
         else:
             # This shouldn't normally happen per Todoist API structure, but handle defensively
             # print(f"[dim]Task '{task.content}' has due object but no date/datetime. Treating as not due.[/dim]") # Debugging
-            return False # Cannot determine due status
+            return True # Changed to TRUE to include tasks with empty due objects
 
     except Exception as e:
         # Catch-all for unexpected errors during the check
