@@ -37,7 +37,7 @@ def get_long_term_project_id(api):
         traceback.print_exc()
         return None
 
-# Helper to find task by index - avoids code duplication
+# Internal helper to find task by index - avoids code duplication
 def _find_task_by_index(api, project_id, index):
     """Internal helper to find a task by its index '[index]' in a project."""
     try:
@@ -192,16 +192,16 @@ def is_task_due_today_or_earlier(task):
     """
     Checks if a task is due today or earlier, handling timezones and specific times.
     Returns True if due, False otherwise.
-    
+
     Note: Tasks with no due date are considered "due" to ensure they appear in the list.
     """
     if not task:
         return False # Still return False if task itself is invalid
-        
+
     # Consider tasks with no due date as "due" to show them in the list
     if not task.due:
         return True
-    
+
     try:
         london_tz = pytz.timezone("Europe/London")
         now_london = datetime.now(london_tz) # Current time in London (aware)
@@ -402,28 +402,23 @@ def add_task(api, task_name):
         traceback.print_exc()
         return None
 
-def get_categorized_tasks(api):
-    """Fetches, auto-fixes indices, filters, and categorizes long-term tasks."""
-    project_id = get_long_term_project_id(api)
-    if not project_id:
-        return [], [] # Return empty lists if project not found
-
-    # Define timezone variables at the outer scope so nested functions can access them
-    london_tz = pytz.timezone("Europe/London")
-    now_london = datetime.now(london_tz)  # Current time in London (aware)
+# --- Refactored Fetching and Indexing ---
+def _fetch_and_index_long_tasks(api, project_id):
+    """
+    Internal helper: Fetches all tasks from the project and ensures they have indices.
+    Returns a dictionary map of task_id: task_object for indexed tasks.
+    """
+    indexed_tasks_map = {}
+    indices = set()
+    unindexed_tasks = []
 
     try:
-        # Get all tasks in the project
         tasks = api.get_tasks(project_id=project_id)
         if tasks is None:
-             print(f"[red]Error retrieving tasks for project ID {project_id}.[/red]")
-             return [], []
+            print(f"[red]Error retrieving tasks for project ID {project_id}.[/red]")
+            return {} # Return empty map on failure
 
-        # --- Auto-indexing ---
-        indices = set() # Use a set for faster lookups
-        unindexed_tasks = []
-        indexed_tasks_map = {} # Store tasks we've processed to avoid reprocessing
-
+        # First pass: identify existing indices and unindexed tasks
         for task in tasks:
              match = re.match(r'\s*\[(\d+)\]', task.content)
              if match:
@@ -431,121 +426,156 @@ def get_categorized_tasks(api):
                        index_num = int(match.group(1))
                        if index_num in indices:
                             print(f"[yellow]Warning: Duplicate index [{index_num}] found! Task: '{task.content}'. Manual fix needed.[/yellow]")
-                            # Handle duplicates? For now, just record it.
                        indices.add(index_num)
-                       indexed_tasks_map[task.id] = task # Add to processed map
+                       indexed_tasks_map[task.id] = task
                   except ValueError:
                        print(f"[yellow]Warning: Invalid index format in task '{task.content}'. Treating as unindexed.[/yellow]")
-                       unindexed_tasks.append(task)
+                       if task.id not in indexed_tasks_map: # Avoid adding duplicates if possible
+                            unindexed_tasks.append(task)
              else:
-                  # Only add if not already processed (e.g., if API returns duplicates somehow)
                   if task.id not in indexed_tasks_map:
                      unindexed_tasks.append(task)
 
-
+        # Second pass: assign indices to unindexed tasks
         fixed_indices_count = 0
         if unindexed_tasks:
             print(f"[yellow]Found {len(unindexed_tasks)} long-term tasks without a '[index]' prefix. Auto-fixing...[/yellow]")
             next_index = 0
             for task in unindexed_tasks:
-                # Find the lowest available index starting from 0
                 while next_index in indices:
                     next_index += 1
 
                 new_content = f"[{next_index}] {task.content}"
                 print(f"  Assigning index [{next_index}] to task '{task.content}' (ID: {task.id})")
                 try:
-                    update_success = api.update_task(
-                        task_id=task.id,
-                        content=new_content
-                    )
+                    # Use update_task to change content
+                    update_success = api.update_task(task_id=task.id, content=new_content)
                     if update_success:
-                         # Update the local task object for correct categorization
-                         task.content = new_content # Modify the object in the original list
-                         indices.add(next_index) # Add the newly assigned index
-                         indexed_tasks_map[task.id] = task # Add to processed map
+                         task.content = new_content # Update local object
+                         indices.add(next_index)
+                         indexed_tasks_map[task.id] = task # Add to map after fixing
                          fixed_indices_count += 1
-                         next_index += 1 # Move to next potential index for the next task
+                         next_index += 1
                     else:
                          print(f"  [red]API failed to update index for task ID {task.id}.[/red]")
                 except Exception as index_error:
                     print(f"  [red]Error assigning index [{next_index}] to task ID {task.id}: {index_error}[/red]")
-                    # Stop trying to assign indices if one fails? Or just skip? Skip for now.
 
-            if fixed_indices_count > 0: # Only print if something was fixed
+            if fixed_indices_count > 0:
                 print(f"[green]Finished auto-indexing. Assigned indices to {fixed_indices_count} tasks.[/green]")
+            elif unindexed_tasks:
+                print(f"[yellow]Could not assign indices to {len(unindexed_tasks) - fixed_indices_count} tasks due to errors.[/yellow]")
 
 
-        # --- Filtering and Categorization ---
-        # Use the REFACTORED due date checker
-        # print("[cyan]Filtering tasks due today or earlier...[/cyan]") # Debug
+        return indexed_tasks_map
+
+    except Exception as error:
+        print(f"[red]An unexpected error occurred fetching and indexing tasks: {error}[/red]")
+        traceback.print_exc()
+        return {} # Return empty map on major error
+
+# --- Sorting Helpers ---
+def _get_sort_index(task):
+    """Helper to extract the numerical index for sorting. Returns float('inf') if no index."""
+    match = re.match(r'\s*\[(\d+)\]', task.content)
+    try:
+        return int(match.group(1)) if match else float('inf')
+    except ValueError:
+        return float('inf') # Handle non-integer index
+
+def _get_due_sort_key(task, now_london, london_tz):
+    """Helper to determine the datetime sort key for a task."""
+    # Default to far future, aware
+    due_datetime_sort = datetime.max.replace(tzinfo=pytz.utc)
+
+    if task.due:
+        if task.due.datetime:
+            try:
+                parsed_dt = parse(task.due.datetime)
+                if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
+                    due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
+                else:
+                    due_datetime_sort = parsed_dt
+            except (ValueError, TypeError, pytz.exceptions.PyTZException): pass
+        elif task.due.date:
+            try:
+                due_date = parse(task.due.date).date()
+                if due_date <= now_london.date():
+                    due_datetime_sort = london_tz.localize(datetime.combine(due_date, now_london.time()))
+                else:
+                    due_datetime_sort = london_tz.localize(datetime.combine(due_date, time(0, 1)))
+            except (ValueError, TypeError): pass
+
+    return due_datetime_sort
+
+# --- Task Fetching/Categorization Logic ---
+def get_categorized_tasks(api):
+    """Fetches, auto-fixes indices, filters by due date, and categorizes long-term tasks."""
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return [], []
+
+    london_tz = pytz.timezone("Europe/London")
+    now_london = datetime.now(london_tz)
+
+    try:
+        indexed_tasks_map = _fetch_and_index_long_tasks(api, project_id)
+        if not indexed_tasks_map:
+             return [], [] # Return empty if fetching/indexing failed
+
+        # Filter by due date first
         filtered_tasks = [
-             task for task_id, task in indexed_tasks_map.items() # Iterate over indexed tasks
-             if is_task_due_today_or_earlier(task) # Use the refactored function
+            task for task in indexed_tasks_map.values()
+            if is_task_due_today_or_earlier(task)
         ]
-        # print(f"[cyan]Found {len(filtered_tasks)} tasks due today or earlier.[/cyan]") # Debug
 
+        # Categorize
         one_shot_tasks = []
         recurring_tasks = []
-
         for task in filtered_tasks:
             if is_task_recurring(task):
                 recurring_tasks.append(task)
             else:
                 one_shot_tasks.append(task)
 
-        # --- Sorting ---
-        def get_sort_index(task):
-             match = re.match(r'\s*\[(\d+)\]', task.content)
-             try:
-                  return int(match.group(1)) if match else float('inf') # Sort unindexed last
-             except ValueError:
-                  return float('inf') # Sort invalid index last
+        # Sort categories by due date, then index
+        def sort_key_due_index(task):
+            return (_get_due_sort_key(task, now_london, london_tz), _get_sort_index(task))
 
-        # The nested sort_key function now properly accesses london_tz and now_london from outer scope
-        def sort_key(task):
-             # Sort primarily by due date (earliest first), then by index
-             # Use datetime.max for consistent sorting of tasks without due dates
-             due_datetime_sort = datetime.max.replace(tzinfo=pytz.utc) # Default to far future, aware
-
-             if task.due:
-                  if task.due.datetime:
-                      # Attempt to parse and localize for sorting, similar to check function
-                      try:
-                          parsed_dt = parse(task.due.datetime)
-                          if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
-                               # Using london_tz from parent scope
-                               due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
-                          else:
-                               due_datetime_sort = parsed_dt # Already aware
-                      except (ValueError, TypeError, pytz.exceptions.PyTZException): pass # Keep default on error
-                  elif task.due.date:
-                      # Sort all-day tasks
-                      try:
-                          due_date = parse(task.due.date).date()
-                           
-                          # If due date is today or earlier, set the time to current time
-                          # so it appears in the correct position relative to time-specific tasks
-                          if due_date <= now_london.date():
-                              # Use current time for today's or overdue all-day tasks
-                              # now_london and london_tz are accessed from parent scope
-                              due_datetime_sort = london_tz.localize(datetime.combine(due_date, now_london.time()))
-                          else:
-                              # Future all-day tasks still get early morning time
-                              due_datetime_sort = london_tz.localize(datetime.combine(due_date, time(0, 1)))
-                      except (ValueError, TypeError): pass  # Keep default on error
-
-             return (due_datetime_sort, get_sort_index(task))
-
-        one_shot_tasks.sort(key=sort_key)
-        recurring_tasks.sort(key=sort_key)
+        one_shot_tasks.sort(key=sort_key_due_index)
+        recurring_tasks.sort(key=sort_key_due_index)
 
         return one_shot_tasks, recurring_tasks
 
     except Exception as error:
         print(f"[red]An unexpected error occurred fetching and categorizing tasks: {error}[/red]")
         traceback.print_exc()
-        return [], [] # Return empty lists on error
+        return [], []
+
+def get_all_long_tasks_sorted_by_index(api):
+    """Fetches, auto-fixes indices, and returns ALL long-term tasks sorted by index."""
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return [] # Return empty list if project not found
+
+    try:
+        # Fetch and ensure tasks are indexed
+        indexed_tasks_map = _fetch_and_index_long_tasks(api, project_id)
+        if not indexed_tasks_map:
+             return [] # Return empty if fetching/indexing failed
+
+        # Convert map values to a list
+        all_tasks_list = list(indexed_tasks_map.values())
+
+        # Sort the list purely by index
+        all_tasks_list.sort(key=_get_sort_index)
+
+        return all_tasks_list
+
+    except Exception as error:
+        print(f"[red]An unexpected error occurred getting all long tasks: {error}[/red]")
+        traceback.print_exc()
+        return [] # Return empty list on error
 
 
 # Kept for backward compatibility if called directly elsewhere, but get_categorized_tasks is preferred.
@@ -561,47 +591,20 @@ def fetch_tasks(api, prefix=None):
     now_london = datetime.now(london_tz)  # Current time in London (aware)
 
     try:
-        tasks = api.get_tasks(project_id=project_id)
-        if tasks is None: return []
+        # Fetch and ensure tasks are indexed using the helper
+        indexed_tasks_map = _fetch_and_index_long_tasks(api, project_id)
+        if not indexed_tasks_map: return []
+
+        all_tasks_list = list(indexed_tasks_map.values())
 
         # Filter tasks that are due today or earlier
-        filtered_tasks = [task for task in tasks if is_task_due_today_or_earlier(task)] # Uses refactored check
+        filtered_tasks = [task for task in all_tasks_list if is_task_due_today_or_earlier(task)]
 
         # Sort by due date (oldest first), then by index for tasks with same date
-        def get_index(task):
-             match = re.match(r'\s*\[(\d+)\]', task.content)
-             try: return int(match.group(1)) if match else float('inf')
-             except ValueError: return float('inf')
+        def sort_key_due_index(task):
+            return (_get_due_sort_key(task, now_london, london_tz), _get_sort_index(task))
 
-        # The nested sort_key function now properly accesses london_tz and now_london from outer scope
-        def sort_key(task):
-            # Reuse sort key logic from get_categorized_tasks for consistency
-            due_datetime_sort = datetime.max.replace(tzinfo=pytz.utc) # Default to far future, aware
-            if task.due:
-                 if task.due.datetime:
-                     try:
-                         parsed_dt = parse(task.due.datetime)
-                         if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
-                              # Using london_tz from parent scope
-                              due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
-                         else:
-                              due_datetime_sort = parsed_dt
-                     except (ValueError, TypeError, pytz.exceptions.PyTZException): pass
-                 elif task.due.date:
-                     try:
-                         due_date = parse(task.due.date).date()
-                         # For backward compatibility, match the new behavior
-                         if due_date <= now_london.date():
-                             # Today or earlier all-day tasks get current time
-                             # now_london and london_tz are accessed from parent scope
-                             due_datetime_sort = london_tz.localize(datetime.combine(due_date, now_london.time()))
-                         else:
-                             # Future all-day tasks get early morning
-                             due_datetime_sort = london_tz.localize(datetime.combine(due_date, time(0, 1)))
-                     except (ValueError, TypeError): pass  # Keep default on error
-            return (due_datetime_sort, get_index(task))
-
-        filtered_tasks.sort(key=sort_key)
+        filtered_tasks.sort(key=sort_key_due_index)
         return filtered_tasks
 
     except Exception as error:
@@ -609,6 +612,7 @@ def fetch_tasks(api, prefix=None):
         return []
 
 
+# --- Display Logic ---
 def format_task_for_display(task):
     """Formats a long-term task for display including index, recurrence schedule, and priority."""
     if not task or not hasattr(task, 'content'):
@@ -625,7 +629,7 @@ def format_task_for_display(task):
             # Remove index prefix for cleaner display
             content_without_index = re.sub(r'^\s*\[\d+\]\s*', '', task.content).strip()
         else:
-            # Task is missing index (should have been fixed by get_categorized_tasks)
+            # Task is missing index (should have been fixed by _fetch_and_index_long_tasks)
             print(f"[yellow]Warning: Task '{task.content}' is missing index prefix for display.[/yellow]")
 
         prefix = ""
@@ -659,6 +663,21 @@ def format_task_for_display(task):
         # Fallback to raw content with error marker
         return f"[?err {getattr(task, 'id', 'N/A')}] {task.content if task else 'N/A'}"
 
+def _display_formatted_task_list(title, tasks):
+    """Internal helper to print a list of tasks using the standard format."""
+    print(f"\n{title}:")
+    if tasks:
+        for task in tasks:
+            formatted_task = format_task_for_display(task)
+            print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
+            # Display description indented below the task
+            if task.description:
+                # Limit description length and replace newlines for preview
+                desc_preview = (task.description[:75] + '...') if len(task.description) > 75 else task.description
+                print(f"  [italic blue]Desc: {desc_preview.replace(chr(10), ' ')}[/italic blue]")
+    else:
+        print("[dim]  No tasks in this category.[/dim]")
+
 
 def display_tasks(api, task_type=None):
     """Displays categorized long-term tasks (One-Shots and Recurring)."""
@@ -666,37 +685,37 @@ def display_tasks(api, task_type=None):
     if task_type:
          print(f"[yellow]Warning: 'task_type' parameter in display_tasks is ignored.[/yellow]")
 
-    print("\n[bold cyan]--- Long Term Tasks (Due) ---[/bold cyan]") # Moved title here
+    print("\n[bold cyan]--- Long Term Tasks (Due) ---[/bold cyan]")
     try:
         one_shot_tasks, recurring_tasks = get_categorized_tasks(api) # Use the main function
 
-        print("\nOne Shots:")
-        if one_shot_tasks:
-            for task in one_shot_tasks:
-                formatted_task = format_task_for_display(task)
-                print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
-                # Display description indented below the task
-                if task.description:
-                    desc_preview = (task.description[:75] + '...') if len(task.description) > 75 else task.description
-                    print(f"  [italic blue]Desc: {desc_preview.replace(chr(10), ' ')}[/italic blue]") # Replace newlines
-        else:
-            print("[dim]  No one-shot tasks due.[/dim]")
+        _display_formatted_task_list("One Shots", one_shot_tasks)
+        _display_formatted_task_list("Recurring", recurring_tasks)
 
-        print("\nRecurring:")
-        if recurring_tasks:
-            for task in recurring_tasks:
-                formatted_task = format_task_for_display(task) # Format function now includes schedule string
-                print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
-                if task.description:
-                    desc_preview = (task.description[:75] + '...') if len(task.description) > 75 else task.description
-                    print(f"  [italic blue]Desc: {desc_preview.replace(chr(10), ' ')}[/italic blue]")
-        else:
-            print("[dim]  No recurring tasks due.[/dim]")
         print() # Add final newline for spacing
 
     except Exception as e:
          print(f"[red]An error occurred displaying long-term tasks: {e}[/red]")
          traceback.print_exc()
+
+# --- New function for the 'show long all' command ---
+def display_all_long_tasks(api):
+    """Fetches and displays ALL long-term tasks, sorted by index."""
+    print("\n[bold magenta]--- All Long Term Tasks (by Index) ---[/bold magenta]")
+    try:
+        # Fetch all tasks, already indexed and sorted by index
+        all_tasks = get_all_long_tasks_sorted_by_index(api)
+
+        # Use the common display helper
+        _display_formatted_task_list("All Tasks", all_tasks)
+
+        print() # Add final newline for spacing
+
+    except Exception as e:
+         print(f"[red]An error occurred displaying all long-term tasks: {e}[/red]")
+         traceback.print_exc()
+
+# --- End New Function ---
 
 def rename_task(api, index, new_name):
     """Renames a long-term task, preserving its index prefix."""

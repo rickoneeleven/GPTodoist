@@ -35,6 +35,7 @@ CMD_SHOW_ALL = "show all"
 CMD_COMPLETED = "completed"
 CMD_SHOW_COMPLETED = "show completed"
 CMD_SHOW_LONG = "show long"
+CMD_SHOW_LONG_ALL = "show long all" # <-- New Command Constant
 CMD_DIARY = "diary"
 CMD_TIMESHEET = "timesheet"
 CMD_CLEAR = "clear"
@@ -251,8 +252,19 @@ def _handle_completed(api, user_message):
 
 def _handle_show_long(api, user_message):
     subprocess.call("reset")
-    helper_todoist_long.display_tasks(api)
+    helper_todoist_long.display_tasks(api) # Displays DUE long tasks
     return True
+
+# --- New Handler Function ---
+def _handle_show_long_all(api, user_message):
+    subprocess.call("reset")
+    try:
+        helper_todoist_long.display_all_long_tasks(api) # Call new display function
+    except Exception as e:
+        print(f"[red]Error displaying all long tasks: {e}[/red]")
+        traceback.print_exc()
+    return True
+# --- End New Handler ---
 
 def _handle_fuzzy_search(api, user_message):
     helper_regex.search_todoist_tasks(user_message)
@@ -301,7 +313,7 @@ COMMAND_DISPATCH = [
     (PREFIX_ADHOC_COMPLETE, _handle_adhoc_complete, True),
     (PREFIX_TIME, _handle_time, True), # Checked AFTER "time long "
     (PREFIX_POSTPONE, _handle_postpone, True),
-    (PREFIX_RENAME, _handle_rename, True), # Checked AFTER "rename long " if it existed
+    (PREFIX_RENAME, _handle_rename, True), # Checked AFTER "rename long "
     (PREFIX_PRIORITY, _handle_priority, True),
     (PREFIX_ADD_TASK, _handle_add_task, True),
     (PREFIX_FUZZY_SEARCH, _handle_fuzzy_search, True),
@@ -315,7 +327,8 @@ COMMAND_DISPATCH = [
     (CMD_SHOW_ALL, _handle_all, False), # Alias for "all"
     (CMD_COMPLETED, _handle_completed, False),
     (CMD_SHOW_COMPLETED, _handle_completed, False), # Alias for "completed"
-    (CMD_SHOW_LONG, _handle_show_long, False),
+    (CMD_SHOW_LONG, _handle_show_long, False), # Shows DUE long tasks
+    (CMD_SHOW_LONG_ALL, _handle_show_long_all, False), # <-- New Command Dispatch Entry
     (CMD_DIARY, _handle_diary, False), # Checked AFTER "diary "
     (CMD_TIMESHEET, _handle_timesheet, False),
     (CMD_CLEAR, _handle_clear, False),
