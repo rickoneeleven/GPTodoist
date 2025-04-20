@@ -2,7 +2,7 @@
 
 import re, json, pytz, datetime, time, os, signal, subprocess
 # Import timedelta
-from datetime import timedelta
+from datetime import timedelta, timezone # Ensure timezone is imported
 import module_call_counter, helper_todoist_long
 from dateutil.parser import parse
 from rich import print
@@ -15,6 +15,8 @@ from helper_todoist_part1 import (
     format_due_time,
     add_to_active_task_file,
 )
+# Import API type hint if needed
+# from todoist_api_python.api import TodoistAPI
 
 
 def add_todoist_task(api, user_message):
@@ -52,11 +54,9 @@ def add_todoist_task(api, user_message):
 
         if task:
             # Task factory handles its own success/failure messages and logging
-            # print(f"[purple]Task '{task.content}' successfully added (ID: {task.id}).[/purple]") # Factory handles this
             return task # Return the created task object
         else:
             # Task factory handles its own success/failure messages and logging
-            # print("[red]Failed to add task using task factory.[/red]") # Factory handles this
             return None # Indicate failure
 
     except ImportError:
@@ -101,7 +101,7 @@ def fetch_todoist_tasks(api):
                 return None
 
             london_tz = pytz.timezone("Europe/London")
-            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            now_utc = datetime.datetime.now(timezone.utc) # Use timezone.utc
             now_london = now_utc.astimezone(london_tz)
 
             processed_tasks = []
@@ -137,7 +137,7 @@ def fetch_todoist_tasks(api):
                         elif task.due.date:
                             # Handle date-only tasks
                             due_date = parse(task.due.date).date()
-                            
+
                             # If due date is today or earlier, set the time to current time
                             # so it appears in the correct position relative to time-specific tasks
                             if due_date <= now_london.date():
@@ -146,23 +146,25 @@ def fetch_todoist_tasks(api):
                             else:
                                 # Future all-day tasks still get early morning time
                                 london_dt = london_tz.localize(datetime.datetime.combine(due_date, datetime.time(0, 1)))
-                            
+
                             task.due.datetime_localized = london_dt
                             task.has_time = False
                         else: # Due object exists but no date/datetime
-                            task.due.datetime_localized = london_tz.localize(datetime.datetime.max - timedelta(days=1))
-                            task.has_time = False
+                            # --- CHANGE HERE: Assign current time instead of max date ---
+                            task.due.datetime_localized = now_london
+                            task.has_time = False # No specific user-set time
                             task.due_string_raw = None
                             task.is_recurring_flag = False
 
                     else:
                         # Task has no due date at all
                         task.due = type("Due", (object,), {
-                            "datetime_localized": london_tz.localize(datetime.datetime.max - timedelta(days=1)),
+                            # --- CHANGE HERE: Assign current time instead of max date ---
+                            "datetime_localized": now_london,
                             "string": None,
                             "is_recurring": False
                             })()
-                        task.has_time = False
+                        task.has_time = False # No specific user-set time
                         task.due_string_raw = None
                         task.is_recurring_flag = False
 
@@ -173,12 +175,12 @@ def fetch_todoist_tasks(api):
                     print(f"[yellow]Warning: Error processing task ID {getattr(task, 'id', 'N/A')} ('{getattr(task, 'content', 'N/A')}'): {process_error}. Skipping task.[/yellow]")
                     traceback.print_exc()
 
-            # Sort processed tasks
+            # Sort processed tasks (Sort key remains the same)
             sorted_final_tasks = sorted(
                 processed_tasks,
                 key=lambda t: (
                     -getattr(t, 'priority', 1),
-                    getattr(t.due, 'datetime_localized', now_london) if t.due else now_london,
+                    getattr(t.due, 'datetime_localized', now_london) if t.due else now_london, # Use the assigned datetime_localized
                     getattr(t, 'has_time', False),
                     getattr(t, 'created_at_sortable', datetime.datetime.min.replace(tzinfo=pytz.utc))
                 ),
@@ -226,11 +228,17 @@ def get_next_todoist_task(api):
             task_due_iso = None
             if next_task.due and hasattr(next_task.due, 'datetime_localized') and next_task.due.datetime_localized:
                  try:
-                      # Ensure the datetime object is not naive before calling isoformat if pytz errors occurred during localize
-                      if hasattr(next_task.due.datetime_localized, 'tzinfo') and next_task.due.datetime_localized.tzinfo is not None:
-                          task_due_iso = next_task.due.datetime_localized.isoformat()
-                      else:
-                          print(f"[yellow]Warning: Skipping ISO format save for task {task_id} due to missing timezone info after processing.[/yellow]")
+                    # Define now_london within this scope for comparison
+                    london_tz = pytz.timezone("Europe/London")
+                    now_utc = datetime.datetime.now(timezone.utc) # Use timezone.utc
+                    now_london = now_utc.astimezone(london_tz)
+                    # Avoid saving the 'now' timestamp we assigned to non-dated tasks
+                    if next_task.due.datetime_localized != now_london:
+                        # Ensure the datetime object is not naive before calling isoformat if pytz errors occurred during localize
+                        if hasattr(next_task.due.datetime_localized, 'tzinfo') and next_task.due.datetime_localized.tzinfo is not None:
+                            task_due_iso = next_task.due.datetime_localized.isoformat()
+                        else:
+                            print(f"[yellow]Warning: Skipping ISO format save for task {task_id} due to missing timezone info after processing.[/yellow]")
                  except Exception as iso_err:
                       print(f"[yellow]Warning: Could not format localized due date for saving: {iso_err}[/yellow]")
 
@@ -264,16 +272,23 @@ def get_next_todoist_task(api):
                 if task_display.due:
                      if hasattr(task_display.due, 'datetime_localized') and task_display.due.datetime_localized:
                          try:
-                              # Check if it's the far future date we assigned
+                              # Define now_london within this scope for comparison
                               london_tz = pytz.timezone("Europe/London")
-                              far_future = london_tz.localize(datetime.datetime.max - timedelta(days=1))
+                              now_utc = datetime.datetime.now(timezone.utc) # Use timezone.utc
+                              now_london = now_utc.astimezone(london_tz)
+
                               # Check if datetime_localized is aware before comparing/formatting
                               if hasattr(task_display.due.datetime_localized, 'tzinfo') and task_display.due.datetime_localized.tzinfo is not None:
-                                  if task_display.due.datetime_localized == far_future:
+                                  # Check if it's the 'now' timestamp we assigned
+                                  # Need a small buffer for comparison due to potential microsecond differences
+                                  time_diff = abs(task_display.due.datetime_localized - now_london)
+                                  is_effectively_now = time_diff < timedelta(seconds=1)
+
+                                  if is_effectively_now and not getattr(task_display, 'has_time', False): # Check if it was originally undated
                                        due_display_str = "(No due date)"
                                   elif getattr(task_display, 'has_time', False):
                                        due_display_str = f"(Due: {task_display.due.datetime_localized.strftime('%Y-%m-%d %H:%M')})"
-                                  else: # All day task
+                                  else: # All day task (not assigned 'now')
                                        due_display_str = f"(Due: {task_display.due.datetime_localized.strftime('%Y-%m-%d')} All day)"
                               else: # It remained naive after processing (e.g., NonExistentTimeError)
                                    due_display_str = f"(Due: {task_display.due.datetime_localized.strftime('%Y-%m-%d %H:%M')} ?TZ?)" # Indicate missing TZ
@@ -290,14 +305,17 @@ def get_next_todoist_task(api):
                 future_time_str = ""
                 if task_display.due and hasattr(task_display.due, 'datetime_localized') and task_display.due.datetime_localized:
                     try:
+                        # Define now_london within this scope for comparison
                         london_tz = pytz.timezone("Europe/London")
-                        now_london = datetime.datetime.now(london_tz)
+                        now_utc = datetime.datetime.now(timezone.utc) # Use timezone.utc
+                        now_london = now_utc.astimezone(london_tz)
                         # Check if aware before comparing
                         if hasattr(task_display.due.datetime_localized, 'tzinfo') and task_display.due.datetime_localized.tzinfo is not None:
                             if task_display.due.datetime_localized > (now_london + timedelta(minutes=1)):
-                                # Avoid showing future if it's the 'far future' placeholder date
-                                far_future = london_tz.localize(datetime.datetime.max - timedelta(days=1))
-                                if task_display.due.datetime_localized != far_future and getattr(task_display, 'has_time', False):
+                                # Avoid showing future if it's effectively 'now' and was originally undated
+                                time_diff = abs(task_display.due.datetime_localized - now_london)
+                                is_effectively_now = time_diff < timedelta(seconds=1)
+                                if not (is_effectively_now and not getattr(task_display, 'has_time', False)) and getattr(task_display, 'has_time', False):
                                      is_future = True
                                      future_time_str = task_display.due.datetime_localized.strftime('%H:%M')
                     except Exception as future_check_err:
@@ -308,6 +326,7 @@ def get_next_todoist_task(api):
                 if is_future:
                     print(f"                   [orange1]{base_display_info}{recurring_schedule_prefix}{original_task_name} (next task due at {future_time_str})[/orange1]")
                 else:
+                     # Added due_display_str here for context
                      print(f"                   [green]{base_display_info}{recurring_schedule_prefix}{original_task_name} {due_display_str}[/green]")
 
                 # Print description if it exists
@@ -351,7 +370,6 @@ def get_next_todoist_task(api):
 
 
         # Display long-term tasks (consider making this optional or a separate command)
-        # print("[bold cyan]--- Long Term Tasks (Due) ---[/bold cyan]") # Title moved to helper_todoist_long.display_tasks
         try:
             # Display long term tasks (function now handles its own title printing)
             helper_todoist_long.display_tasks(api)
@@ -436,16 +454,25 @@ def display_todoist_tasks(api):
             # Format due date/time
             if task.due and hasattr(task.due, 'datetime_localized') and task.due.datetime_localized:
                  try:
-                     london_tz = pytz.timezone("Europe/London") # Define here or pass in
-                     far_future = london_tz.localize(datetime.datetime.max - timedelta(days=1))
-                     # Check if datetime_localized is aware before comparing/formatting
-                     if hasattr(task.due.datetime_localized, 'tzinfo') and task.due.datetime_localized.tzinfo is not None:
-                         if task.due.datetime_localized != far_future:
-                             if getattr(task, 'has_time', False):
-                                  due_display = task.due.datetime_localized.strftime("%Y-%m-%d %H:%M")
-                             else: # All day
-                                  due_display = task.due.datetime_localized.strftime("%Y-%m-%d") + " All day"
-                     else: # Remained naive
+                    # Define now_london within this scope for comparison
+                    london_tz = pytz.timezone("Europe/London")
+                    now_utc = datetime.datetime.now(timezone.utc) # Use timezone.utc
+                    now_london = now_utc.astimezone(london_tz)
+
+                    # Check if datetime_localized is aware before comparing/formatting
+                    if hasattr(task.due.datetime_localized, 'tzinfo') and task.due.datetime_localized.tzinfo is not None:
+                        # Check if it's the 'now' timestamp we assigned
+                        time_diff = abs(task.due.datetime_localized - now_london)
+                        is_effectively_now = time_diff < timedelta(seconds=1)
+
+                        if not (is_effectively_now and not getattr(task, 'has_time', False)): # Check if it was originally undated
+                            if getattr(task, 'has_time', False):
+                                due_display = task.due.datetime_localized.strftime("%Y-%m-%d %H:%M")
+                            else: # All day
+                                due_display = task.due.datetime_localized.strftime("%Y-%m-%d") + " All day"
+                         # else: keep due_display as "(No due date)"
+
+                    else: # Remained naive
                          due_display = f"{task.due.datetime_localized.strftime('%Y-%m-%d %H:%M')} ?TZ?" # Indicate TZ issue
 
                  except Exception as fmt_err:
@@ -522,8 +549,13 @@ def check_if_grafting(api):
                  return True
              else:
                   # File exists but is empty or invalid
-                  # print(f"[yellow]Graft file '{graft_file_path}' exists but is empty/invalid. Grafting inactive.[/yellow]")
-                  # os.remove(graft_file_path) # Optionally clean up
+                  # Optionally remove empty/invalid file
+                  if os.path.getsize(graft_file_path) == 0 or not isinstance(grafted_tasks, list):
+                      try:
+                          os.remove(graft_file_path)
+                          # print(f"[cyan]Removed empty/invalid graft file: {graft_file_path}[/cyan]")
+                      except OSError as e:
+                           print(f"[red]Error removing empty/invalid graft file {graft_file_path}: {e}[/red]")
                   return False
          except (json.JSONDecodeError, IOError) as e:
               print(f"[red]Error reading graft file '{graft_file_path}': {e}. Assuming not grafting.[/red]")
