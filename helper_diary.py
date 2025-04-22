@@ -1,3 +1,4 @@
+# File: helper_diary.py
 import json, os
 from datetime import datetime, timedelta
 # <<< CHANGE: Import Union >>>
@@ -277,7 +278,8 @@ def show_week_summary(diary_data, reference_date):
 
     for current_date in week_dates:
         date_str = current_date.strftime("%Y-%m-%d")
-        print(f"\n[bold green]--- {current_date.strftime('%A, %B %d')} ---[/bold green]")
+        # <<< MODIFIED: Added %Y to include the year >>>
+        print(f"\n[bold green]--- {current_date.strftime('%A, %B %d, %Y')} ---[/bold green]")
         if date_str in diary_data:
             show_day_entries(diary_data[date_str])
         else:
