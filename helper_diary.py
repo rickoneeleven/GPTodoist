@@ -1,17 +1,16 @@
 # File: helper_diary.py
-import json, os
+# <<< REMOVED: json, os imports as file I/O is handled by state_manager >>>
 from datetime import datetime, timedelta
-# <<< CHANGE: Import Union >>>
-from typing import Union
+from typing import Union, Tuple, Optional # Keep typing imports
 from rich import print
 import module_call_counter
-import traceback # Added for logging unexpected errors
+# <<< REMOVED: traceback import if only used for file I/O errors >>>
+import state_manager # <<< ADDED: Import the state manager
 
 # --- Constants ---
-DIARY_FILENAME = "j_diary.json"
-OPTIONS_FILENAME = "j_options.json"
-COMPLETED_TASKS_FILENAME = "j_todays_completed_tasks.json"
-DEFAULT_OPTIONS = {"enable_diary_prompts": "yes"}
+# <<< REMOVED: Filename constants (DIARY_FILENAME, OPTIONS_FILENAME, COMPLETED_TASKS_FILENAME) >>>
+# <<< KEPT: Application logic constants >>>
+DEFAULT_OPTIONS = {"enable_diary_prompts": "yes"} # Kept for reference if needed, though state_manager has its own default
 PURGE_WEEKS = 5
 MIN_WEEKDAY_HOURS = 7
 AUDIT_LOOKBACK_WEEKS = 5
@@ -19,137 +18,59 @@ OBJECTIVE_LOOKBACK_DAYS = 30 # Max days to look back for an objective
 
 # --- Helper Functions ---
 
-def _load_json(filename: str, default_value=None):
-    """Loads JSON data from a file, handling errors and defaults."""
-    if not os.path.exists(filename):
-        if default_value is not None:
-            # Optionally create the file with default value
-            try:
-                with open(filename, "w") as f:
-                    json.dump(default_value, f, indent=2)
-                print(f"[cyan]Created missing file: {filename}[/cyan]")
-                return default_value
-            except IOError as e:
-                print(f"[red]Error creating default file {filename}: {e}[/red]")
-                return default_value if isinstance(default_value, (dict, list)) else {} # Return empty dict/list on create error
-        else:
-            # print(f"[yellow]File not found: {filename}[/yellow]") # Less verbose
-            return {} if default_value is None else default_value # Default to empty dict if no default provided
+# <<< REMOVED: _load_json function >>>
+# <<< REMOVED: _save_json function >>>
 
-    try:
-        with open(filename, "r") as f:
-            data = json.load(f)
-        # Basic type validation if default value suggests a type
-        if default_value is not None and not isinstance(data, type(default_value)):
-             print(f"[red]Error: Expected {type(default_value)} in {filename}, found {type(data)}. Returning default.[/red]")
-             return default_value
-        return data
-    except json.JSONDecodeError:
-        print(f"[red]Error reading JSON from {filename}. File might be corrupted.[/red]")
-        return {} if default_value is None else default_value
-    except IOError as e:
-        print(f"[red]Error accessing file {filename}: {e}[/red]")
-        return {} if default_value is None else default_value
-    except Exception as e:
-        print(f"[red]An unexpected error occurred loading {filename}: {e}[/red]")
-        traceback.print_exc()
-        return {} if default_value is None else default_value
+# --- Options Helper (Now uses State Manager) ---
+def get_options() -> dict:
+    """Loads options using the state manager."""
+    # <<< MODIFIED: Call state_manager >>>
+    return state_manager.get_options()
 
-def _save_json(filename: str, data: dict | list):
-    """Saves data to a JSON file."""
-    try:
-        with open(filename, "w") as f:
-            json.dump(data, f, indent=2)
-        return True
-    except IOError as e:
-        print(f"[red]Error writing to file {filename}: {e}[/red]")
-        return False
-    except Exception as e:
-        print(f"[red]An unexpected error occurred saving {filename}: {e}[/red]")
-        traceback.print_exc()
-        return False
-
-def get_options():
-    """Loads options, creating default if necessary."""
-    return _load_json(OPTIONS_FILENAME, default_value=DEFAULT_OPTIONS)
-
-# <<< CHANGE: Use Union in the type hint >>>
-def find_most_recent_objective(diary_data: dict, start_date: datetime.date) -> tuple[Union[str, None], Union[datetime.date, None]]:
+# --- Objective Helper (Now uses State Manager) ---
+# <<< MODIFIED: This function now acts as a simple wrapper or could be removed >>>
+def find_most_recent_objective(diary_data: dict, start_date: datetime.date) -> tuple[Optional[str], Optional[datetime.date]]:
     """
-    Finds the most recent objective in the diary by looking back from start_date.
-
-    Args:
-        diary_data: The loaded diary dictionary.
-        start_date: The date object to start looking back from.
-
-    Returns:
-        tuple: (objective_text, objective_date) or (None, None) if not found.
+    Finds the most recent objective by calling the state manager.
+    Note: diary_data parameter is no longer used here, kept for signature compatibility if needed, but ideally removed later.
     """
-    current_date = start_date
-    for _ in range(OBJECTIVE_LOOKBACK_DAYS): # Limit lookback
-        date_str = current_date.strftime("%Y-%m-%d")
-        entry = diary_data.get(date_str)
-        if isinstance(entry, dict) and 'overall_objective' in entry:
-            objective = entry['overall_objective']
-            if objective: # Ensure objective is not empty
-                return objective, current_date
+    # <<< MODIFIED: Call state_manager >>>
+    # Pass the lookback period defined in this module
+    return state_manager.find_most_recent_objective(start_date, lookback_days=OBJECTIVE_LOOKBACK_DAYS)
 
-        current_date -= timedelta(days=1)
-
-    # If loop finishes without finding a non-empty objective
-    return None, None
 
 # --- Core Functions ---
 
 def purge_old_completed_tasks():
-    """Removes completed tasks older than PURGE_WEEKS weeks."""
-    tasks = _load_json(COMPLETED_TASKS_FILENAME, default_value=[])
-    if not isinstance(tasks, list):
-        print(f"[red]Invalid data in {COMPLETED_TASKS_FILENAME}, cannot purge.[/red]")
-        return # Don't proceed if data is not a list
+    """Removes old completed tasks by calling the state manager."""
+    # <<< MODIFIED: Call state_manager >>>
+    days_to_keep = PURGE_WEEKS * 7
+    try:
+        purged_count = state_manager.purge_old_completed_tasks_log(days_to_keep=days_to_keep)
+        # State manager handles logging success/failure details internally
+        if purged_count == -1:
+             print("[red]Failed to purge old completed tasks (save error).[/red]")
+        # elif purged_count > 0: # Logging now done inside state_manager
+        #     print(f"[cyan]Purged {purged_count} tasks older than {PURGE_WEEKS} weeks.[/cyan]")
 
-    cutoff_datetime = datetime.now() - timedelta(weeks=PURGE_WEEKS)
-    updated_tasks = []
-    parse_error_count = 0
-
-    for task in tasks:
-        if not isinstance(task, dict):
-            print(f"[yellow]Skipping invalid entry during purge: {task}[/yellow]")
-            continue # Skip non-dict items
-
-        datetime_str = task.get('datetime')
-        if not isinstance(datetime_str, str):
-            print(f"[yellow]Skipping task with missing/invalid datetime field: {task.get('task_name', 'N/A')}[/yellow]")
-            updated_tasks.append(task) # Keep task if date is invalid? Or discard? Keep for now.
-            continue
-
-        try:
-            task_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
-            if task_datetime > cutoff_datetime:
-                updated_tasks.append(task)
-        except ValueError:
-            parse_error_count += 1
-            updated_tasks.append(task) # Keep tasks with parse errors
-
-    if parse_error_count > 0:
-         print(f"[yellow]Could not parse datetime for {parse_error_count} tasks during purge.[/yellow]")
-
-    if len(tasks) > len(updated_tasks):
-        if _save_json(COMPLETED_TASKS_FILENAME, updated_tasks):
-            print(f"[cyan]Purged {len(tasks) - len(updated_tasks)} tasks older than {PURGE_WEEKS} weeks.[/cyan]")
-        else:
-            print(f"[red]Failed to save purged tasks to {COMPLETED_TASKS_FILENAME}.[/red]")
+    except Exception as e:
+         # Catch unexpected errors during the call to state_manager
+         print(f"[red]An unexpected error occurred during completed task purge process: {e}[/red]")
+         # Consider logging traceback here if needed
+         # import traceback
+         # traceback.print_exc()
 
 def weekly_audit():
-    """Performs weekly audit checks and displays the most recent objective."""
-    options = get_options()
-    diary_data = _load_json(DIARY_FILENAME, default_value={})
+    """Performs weekly audit checks and displays the most recent objective using state_manager."""
+    # <<< MODIFIED: Use state_manager >>>
+    options = state_manager.get_options()
+    diary_data = state_manager.get_diary_data()
 
     # --- Audit Check ---
     if options.get("enable_diary_prompts", "yes").lower() == "yes":
         today = datetime.now().date()
         # Calculate start date: Monday of AUDIT_LOOKBACK_WEEKS weeks ago
-        start_audit_date = today - timedelta(days=today.weekday() + (7 * (AUDIT_LOOKBACK_WEEKS -1)))
+        start_audit_date = today - timedelta(days=today.weekday() + (7 * (AUDIT_LOOKBACK_WEEKS - 1)))
         end_audit_date = today - timedelta(days=1) # Yesterday
 
         missing_data_days = []
@@ -158,7 +79,7 @@ def weekly_audit():
             # Check only Mon-Fri
             if current_date.weekday() < 5:
                 date_str = current_date.strftime("%Y-%m-%d")
-                day_data = diary_data.get(date_str)
+                day_data = diary_data.get(date_str) # Data comes from state_manager via diary_data
                 # Check if entry exists and if total_hours is less than minimum
                 if isinstance(day_data, dict):
                     total_hours = day_data.get("total_hours", 0)
@@ -167,7 +88,6 @@ def weekly_audit():
                          missing_data_days.append(current_date)
                     elif not isinstance(total_hours, (int, float)):
                          print(f"[yellow]Warning: Invalid 'total_hours' ({total_hours}) for {date_str} in audit.[/yellow]")
-                         # Optionally add to missing_data_days if invalid hours means data is missing
                          missing_data_days.append(current_date)
                 else:
                     # Entry for the day doesn't exist
@@ -185,19 +105,21 @@ def weekly_audit():
 
     # --- Display Most Recent Objective ---
     today = datetime.now().date()
-    # Find the most recent objective starting from today
-    objective, objective_date = find_most_recent_objective(diary_data, today)
+    # <<< MODIFIED: Call state_manager to find objective >>>
+    objective, objective_date = state_manager.find_most_recent_objective(today, lookback_days=OBJECTIVE_LOOKBACK_DAYS)
 
     if objective:
-        print(f"\n[bold]Most Recent Objective[/bold] (Set on {objective_date.strftime('%A, %d %B %Y') if objective_date else 'Unknown'}):")
+        date_display = objective_date.strftime('%A, %d %B %Y') if objective_date else 'Unknown'
+        print(f"\n[bold]Most Recent Objective[/bold] (Set on {date_display}):")
         print(f"[gold1]{objective}[/gold1]")
     else:
         print("\n[yellow]No recent overall objective found in diary.[/yellow]")
 
     print() # Add trailing space
 
+
 def _prompt_for_summary_details():
-    """Handles user input for selecting day or week summary."""
+    """Handles user input for selecting day or week summary. (No changes needed)"""
     summary_type = input("Summary of day or week? (day/week, default: day): ").lower().strip() or "day"
     if summary_type == "day":
         return "day", None
@@ -218,8 +140,9 @@ def _prompt_for_summary_details():
         print("[red]Invalid input. Please choose 'day' or 'week'.[/red]")
         return None, None
 
+
 def show_day_entries(day_data):
-    """Prints formatted entries for a single day."""
+    """Prints formatted entries for a single day. (No changes needed)"""
     if not isinstance(day_data, dict):
         print("[yellow]No data available for this day.[/yellow]")
         return
@@ -249,7 +172,7 @@ def show_day_entries(day_data):
 
 
 def show_day_summary(diary_data):
-    """Shows the summary for the most recent day with entries."""
+    """Shows the summary for the most recent day with entries. (No changes needed in logic, relies on passed diary_data)"""
     today = datetime.now().date()
     target_day = today - timedelta(days=1) # Start looking from yesterday
     found_entry = False
@@ -268,7 +191,7 @@ def show_day_summary(diary_data):
 
 
 def show_week_summary(diary_data, reference_date):
-    """Shows the summary for the week containing the reference_date."""
+    """Shows the summary for the week containing the reference_date. (No changes needed in logic, relies on passed diary_data)"""
     start_of_week = reference_date - timedelta(days=reference_date.weekday()) # Monday
     end_of_week = start_of_week + timedelta(days=4) # Friday
 
@@ -278,7 +201,6 @@ def show_week_summary(diary_data, reference_date):
 
     for current_date in week_dates:
         date_str = current_date.strftime("%Y-%m-%d")
-        # <<< MODIFIED: Added %Y to include the year >>>
         print(f"\n[bold green]--- {current_date.strftime('%A, %B %d, %Y')} ---[/bold green]")
         if date_str in diary_data:
             show_day_entries(diary_data[date_str])
@@ -286,14 +208,11 @@ def show_week_summary(diary_data, reference_date):
             print("[dim]No entries found for this day.[/dim]")
             print("--------------------------------------------------")
 
-        # Optional: Add prompt to continue after each day or pair of days if too long
-        # if current_date.weekday() % 2 == 1 and current_date != end_of_week: # After Tue, Thu
-        #      input("\nPress Enter to continue...")
-
 
 def diary():
     """Main function to trigger diary summary display based on user input."""
-    diary_data = _load_json(DIARY_FILENAME, default_value={})
+    # <<< MODIFIED: Use state_manager >>>
+    diary_data = state_manager.get_diary_data()
     if not diary_data:
         print("[yellow]Diary file is empty or could not be read.[/yellow]")
         return
@@ -301,34 +220,22 @@ def diary():
     summary_type, reference_date = _prompt_for_summary_details()
 
     if summary_type == "day":
-        show_day_summary(diary_data)
+        show_day_summary(diary_data) # Pass loaded data
     elif summary_type == "week" and reference_date:
-        show_week_summary(diary_data, reference_date)
+        show_week_summary(diary_data, reference_date) # Pass loaded data
     # Error messages handled within _prompt_for_summary_details
 
 
 def update_todays_objective(new_objective: str):
-    """Updates the overall objective for today in the diary file."""
-    if not new_objective or not isinstance(new_objective, str):
-        print("[red]Invalid objective provided.[/red]")
-        return
-
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    diary_data = _load_json(DIARY_FILENAME, default_value={})
-
-    # Ensure the entry for today exists and is a dictionary
-    if today_str not in diary_data or not isinstance(diary_data[today_str], dict):
-        diary_data[today_str] = {} # Initialize if missing or invalid type
-
-    diary_data[today_str]['overall_objective'] = new_objective
-
-    if _save_json(DIARY_FILENAME, diary_data):
-        print(f"Today's overall objective updated: [gold1]{new_objective}[/gold1]")
-    else:
-        print("[red]Failed to save updated objective to diary file.[/red]")
+    """Updates the overall objective for today using the state manager."""
+    # <<< MODIFIED: Call state_manager >>>
+    if not state_manager.update_todays_objective(new_objective):
+        # State manager handles internal errors and validation printing
+        print("[red]Diary objective update failed (see previous messages).[/red]")
+    # Success message is printed inside state_manager.update_todays_objective
 
 
-# Apply call counter decorator (assuming module_call_counter exists and works)
+# Apply call counter decorator (No changes needed)
 if 'module_call_counter' in globals() and hasattr(module_call_counter, 'apply_call_counter_to_all'):
      module_call_counter.apply_call_counter_to_all(globals(), __name__)
 else:

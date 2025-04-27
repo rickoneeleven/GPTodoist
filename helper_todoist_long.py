@@ -23,6 +23,11 @@ def get_long_term_project_id(api):
              return None
 
         for project in projects:
+            # <<< ADDED: Type check to handle unexpected items in the projects list >>>
+            if not hasattr(project, 'name'):
+                print(f"[yellow]Warning: Skipping unexpected item in project list (type: {type(project)}): {project}[/yellow]")
+                continue # Skip this item and proceed with the next
+
             # Case-sensitive check might be too strict, consider .lower() comparison
             if project.name == project_name:
                 # print(f"[cyan]Found '{project_name}' project with ID: {project.id}[/cyan]") # Reduced verbosity
@@ -33,10 +38,12 @@ def get_long_term_project_id(api):
         print(f"[yellow]Long Term Task functionality will be unavailable until the project is created.[/yellow]")
         return None
     except Exception as error:
-        print(f"[red]Error accessing Todoist projects: {error}[/red]")
+        # Catch other potential errors during project retrieval/iteration
+        print(f"[red]Error accessing or processing Todoist projects: {error}[/red]")
         traceback.print_exc()
         return None
 
+# --- Other functions in helper_todoist_long.py remain unchanged from the original provided code ---
 # Internal helper to find task by index - avoids code duplication
 def _find_task_by_index(api, project_id, index):
     """Internal helper to find a task by its index '[index]' in a project."""
@@ -305,13 +312,18 @@ def handle_non_recurring_task(api, task, skip_logging=False):
         # Log as completed if not skipped
         if not skip_logging:
             try:
+                # Assuming helper_tasks and state_manager are available correctly now
+                # Prepare entry for state_manager logging
                 completed_task_log_entry = {
                     'task_name': f"(Touched Long Task) {task.content}" # Add prefix for clarity
                 }
-                helper_tasks.add_to_completed_tasks(completed_task_log_entry)
-                print(f"  [green]Logged task touch to completed tasks.[/green]")
-            except AttributeError:
-                 print("[red]Error: 'helper_tasks.add_to_completed_tasks' not found or import failed. Cannot log task touch.[/red]")
+                # Log via state_manager
+                if state_manager.add_completed_task_log(completed_task_log_entry):
+                    print(f"  [green]Logged task touch to completed tasks.[/green]")
+                else:
+                    print(f"  [red]Failed to log non-recurring task touch via state_manager.[/red]")
+            except NameError: # Handle if state_manager wasn't imported correctly
+                 print("[red]Error: state_manager not available. Cannot log task touch.[/red]")
             except Exception as log_error:
                  print(f"[red]Error logging non-recurring task touch: {log_error}[/red]")
 
@@ -420,6 +432,11 @@ def _fetch_and_index_long_tasks(api, project_id):
 
         # First pass: identify existing indices and unindexed tasks
         for task in tasks:
+             # <<< ADDED: Type check here as well for robustness >>>
+             if not hasattr(task, 'content') or not hasattr(task, 'id'):
+                  print(f"[yellow]Warning: Skipping unexpected item in task list (type: {type(task)}): {task}[/yellow]")
+                  continue
+
              match = re.match(r'\s*\[(\d+)\]', task.content)
              if match:
                   try:
@@ -477,6 +494,9 @@ def _fetch_and_index_long_tasks(api, project_id):
 # --- Sorting Helpers ---
 def _get_sort_index(task):
     """Helper to extract the numerical index for sorting. Returns float('inf') if no index."""
+    # <<< ADDED: Basic check if task has content >>>
+    if not hasattr(task, 'content') or not isinstance(task.content, str):
+        return float('inf')
     match = re.match(r'\s*\[(\d+)\]', task.content)
     try:
         return int(match.group(1)) if match else float('inf')
@@ -485,26 +505,31 @@ def _get_sort_index(task):
 
 def _get_due_sort_key(task, now_london, london_tz):
     """Helper to determine the datetime sort key for a task."""
+    if not task:
+        # <<< CORRECTED: Use datetime.max directly >>>
+        return datetime.max.replace(tzinfo=pytz.utc)
+
     # Default to far future, aware
+    # <<< CORRECTED: Use datetime.max directly >>>
     due_datetime_sort = datetime.max.replace(tzinfo=pytz.utc)
 
-    if task.due:
-        if task.due.datetime:
+    if hasattr(task, 'due') and task.due: # Check task has 'due' and it's not None
+        if hasattr(task.due, 'datetime') and task.due.datetime:
             try:
                 parsed_dt = parse(task.due.datetime)
+                # Ensure aware for comparison
                 if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
                     due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
                 else:
-                    due_datetime_sort = parsed_dt
-            except (ValueError, TypeError, pytz.exceptions.PyTZException): pass
-        elif task.due.date:
+                    due_datetime_sort = parsed_dt.astimezone(london_tz) # Convert to London if aware elsewhere
+            except (ValueError, TypeError, pytz.exceptions.PyTZException): pass # Keep default on error
+        elif hasattr(task.due, 'date') and task.due.date:
             try:
                 due_date = parse(task.due.date).date()
-                if due_date <= now_london.date():
-                    due_datetime_sort = london_tz.localize(datetime.combine(due_date, now_london.time()))
-                else:
-                    due_datetime_sort = london_tz.localize(datetime.combine(due_date, time(0, 1)))
-            except (ValueError, TypeError): pass
+                # Use current time for past/today, min time for future for sorting
+                time_comp = now_london.time() if due_date <= now_london.date() else time.min
+                due_datetime_sort = london_tz.localize(datetime.combine(due_date, time_comp))
+            except (ValueError, TypeError): pass # Keep default on error
 
     return due_datetime_sort
 
@@ -668,10 +693,14 @@ def _display_formatted_task_list(title, tasks):
     print(f"\n{title}:")
     if tasks:
         for task in tasks:
+            # <<< ADDED: Ensure task is not None before formatting >>>
+            if task is None:
+                print("[yellow]  Skipping None task during display.[/yellow]")
+                continue
             formatted_task = format_task_for_display(task)
             print(f"[dodger_blue1]{formatted_task}[/dodger_blue1]")
             # Display description indented below the task
-            if task.description:
+            if hasattr(task, 'description') and task.description: # Check attribute exists
                 # Limit description length and replace newlines for preview
                 desc_preview = (task.description[:75] + '...') if len(task.description) > 75 else task.description
                 print(f"  [italic blue]Desc: {desc_preview.replace(chr(10), ' ')}[/italic blue]")
@@ -734,6 +763,11 @@ def rename_task(api, index, new_name):
             print(f"[yellow]No task found with index [{index}] to rename.[/yellow]")
             return None
 
+        # <<< ADDED: Check if task has content before proceeding >>>
+        if not hasattr(target_task, 'content'):
+             print(f"[red]Error: Task object for index [{index}] is invalid (missing content). Cannot rename.[/red]")
+             return None
+
         # Preserve the original index from the matched task
         match = re.match(r'\s*\[(\d+)\]', target_task.content)
         if not match:
@@ -765,4 +799,6 @@ def rename_task(api, index, new_name):
         return None
 
 # Apply call counter decorator to all functions defined in this module
+# <<< ADDED: Import state_manager for handle_non_recurring_task >>>
+import state_manager
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

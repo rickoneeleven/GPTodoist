@@ -1,17 +1,25 @@
 # File: helper_general.py
-import datetime, os, pytz, json, shutil, time, traceback, platform, subprocess
+import datetime
+import os
+import pytz
+import json
+import shutil
+import time
+import traceback
+import platform
+import subprocess
 from dateutil.parser import parse
 from typing import Any, Union, Dict, List
 from rich import print
 
 # --- Constants ---
-OPTIONS_FILENAME = "j_options.json"
-DEFAULT_OPTIONS = {"enable_diary_prompts": "yes", "last_backup_timestamp": None}
-# <<< Restored backup_retention_days >>>
+# <<< REMOVED: OPTIONS_FILENAME = "j_options.json" (Managed by state_manager) >>>
+# <<< REMOVED: DEFAULT_OPTIONS (Managed by state_manager) >>>
+# <<< KEPT: backup_retention_days as it's specific to the backup operation logic here >>>
 backup_retention_days = 10
 
 # --- Robust JSON Handling ---
-# <<< load_json and save_json remain unchanged >>>
+# <<< load_json and save_json remain unchanged as they are general utilities >>>
 def load_json(file_path: str, default_value: Union[Dict, List, None] = None) -> Union[Dict, List]:
     """
     Loads JSON data from a file path with robust error handling.
@@ -32,7 +40,19 @@ def load_json(file_path: str, default_value: Union[Dict, List, None] = None) -> 
         empty_default = {}
     effective_default = default_value if default_value is not None else empty_default
     if not os.path.exists(file_path):
-        return effective_default
+        # Create file with default if provided and possible
+        if default_value is not None:
+            print(f"[cyan]File not found: '{file_path}'. Creating with default value.[/cyan]")
+            if save_json(file_path, default_value): # Try saving the default
+                return effective_default # Return the default we just saved
+            else:
+                print(f"[red]Error: Failed to create '{file_path}' with default value.[/red]")
+                # Fall through to return default without saving
+        # else: # No default provided, just return empty
+            # print(f"[dim]File not found: '{file_path}'. Returning default empty value.[/dim]") # Less verbose if no default
+        return effective_default # Return default if file not found
+
+    # File exists, proceed with loading
     try:
         with open(file_path, "r") as f:
             data = json.load(f)
@@ -68,6 +88,16 @@ def save_json(file_path: str, data: Any) -> bool:
         True if saving was successful, False otherwise.
     """
     try:
+        # Ensure directory exists before writing
+        dir_name = os.path.dirname(file_path)
+        if dir_name and not os.path.exists(dir_name):
+             try:
+                 os.makedirs(dir_name)
+                 print(f"[cyan]Created directory: '{dir_name}'[/cyan]")
+             except OSError as dir_err:
+                 print(f"[red]Error creating directory '{dir_name}' for file '{file_path}': {dir_err}[/red]")
+                 return False # Cannot save if directory creation fails
+
         with open(file_path, "w") as f:
             json.dump(data, f, indent=2)
         return True
@@ -93,7 +123,12 @@ def convert_to_london_timezone(timestamp: str) -> str:
         # Ensure parsed datetime is aware before converting
         if utc_datetime.tzinfo is None:
              utc_datetime = pytz.utc.localize(utc_datetime)
-             print("[yellow]Warning: Naive datetime string received in convert_to_london_timezone. Assuming UTC.[/yellow]")
+             # print("[yellow]Warning: Naive datetime string received in convert_to_london_timezone. Assuming UTC.[/yellow]") # Less verbose
+        elif utc_datetime.tzinfo.utcoffset(utc_datetime) is None:
+             # Handle cases like tzlocal() which might be naive depending on system
+             utc_datetime = pytz.utc.localize(utc_datetime)
+             # print("[yellow]Warning: Effectively naive datetime string received in convert_to_london_timezone. Assuming UTC.[/yellow]") # Less verbose
+
 
         london_datetime = utc_datetime.astimezone(london_tz)
         return london_datetime.strftime("%Y-%m-%d %H:%M:%S")
@@ -116,7 +151,7 @@ def read_file(file_path: str) -> str:
         with open(file_path, "r") as f:
             return f.read()
     except FileNotFoundError:
-        print(f"[red]Error: File not found at {file_path}[/red]")
+        # print(f"[red]Error: File not found at {file_path}[/red]") # Becomes noisy
         return ""
     except IOError as e:
         print(f"[red]Error reading file {file_path}: {e}[/red]")
@@ -139,7 +174,7 @@ def write_to_file(filename, data):
          print(f"[red]Unexpected error writing log file {filename}: {e}[/red]")
          traceback.print_exc()
 
-# <<< REVERTED: backup_json_files >>>
+# <<< backup_json_files remains unchanged, it performs the backup operation >>>
 def backup_json_files():
     """
     Creates/updates daily backups of JSON files (YYYY-MM-DD--filename.json)
@@ -162,10 +197,12 @@ def backup_json_files():
     # --- Create/Update Daily Backups ---
     # Use UTC date for consistency in naming
     current_date_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
-    print(f"[cyan]Starting JSON backup process (Date: {current_date_str})...[/cyan]")
+    # print(f"[cyan]Starting JSON backup process (Date: {current_date_str})...[/cyan]") # Less verbose
     try:
         for filename in os.listdir("."):
-            if filename.endswith(".json"):
+            # Only back up specific state files explicitly if needed, or all .json files
+            # Current implementation backs up ALL .json files in root
+            if filename.endswith(".json"): # Consider making this more specific if desired
                 source_file = os.path.join(".", filename)
                 # Backup filename uses only the date prefix
                 backup_file = os.path.join(backups_dir, f"{current_date_str}--{filename}")
@@ -188,11 +225,11 @@ def backup_json_files():
 
     if files_backed_up > 0:
         print(f"[green]Backed up/updated {files_backed_up} JSON file(s) for date {current_date_str}.[/green]")
-    else:
-        print(f"[cyan]No JSON files found to back up.[/cyan]")
+    # else: # Less verbose
+        # print(f"[cyan]No JSON files found to back up.[/cyan]")
 
     # --- Prune Old Daily Backups ---
-    print("[cyan]Checking for old daily backups to prune...[/cyan]")
+    # print("[cyan]Checking for old daily backups to prune...[/cyan]") # Less verbose
     try:
         # Calculate cutoff datetime (aware in UTC)
         cutoff_datetime = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=backup_retention_days)
@@ -205,7 +242,7 @@ def backup_json_files():
             # Extract the date part from the filename prefix "YYYY-MM-DD--..."
             try:
                 if "--" not in filename:
-                    print(f"[yellow]Skipping prune check for unexpected filename format: '{filename}'[/yellow]")
+                    # print(f"[yellow]Skipping prune check for unexpected filename format: '{filename}'[/yellow]") # Less verbose
                     continue
 
                 date_part = filename.split("--")[0]
@@ -222,7 +259,8 @@ def backup_json_files():
                     except OSError as e:
                         print(f"[red]Error deleting old backup file '{file_path}': {e}[/red]")
             except (IndexError, ValueError):
-                print(f"[yellow]Could not parse date from backup filename: '{filename}'. Skipping prune check.[/yellow]")
+                # print(f"[yellow]Could not parse date from backup filename: '{filename}'. Skipping prune check.[/yellow]") # Less verbose
+                pass # Ignore files that don't match the pattern
             except Exception as e:
                 print(f"[red]Unexpected error processing backup file '{filename}' for pruning: {e}[/red]")
 
@@ -234,14 +272,14 @@ def backup_json_files():
 
     if files_deleted > 0:
         print(f"[green]Pruned {files_deleted} daily backup file(s) older than {backup_retention_days} days.[/green]")
-    else:
-        print("[cyan]No old daily backup files found to prune.[/cyan]")
+    # else: # Less verbose
+        # print("[cyan]No old daily backup files found to prune.[/cyan]")
 
 
 # <<< connectivity_check remains unchanged >>>
 def connectivity_check(host="8.8.4.4", count=1, timeout=1, max_retries=5) -> bool:
     """Checks internet connectivity by pinging a reliable host."""
-    print("[cyan]Checking network connectivity...[/cyan]")
+    # print("[cyan]Checking network connectivity...[/cyan]") # Make less verbose
     # Platform-specific ping command adjustments
     if platform.system().lower() == "windows":
         command = f"ping -n {count} -w {timeout * 1000} {host}"
@@ -252,16 +290,20 @@ def connectivity_check(host="8.8.4.4", count=1, timeout=1, max_retries=5) -> boo
         try:
             response = subprocess.run(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout + 1)
             if response.returncode == 0:
-                print("[green]Connectivity check successful.[/green]")
+                # print("[green]Connectivity check successful.[/green]") # Only print failures
                 return True
         except subprocess.TimeoutExpired:
-             print(f"[yellow]Attempt {attempt + 1}: Ping command timed out.[/yellow]")
+             pass # Don't print timeout on each attempt
+             # print(f"[yellow]Attempt {attempt + 1}: Ping command timed out.[/yellow]")
         except Exception as e:
-             print(f"[red]Attempt {attempt + 1}: Error during connectivity check: {e}[/red]")
+             print(f"[red]Attempt {attempt + 1}: Error during connectivity check: {e}[/red]") # Log actual errors
 
         if attempt < max_retries - 1:
-            print(f"[yellow]Retrying connectivity check in {attempt + 1} sec...[/yellow]")
+            # print(f"[yellow]Retrying connectivity check in {attempt + 1} sec...[/yellow]") # Less verbose
             time.sleep(attempt + 1)
 
     print("[bold red]_____________ CONNECTION FAILED after multiple retries _____________[/bold red]")
     return False
+
+# Note: No module_call_counter needed here as it's applied elsewhere if desired
+# and this file only contains utility functions. If direct calls were made, it could be added.
