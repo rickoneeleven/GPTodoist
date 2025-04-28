@@ -1,7 +1,7 @@
-# File: helper_timesheets.py (Imports Only)
-import os # <<< ADDED: For os.environ.get
+# File: helper_timesheets.py
+import os
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date # Import date explicitly
 from typing import Union, List, Dict, Optional
 from rich import print
 from todoist_api_python.api import TodoistAPI
@@ -11,113 +11,171 @@ import module_call_counter
 import helper_todoist_long
 import helper_todoist_part2
 import state_manager
-import helper_diary # <<< ADDED: For OBJECTIVE_LOOKBACK_DAYS constant
+import helper_diary # Import helper_diary for constants
 
 # --- Constants ---
-# <<< REMOVED: Filename constants >>>
 # <<< KEPT: Application logic constants >>>
 DEFAULT_TASK_DURATION = 5
 DEFAULT_RAND_LOW = 420 # 7 hours
 DEFAULT_RAND_HIGH = 480 # 8 hours
+# Using constants from helper_diary for consistency
+AUDIT_LOOKBACK_WEEKS = helper_diary.AUDIT_LOOKBACK_WEEKS
+MIN_WEEKDAY_HOURS = helper_diary.MIN_WEEKDAY_HOURS
 
 # --- Helper Functions ---
 
-# <<< REMOVED: _load_json function >>>
-# <<< REMOVED: _save_json function >>>
-
 def prompt_user(message: str) -> str:
-    """Displays a formatted prompt and gets user input. (No changes needed)"""
-    # Using simple input for robustness, rich print only for display
+    """Displays a formatted prompt and gets user input."""
     print(f"[bold bright_magenta]{message}[/bold bright_magenta]", end=" ")
     return input()
 
-def get_timesheet_date() -> Optional[datetime.date]:
-    """Gets and validates the timesheet date from user input. (No changes needed)"""
+# --- New Helper Function to find earliest outstanding date ---
+def _find_earliest_outstanding_timesheet_date() -> Optional[date]:
+    """
+    Finds the earliest weekday date within the lookback period that is missing
+    or has insufficient hours logged in the diary.
+    """
+    print("[cyan]Checking for earliest outstanding timesheet date...[/cyan]")
+    diary_data = state_manager.get_diary_data()
+    today = datetime.now().date()
+    earliest_outstanding_date = None
+
+    # Iterate backwards from yesterday
+    for days_back in range(1, AUDIT_LOOKBACK_WEEKS * 7 + 1):
+        current_date = today - timedelta(days=days_back)
+
+        # Check only Mon-Fri
+        if current_date.weekday() < 5:
+            date_str = current_date.strftime("%Y-%m-%d")
+            day_data = diary_data.get(date_str)
+            is_outstanding = False
+
+            if day_data is None:
+                is_outstanding = True
+            elif isinstance(day_data, dict):
+                total_hours = day_data.get("total_hours")
+                # Check if total_hours is missing, not a number, or less than minimum
+                if total_hours is None or not isinstance(total_hours, (int, float)) or total_hours < MIN_WEEKDAY_HOURS:
+                    is_outstanding = True
+            else:
+                # Entry exists but is not a dictionary (invalid data)
+                is_outstanding = True
+                print(f"[yellow]Warning: Invalid diary data type for {date_str} during outstanding check.[/yellow]")
+
+            if is_outstanding:
+                # We found an outstanding day. Since we iterate backwards,
+                # the *last* one we find in the loop is the *earliest* date chronologically.
+                earliest_outstanding_date = current_date
+                # Continue loop to find even earlier dates
+
+    if earliest_outstanding_date:
+        print(f"[green]Found earliest outstanding date: {earliest_outstanding_date.strftime('%d/%m/%y')}[/green]")
+    else:
+        print("[cyan]No outstanding timesheet dates found within the lookback period.[/cyan]")
+
+    return earliest_outstanding_date
+# --- End New Helper Function ---
+
+def get_timesheet_date() -> Optional[date]:
+    """Gets and validates the timesheet date from user input, defaulting to earliest outstanding."""
     retries = 3
-    for _ in range(retries):
+    for attempt in range(retries):
         try:
-            date_input = prompt_user("Timesheet date? (dd/mm/yy, Enter=yesterday):").strip()
-            if not date_input or date_input.lower() == 'yesterday':
-                return datetime.now().date() - timedelta(days=1)
-            return datetime.strptime(date_input, "%d/%m/%y").date()
+            # --- MODIFIED Prompt ---
+            prompt = f"Timesheet date? (dd/mm/yy, Enter=earliest outstanding within {AUDIT_LOOKBACK_WEEKS} weeks):"
+            date_input = prompt_user(prompt).strip()
+
+            # --- MODIFIED Default Logic ---
+            if not date_input:
+                outstanding_date = _find_earliest_outstanding_timesheet_date()
+                if outstanding_date:
+                    return outstanding_date
+                else:
+                    # No outstanding found, default to yesterday
+                    print("[yellow]No outstanding date found. Defaulting to yesterday.[/yellow]")
+                    return datetime.now().date() - timedelta(days=1)
+            # --- End Modified Default Logic ---
+
+            # Keep original logic for explicit date entry
+            # Allow 'yesterday' explicitly as well
+            elif date_input.lower() == 'yesterday':
+                 return datetime.now().date() - timedelta(days=1)
+            else:
+                 return datetime.strptime(date_input, "%d/%m/%y").date()
+
         except ValueError:
-            print("[yellow]Invalid date format. Please use dd/mm/yy or press Enter for yesterday.[/yellow]")
-    print("[red]Too many invalid date attempts.[/red]")
+            print("[yellow]Invalid date format. Please use dd/mm/yy or press Enter.[/yellow]")
+            # Decrement retries only on explicit invalid format, not on Enter failure
+            if date_input: # Only decrement if user actually typed something invalid
+                if attempt == retries - 1: # Check if it was the last attempt
+                    print("[red]Too many invalid date attempts.[/red]")
+                    return None
+            else:
+                 # If Enter was pressed and _find_earliest failed, allow retry without counting as invalid *format*
+                 # However, if _find_earliest keeps failing, this could loop indefinitely if not handled.
+                 # The current logic defaults to yesterday if None is returned, breaking the loop.
+                 pass
+
+
+    # Should only be reached if retries exhausted on explicit invalid format
     return None
 
-def load_and_filter_tasks(timesheet_date: datetime.date) -> list:
-    """Loads completed tasks via state_manager, filters by date, sorts, and re-indexes for display."""
-    # <<< MODIFIED: Use state_manager >>>
-    all_tasks = state_manager.get_completed_tasks_log()
-    # State manager already handles invalid file format, returns list
 
+def load_and_filter_tasks(timesheet_date: date) -> list:
+    """Loads completed tasks via state_manager, filters by date, sorts, and re-indexes for display."""
+    all_tasks = state_manager.get_completed_tasks_log()
     date_tasks = []
-    parse_error_count = 0 # Keep track locally for info, though state manager might log too
+    parse_error_count = 0
 
     for task in all_tasks:
-        # State manager ensures list, but entries could still be invalid dicts internally
         if not isinstance(task, dict):
-            # print(f"[yellow]Skipping invalid entry in completed tasks: {task}[/yellow]") # Less verbose
-            continue # Skip non-dict items found in the list
+            continue
 
         datetime_str = task.get('datetime')
         if not isinstance(datetime_str, str):
-            # print(f"[yellow]Skipping task with missing/invalid datetime: {task.get('task_name', 'N/A')}[/yellow]") # Less verbose
             continue
 
         try:
             task_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
             if task_datetime.date() == timesheet_date:
                 date_tasks.append(task)
-            # else: task belongs to another date, ignore for this function
         except ValueError:
             parse_error_count += 1
-            # Don't add task with parse error to date_tasks
 
     if parse_error_count > 0:
         print(f"[yellow]Warning: Could not parse datetime for {parse_error_count} tasks while filtering for timesheet.[/yellow]")
 
-    # Sort tasks for the specific date by datetime
     try:
         date_tasks.sort(key=lambda x: datetime.strptime(x.get('datetime', ''), "%Y-%m-%d %H:%M:%S") if isinstance(x.get('datetime'), str) else datetime.min)
     except ValueError:
          print("[yellow]Warning: Error sorting tasks by datetime due to format issues. Order may be incorrect.[/yellow]")
 
-
-    # Re-index the tasks for the specific date (1-based index) for display/selection only
-    # This 'id' is temporary for the current timesheet session
     for i, task in enumerate(date_tasks):
-        task['id'] = i + 1 # Add/Update temporary 'id'
+        task['id'] = i + 1
 
-    # Note: We are NOT saving the re-indexed tasks back to the main log here.
-    # The original log keeps its persistent IDs generated by the state_manager.
-
-    return date_tasks # Return only the filtered, sorted, temporarily indexed tasks for the specified date
+    return date_tasks
 
 
 def display_tasks_for_selection(tasks: list):
-    """Displays the filtered tasks for the user to select. (No changes needed)"""
+    """Displays the filtered tasks for the user to select."""
     if not tasks:
         print("\n[yellow]No completed tasks found for the selected date.[/yellow]")
         return
 
     print("\n[cyan]Completed tasks for selection:[/cyan]")
     for task in tasks:
-         # Use the temporary 'id' assigned in load_and_filter_tasks
          task_id = task.get('id', '?')
          task_dt = task.get('datetime', '?:??')
          task_name = task.get('task_name', 'Unknown Task')
-         # Show time part only for brevity
          time_part = task_dt.split(' ')[-1] if ' ' in task_dt else task_dt
          print(f"  ID: {task_id}, Time: {time_part}, Task: {task_name}")
 
 
 def get_selected_task_ids(filtered_tasks: list) -> list[int]:
-    """Gets and validates task IDs (temporary display IDs) from user input. (No changes needed)"""
+    """Gets and validates task IDs (temporary display IDs) from user input."""
     if not filtered_tasks:
-        return [] # No tasks to select
+        return []
 
-    # Use the temporary 'id' for validation
     valid_ids = {task.get('id') for task in filtered_tasks if isinstance(task.get('id'), int)}
     if not valid_ids:
         print("[yellow]No tasks with valid IDs available for selection.[/yellow]")
@@ -141,26 +199,22 @@ def get_selected_task_ids(filtered_tasks: list) -> list[int]:
                      all_valid = False
 
             if all_valid:
-                 # Remove duplicates while preserving order
                  return list(dict.fromkeys(selected_ids))
-            # If not all valid, loop continues
 
         except ValueError:
             print("[yellow]Invalid input. Please enter numbers separated by commas.[/yellow]")
 
 
 def get_task_details_from_user(task: dict) -> Optional[dict]:
-    """Gets updated summary and duration for a selected task. (No changes needed)"""
+    """Gets updated summary and duration for a selected task."""
     original_summary = task.get('task_name', 'Unknown Task')
-    # Use temporary ID for display
     print(f"\nProcessing Task ID {task.get('id', '?')}: [white]{original_summary}[/white]")
 
-    # Get task summary
     new_summary = original_summary
     change_summary = prompt_user("Change summary? (y/N):").strip().lower()
     if change_summary == 'y':
         entered_summary = prompt_user("Enter new summary:").strip()
-        if entered_summary: # Only update if something was entered
+        if entered_summary:
              if any(char.isdigit() for char in entered_summary):
                  confirm_change = prompt_user(f"[red]New summary '{entered_summary}' contains numbers. Confirm? (y/N):[/red]").strip().lower()
                  if confirm_change == 'y':
@@ -172,45 +226,6 @@ def get_task_details_from_user(task: dict) -> Optional[dict]:
         else:
              print("[yellow]No new summary entered, keeping original.[/yellow]")
 
-
-    # Get task duration
-    while True:
-        try:
-            duration_input = prompt_user(f"Time spent in minutes? (Enter={DEFAULT_TASK_DURATION}, wrap in () to lock):").strip()
-            is_locked = False
-            if duration_input.startswith('(') and duration_input.endswith(')'):
-                is_locked = True
-                duration_input = duration_input[1:-1].strip() # Get value inside parentheses
-
-            if not duration_input:
-                duration = DEFAULT_TASK_DURATION
-            else:
-                duration = int(duration_input)
-
-            if duration <= 0:
-                print(f"[yellow]Duration must be positive. Using default {DEFAULT_TASK_DURATION}.[/yellow]")
-                duration = DEFAULT_TASK_DURATION
-
-            # Return collected details
-            return {
-                "summary": new_summary,
-                "duration": duration,
-                "is_locked": is_locked,
-                "datetime": task.get('datetime') # Keep original datetime for sorting
-            }
-        except ValueError:
-            print("[yellow]Invalid number entered for duration.[/yellow]")
-
-
-def get_additional_task_details(timesheet_date: datetime.date) -> Optional[dict]:
-    """Gets details for tasks added manually. (No changes needed)"""
-    print("\nAdding additional task...")
-    summary = prompt_user("Enter task summary:").strip()
-    if not summary:
-        print("[yellow]Task summary cannot be empty. Skipping additional task.[/yellow]")
-        return None
-
-    # Get duration
     while True:
         try:
             duration_input = prompt_user(f"Time spent in minutes? (Enter={DEFAULT_TASK_DURATION}, wrap in () to lock):").strip()
@@ -227,18 +242,52 @@ def get_additional_task_details(timesheet_date: datetime.date) -> Optional[dict]
             if duration <= 0:
                 print(f"[yellow]Duration must be positive. Using default {DEFAULT_TASK_DURATION}.[/yellow]")
                 duration = DEFAULT_TASK_DURATION
-            break # Exit duration loop
+
+            return {
+                "summary": new_summary,
+                "duration": duration,
+                "is_locked": is_locked,
+                "datetime": task.get('datetime')
+            }
         except ValueError:
             print("[yellow]Invalid number entered for duration.[/yellow]")
 
-    # Get completion time
+
+def get_additional_task_details(timesheet_date: date) -> Optional[dict]:
+    """Gets details for tasks added manually."""
+    print("\nAdding additional task...")
+    summary = prompt_user("Enter task summary:").strip()
+    if not summary:
+        print("[yellow]Task summary cannot be empty. Skipping additional task.[/yellow]")
+        return None
+
+    while True:
+        try:
+            duration_input = prompt_user(f"Time spent in minutes? (Enter={DEFAULT_TASK_DURATION}, wrap in () to lock):").strip()
+            is_locked = False
+            if duration_input.startswith('(') and duration_input.endswith(')'):
+                is_locked = True
+                duration_input = duration_input[1:-1].strip()
+
+            if not duration_input:
+                duration = DEFAULT_TASK_DURATION
+            else:
+                duration = int(duration_input)
+
+            if duration <= 0:
+                print(f"[yellow]Duration must be positive. Using default {DEFAULT_TASK_DURATION}.[/yellow]")
+                duration = DEFAULT_TASK_DURATION
+            break
+        except ValueError:
+            print("[yellow]Invalid number entered for duration.[/yellow]")
+
     while True:
         completion_time_str = prompt_user("Completion time? (HH:mm format):").strip()
         try:
             completion_time = datetime.strptime(completion_time_str, "%H:%M").time()
             task_datetime = datetime.combine(timesheet_date, completion_time)
-            datetime_str = task_datetime.strftime("%Y-%m-%d %H:%M:%S") # Ensure seconds are included
-            break # Exit time loop
+            datetime_str = task_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            break
         except ValueError:
             print("[yellow]Invalid time format. Please use HH:mm (e.g., 14:30).[/yellow]")
 
@@ -246,11 +295,11 @@ def get_additional_task_details(timesheet_date: datetime.date) -> Optional[dict]
         "summary": summary,
         "duration": duration,
         "is_locked": is_locked,
-        "datetime": datetime_str # Store formatted string
+        "datetime": datetime_str
     }
 
 def get_random_target_duration() -> int:
-    """Gets random range, calculates target duration (multiple of 5). (No changes needed)"""
+    """Gets random range, calculates target duration (multiple of 5)."""
     while True:
         try:
             low_input = prompt_user(f"Target minutes range - low? (Enter={DEFAULT_RAND_LOW}):").strip()
@@ -267,7 +316,6 @@ def get_random_target_duration() -> int:
                 print("[yellow]High value must be greater than low value.[/yellow]")
                 continue
 
-            # Generate random duration and round to nearest 5 minutes
             target = random.randint(rand_low, rand_high)
             target_duration = round(target / 5) * 5
             print(f"[cyan]Target total duration: {target_duration} minutes ({target_duration/60:.2f} hours).[/cyan]")
@@ -278,7 +326,7 @@ def get_random_target_duration() -> int:
 
 
 def adjust_durations(timesheet_entries: list, target_duration: int) -> list:
-    """Adjusts unlocked task durations to meet the target total duration. (No changes needed)"""
+    """Adjusts unlocked task durations to meet the target total duration."""
     locked_duration = sum(entry['duration'] for entry in timesheet_entries if entry.get('is_locked'))
     unlocked_entries = [entry for entry in timesheet_entries if not entry.get('is_locked')]
     unlocked_duration = sum(entry['duration'] for entry in unlocked_entries)
@@ -287,54 +335,71 @@ def adjust_durations(timesheet_entries: list, target_duration: int) -> list:
     if not unlocked_entries:
         if current_total != target_duration:
              print(f"[yellow]All tasks are locked. Total duration ({current_total}m) may not match target ({target_duration}m).[/yellow]")
-        return timesheet_entries # No unlocked tasks to adjust
+        return timesheet_entries
 
     needed_adjustment = target_duration - current_total
     if needed_adjustment == 0:
-        return timesheet_entries # Already at target
+        return timesheet_entries
 
-    # --- Adjustment Logic ---
     step = 5 if needed_adjustment > 0 else -5
     remaining_adjustment = abs(needed_adjustment)
 
     while remaining_adjustment > 0:
         adjusted_this_round = False
-        # Iterate through unlocked tasks to apply adjustment step
-        for entry in unlocked_entries:
-            if remaining_adjustment <= 0: break
+        # Ensure we iterate enough times if the step needs to be applied multiple times per task
+        # Use a copy of the list for stable iteration if modifying durations directly affects future checks
+        # In this specific logic, direct modification is likely fine.
+        num_unlocked = len(unlocked_entries)
+        if num_unlocked == 0: break # Safety check
 
-            # Check if adjustment is possible (don't make duration <= 0 when subtracting)
-            if step < 0 and entry['duration'] <= abs(step):
-                continue # Cannot subtract from this task
+        # Distribute adjustment somewhat evenly
+        adjustment_per_task = remaining_adjustment // num_unlocked
+        extra_adjustment = remaining_adjustment % num_unlocked
 
-            entry['duration'] += step
-            remaining_adjustment -= abs(step)
-            adjusted_this_round = True
+        applied_adjustment = 0
+        for i, entry in enumerate(unlocked_entries):
+            adjustment_to_apply = 0
+            # Apply the base step first if needed
+            if step != 0:
+                # Check if adjustment is possible (don't make duration <= 0 when subtracting)
+                if step < 0 and entry['duration'] <= abs(step):
+                    continue # Cannot subtract from this task
 
-        # If no tasks could be adjusted in a round, break to prevent infinite loop
-        if not adjusted_this_round:
-            print("[yellow]Warning: Could not fully adjust durations to target (tasks may be too short).[/yellow]")
+                # Apply one step
+                entry['duration'] += step
+                applied_adjustment += abs(step)
+                adjusted_this_round = True
+
+                # Break if this single step satisfied remaining_adjustment
+                if applied_adjustment >= remaining_adjustment:
+                    break
+
+
+        # If after applying one step to all possible tasks, we still need adjustment, loop again.
+        # Update remaining_adjustment based on what was actually applied.
+        remaining_adjustment -= applied_adjustment
+
+        # If no adjustments were made in a round (e.g., all tasks too short), break
+        if not adjusted_this_round and remaining_adjustment > 0:
+            print("[yellow]Warning: Could not fully adjust durations to target (tasks may be too short or step size issue).[/yellow]")
             break
 
-    # Verify final total (for debugging/info)
     final_total = sum(entry['duration'] for entry in timesheet_entries)
-    if final_total != target_duration: # Check difference even if remaining_adjustment is 0 due to step size
-         print(f"[yellow]Final adjusted duration ({final_total} mins) differs from target ({target_duration} mins).[/yellow]")
-    elif final_total == target_duration and needed_adjustment != 0: # Only print success if adjustment actually happened
+    if final_total != target_duration:
+         print(f"[yellow]Final adjusted duration ({final_total} mins) differs from target ({target_duration} mins). Check task lengths/locks.[/yellow]")
+    elif needed_adjustment != 0: # Only print success if adjustment happened
          print("[green]Durations adjusted successfully to meet target.[/green]")
 
     return timesheet_entries
 
 
-def save_timesheet_to_diary(timesheet_entries: list, timesheet_date: datetime.date):
+def save_timesheet_to_diary(timesheet_entries: list, timesheet_date: date):
     """Formats and saves the timesheet entries into the diary file using state_manager."""
-    # Prepare entries for saving (remove temporary keys)
     entries_to_save = []
     for entry in timesheet_entries:
         saved_entry = {
             "summary": entry.get('summary', 'Unknown Task'),
             "duration": entry.get('duration', 0)
-            # 'datetime' and 'is_locked' are not saved to the diary entry
         }
         entries_to_save.append(saved_entry)
 
@@ -343,16 +408,12 @@ def save_timesheet_to_diary(timesheet_entries: list, timesheet_date: datetime.da
 
     timesheet_date_str = timesheet_date.strftime("%Y-%m-%d")
 
-    # Create the data payload for the specific date's entry
     diary_update_payload = {
         "tasks": entries_to_save,
         "total_duration": total_duration,
         "total_hours": round(total_hours, 2)
-        # Note: This will overwrite existing tasks/total_duration/total_hours for the day.
-        # The objective for the day is preserved as state_manager.update_diary_entry merges.
     }
 
-    # <<< MODIFIED: Use state_manager to update the diary entry >>>
     if state_manager.update_diary_entry(timesheet_date_str, diary_update_payload):
         print(f"\n[green]Timesheet for {timesheet_date_str} saved successfully.[/green]")
     else:
@@ -362,65 +423,51 @@ def save_timesheet_to_diary(timesheet_entries: list, timesheet_date: datetime.da
 def update_objective_for_today():
     """Handles displaying the last objective and prompting user to update today's, using state_manager."""
     today = datetime.now().date()
-    today_str = today.strftime("%Y-%m-%d") # Needed? state_manager handles date internally
-
-    # 1. Find and display the most recent objective via state_manager
-    # <<< MODIFIED: Call state_manager >>>
-    # Pass the lookback period defined in helper_diary (though ideally it's defined centrally)
-    lookback = helper_diary.OBJECTIVE_LOOKBACK_DAYS # Reference constant from helper_diary
+    # <<< MODIFIED: Use lookback constant defined in this file >>>
+    lookback = AUDIT_LOOKBACK_WEEKS * 7 # Calculate lookback days from weeks
     last_objective, last_objective_date = state_manager.find_most_recent_objective(today, lookback_days=lookback)
 
     if last_objective:
-        if last_objective_date: # Ensure date is valid
+        if last_objective_date:
             days_ago = (today - last_objective_date).days
             day_word = "day" if days_ago == 1 else "days"
-            date_str_formatted = last_objective_date.strftime('%A, %d %B') # Shortened format
+            date_str_formatted = last_objective_date.strftime('%A, %d %B')
 
             if days_ago == 0:
                 print(f"\n[bold]Current Objective[/bold] (Set today):")
             else:
                 print(f"\n[bold]Most Recent Objective[/bold] (Set {days_ago} {day_word} ago - {date_str_formatted}):")
             print(f"[yellow]{last_objective}[/yellow]")
-        else: # Should not happen if state_manager returns objective, but safety check
+        else:
              print(f"\n[bold]Current Objective[/bold] (Date Unknown):")
              print(f"[yellow]{last_objective}[/yellow]")
     else:
         print("\n[yellow]No recent objective found in diary.[/yellow]")
-        last_objective = None # Ensure it's None if not found
+        last_objective = None
 
-    # 2. Ask user if they want to update (Default is YES)
     update_choice = prompt_user("Update objective for today? (Y/n):").lower().strip()
+    new_objective_to_set = None
 
-    new_objective_to_set = None # Start with None, only set if needed
-
-    if update_choice != 'n': # Treat Enter or 'y' as yes
+    if update_choice != 'n':
         entered_objective = prompt_user("Enter new objective for today:").strip()
         if entered_objective:
             new_objective_to_set = entered_objective
-            # Message printed by state_manager on success
         else:
             print("[yellow]No new objective entered. Keeping previous objective (if any).[/yellow]")
-            # Keep whatever objective is already set for today (or none)
-    else: # User explicitly entered 'n'
+    else:
          if last_objective:
               print("[cyan]Keeping the most recent objective.[/cyan]")
          else:
               print("[cyan]No objective will be set for today.[/cyan]")
-         # Don't try to set a new objective
 
-    # 3. Save the final objective (if one was decided upon) using state_manager
     if new_objective_to_set is not None:
-        # <<< MODIFIED: Call state_manager >>>
         state_manager.update_todays_objective(new_objective_to_set)
-        # Success/failure message handled by state_manager
-    # If new_objective_to_set is None, we don't call the state manager, preserving today's state.
 
 # --- Main Timesheet Function ---
 
 def timesheet():
     """Main function orchestrating the timesheet creation process."""
     try:
-        # Initialize API (still potentially needed for displaying tasks at the end)
         try:
             api_key = os.environ.get("TODOIST_API_KEY")
             if not api_key:
@@ -431,14 +478,12 @@ def timesheet():
             print(f"[red]Failed to initialize Todoist API: {api_init_error}[/red]")
             return
 
-
-        # 1. Get Date
+        # 1. Get Date (Uses updated logic)
         timesheet_date = get_timesheet_date()
         if not timesheet_date: return
 
-        # 2. Load Data (using state_manager indirectly via load_and_filter_tasks)
+        # 2. Load Data
         filtered_tasks = load_and_filter_tasks(timesheet_date)
-        # <<< REMOVED: Direct loading of diary_data here, happens within save_timesheet_to_diary >>>
 
         # 3. Task Selection
         display_tasks_for_selection(filtered_tasks)
@@ -446,7 +491,6 @@ def timesheet():
 
         # 4. Process Selected Tasks
         timesheet_entries = []
-        # Map temporary ID to task dict from the filtered list
         task_map = {task.get('id'): task for task in filtered_tasks if isinstance(task.get('id'), int)}
         for task_id in selected_ids:
             task = task_map.get(task_id)
@@ -471,7 +515,7 @@ def timesheet():
             print("[yellow]No tasks selected or added. Timesheet process aborted.[/yellow]")
             return
 
-        # 6. Sort Entries by Time (using original datetime preserved)
+        # 6. Sort Entries by Time
         try:
             timesheet_entries.sort(key=lambda x: datetime.strptime(x.get('datetime', ''), "%Y-%m-%d %H:%M:%S") if isinstance(x.get('datetime'), str) else datetime.min)
         except ValueError:
@@ -494,34 +538,32 @@ def timesheet():
         print(f"\nTotal Time: {total_duration} minutes ({total_hours:.2f} hours)")
         print("[bold green]-------------------------[/bold green]")
 
-        # 9. Save Timesheet (Uses state_manager internally)
+        # 9. Save Timesheet
         save_timesheet_to_diary(timesheet_entries, timesheet_date)
 
-        # 10. Display Long-Term Tasks (No change needed here)
+        # 10. Display Long-Term Tasks
         try:
             helper_todoist_long.display_tasks(api)
         except Exception as e:
             print(f"[red]Error displaying long-term tasks: {e}[/red]")
 
-        # 11. Display Current Tasks (No change needed here)
+        # 11. Display Current Tasks
         try:
             print("\n[cyan]Refreshing current Todoist tasks view...[/cyan]")
             helper_todoist_part2.display_todoist_tasks(api)
         except Exception as e:
             print(f"[red]Error displaying current Todoist tasks: {e}[/red]")
 
-        # 12. Update Today's Objective (Uses state_manager internally)
-        # <<< MODIFIED: No need to reload diary_data explicitly >>>
+        # 12. Update Today's Objective
         update_objective_for_today()
 
     except Exception as e:
         print(f"\n[bold red]An unexpected error occurred during the timesheet process:[/bold red]")
         print(f"[red]{e}[/red]")
-        # Log stack trace for debugging unexpected errors
         import traceback
         traceback.print_exc()
 
-# Apply call counter decorator (No changes needed)
+# Apply call counter decorator
 if 'module_call_counter' in globals() and hasattr(module_call_counter, 'apply_call_counter_to_all'):
      module_call_counter.apply_call_counter_to_all(globals(), __name__)
 else:
