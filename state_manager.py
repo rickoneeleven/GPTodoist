@@ -8,6 +8,7 @@ import uuid
 import traceback
 from dateutil.parser import parse
 from typing import Any, Dict, List, Union, Tuple, Optional
+from rich import print  # Ensure rich.print is explicitly imported
 
 # Assume module_call_counter exists and works as intended
 import module_call_counter
@@ -52,7 +53,6 @@ def _save_data(filename: str, data: Any) -> bool:
 
 def _get_device_id() -> str:
     """Generates a unique device identifier."""
-    # This logic is moved directly from helper_todoist_part1
     try:
         system_info = [
             platform.node(), platform.machine(), platform.processor(),
@@ -168,13 +168,36 @@ def toggle_active_filter() -> bool:
 
 # --- Active Task State ---
 def get_active_task() -> Optional[Dict]:
-    """Loads the currently active task details."""
-    task = _load_data(ACTIVE_TASK_FILENAME, default_value=None)
-    # Basic validation
-    if task is not None and (not isinstance(task, dict) or "task_id" not in task):
-         print(f"[yellow]Warning: Invalid data found in {ACTIVE_TASK_FILENAME}. Ignoring.[/yellow]")
-         clear_active_task() # Clear invalid file
-         return None
+    """Loads the currently active task details, handling missing file vs. invalid data."""
+    # <<< MODIFIED: Check file existence first >>>
+    if not os.path.exists(ACTIVE_TASK_FILENAME):
+        # File doesn't exist, indicating no active task is set (normal after clearing).
+        return None
+
+    # File exists, now attempt to load and validate its content.
+    task = _load_data(ACTIVE_TASK_FILENAME, default_value=None) # Default None if load fails
+
+    if task is not None:
+        # Data was loaded, validate its structure.
+        if not isinstance(task, dict):
+            # Loaded data is not a dictionary.
+            print(f"[yellow]Warning: Invalid data type found in {ACTIVE_TASK_FILENAME}. Expected dict, got {type(task).__name__}. Data: {task}. Clearing file and ignoring.[/yellow]")
+            clear_active_task() # Remove the corrupt file.
+            return None
+        elif "task_id" not in task:
+            # Loaded data is a dictionary but missing the essential 'task_id'.
+            print(f"[yellow]Warning: Invalid data structure in {ACTIVE_TASK_FILENAME}. Missing 'task_id' key. Data: {task}. Clearing file and ignoring.[/yellow]")
+            clear_active_task() # Remove the corrupt file.
+            return None
+        # If validation passes, the loaded 'task' dictionary is returned below.
+    elif task is None and os.path.exists(ACTIVE_TASK_FILENAME):
+        # Edge case: File exists, but _load_data returned None (e.g., JSON decode error within load_json).
+        print(f"[yellow]Warning: Could not load data from existing file {ACTIVE_TASK_FILENAME} (possibly corrupted). Clearing file and ignoring.[/yellow]")
+        clear_active_task() # Remove the corrupt file.
+        return None
+    # <<< END MODIFICATION >>>
+
+    # Return the validated task dictionary or None if the file didn't exist initially.
     return task
 
 def set_active_task(task_details: Dict) -> bool:
@@ -188,6 +211,7 @@ def clear_active_task() -> bool:
     if os.path.exists(ACTIVE_TASK_FILENAME):
         try:
             os.remove(ACTIVE_TASK_FILENAME)
+            # print(f"[dim]Cleared active task file: {ACTIVE_TASK_FILENAME}[/dim]") # Optional debug
             return True
         except OSError as e:
             print(f"[red]Error removing active task file {ACTIVE_TASK_FILENAME}: {e}[/red]")
@@ -196,9 +220,10 @@ def clear_active_task() -> bool:
 
 def verify_active_task_device() -> bool:
     """Checks if the active task's device ID matches the current device."""
-    active_task = get_active_task()
+    active_task = get_active_task() # Uses the refined getter
     if not active_task:
-        return True # No active task, no mismatch
+        # No active task is set (file missing or cleared due to invalid data), so no device mismatch.
+        return True
 
     task_device_id = active_task.get("device_id")
     current_device_id = _get_device_id()
@@ -211,6 +236,7 @@ def verify_active_task_device() -> bool:
         print(f"  Last updated on a different device ({last_updated_str}).")
         print("[yellow]Recommendation:[/yellow] Refresh tasks or set a new active task on *this* device before proceeding.")
         return False
+    # Active task exists and device ID matches, or task has no device ID (legacy).
     return True
 
 
@@ -356,7 +382,6 @@ def update_todays_objective(objective: str) -> bool:
 
 def find_most_recent_objective(start_date: datetime.date, lookback_days: int = 30) -> Tuple[Optional[str], Optional[datetime.date]]:
     """Finds the most recent non-empty objective looking back from start_date."""
-    # Moved logic from helper_diary
     diary_data = get_diary_data()
     current_date = start_date
     for _ in range(lookback_days):
