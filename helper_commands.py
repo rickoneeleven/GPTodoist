@@ -54,6 +54,7 @@ PREFIX_TOUCH_LONG = "touch long "
 PREFIX_ADD_LONG = "add long "
 PREFIX_RENAME_LONG = "rename long "
 PREFIX_DELETE_LONG = "delete long "
+PREFIX_PRIORITY_LONG = "priority long "
 PREFIX_FUZZY_SEARCH = "|||"
 PREFIX_DIARY_UPDATE = "diary "
 
@@ -239,6 +240,31 @@ def _handle_delete_long(api, user_message):
         traceback.print_exc()
     return True
 
+def _handle_priority_long(api, user_message):
+    parsed = _parse_long_task_index_and_value(user_message, PREFIX_PRIORITY_LONG, "priority")
+    if parsed is None:
+        return True # Error handled by parser
+
+    index, priority_str = parsed
+    
+    # Validate priority level
+    if not priority_str.isdigit() or priority_str not in ["1", "2", "3", "4"]:
+        print("[red]Invalid priority level. Use 1-4 (1=P4 lowest, 4=P1 highest).[/red]")
+        return True
+    
+    priority_level = int(priority_str)
+    
+    try:
+        updated_task = helper_todoist_long.change_task_priority(api, index, priority_level)
+        if updated_task:
+            subprocess.call("reset")
+            # Optionally display long tasks after priority change:
+            # helper_todoist_long.display_tasks(api)
+    except Exception as e:
+        print(f"[red]Error changing priority for long task (Index: {index}): {e}[/red]")
+        traceback.print_exc()
+    return True
+
 def _handle_all(api, user_message):
     subprocess.call("reset")
     display_todoist_tasks(api)
@@ -308,13 +334,14 @@ COMMAND_DISPATCH = [
     (PREFIX_ADD_LONG, _handle_add_long, True),
     (PREFIX_RENAME_LONG, _handle_rename_long, True),
     (PREFIX_DELETE_LONG, _handle_delete_long, True),
+    (PREFIX_PRIORITY_LONG, _handle_priority_long, True),
     # --- Other Prefixes ---
     (PREFIX_FUZZY_COMPLETE, _handle_fuzzy_complete, True),
     (PREFIX_ADHOC_COMPLETE, _handle_adhoc_complete, True),
     (PREFIX_TIME, _handle_time, True), # Checked AFTER "time long "
     (PREFIX_POSTPONE, _handle_postpone, True),
     (PREFIX_RENAME, _handle_rename, True), # Checked AFTER "rename long "
-    (PREFIX_PRIORITY, _handle_priority, True),
+    (PREFIX_PRIORITY, _handle_priority, True), # Checked AFTER "priority long "
     (PREFIX_ADD_TASK, _handle_add_task, True),
     (PREFIX_FUZZY_SEARCH, _handle_fuzzy_search, True),
     (PREFIX_DIARY_UPDATE, _handle_diary_update, True),

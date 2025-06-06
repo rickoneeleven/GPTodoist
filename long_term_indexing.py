@@ -145,11 +145,14 @@ def get_categorized_tasks(api):
             else:
                 one_shot_tasks.append(task)
 
-        def sort_key_due_index(task):
-            return (get_due_sort_key(task, now_london, london_tz), get_sort_index(task))
+        def sort_key_priority_due_index(task):
+            # Priority: 4=P1 (highest), 3=P2, 2=P3, 1=P4 (lowest/default)
+            # We negate to sort high priority first
+            priority = -getattr(task, 'priority', 1)
+            return (priority, get_due_sort_key(task, now_london, london_tz), get_sort_index(task))
 
-        one_shot_tasks.sort(key=sort_key_due_index)
-        recurring_tasks.sort(key=sort_key_due_index)
+        one_shot_tasks.sort(key=sort_key_priority_due_index)
+        recurring_tasks.sort(key=sort_key_priority_due_index)
 
         return one_shot_tasks, recurring_tasks
 
@@ -199,10 +202,13 @@ def fetch_tasks(api, prefix=None):
         all_tasks_list = list(indexed_tasks_map.values())
         filtered_tasks = [task for task in all_tasks_list if is_task_due_today_or_earlier(task)]
 
-        def sort_key_due_index(task):
-            return (get_due_sort_key(task, now_london, london_tz), get_sort_index(task))
+        def sort_key_priority_due_index(task):
+            # Priority: 4=P1 (highest), 3=P2, 2=P3, 1=P4 (lowest/default)
+            # We negate to sort high priority first
+            priority = -getattr(task, 'priority', 1)
+            return (priority, get_due_sort_key(task, now_london, london_tz), get_sort_index(task))
 
-        filtered_tasks.sort(key=sort_key_due_index)
+        filtered_tasks.sort(key=sort_key_priority_due_index)
         return filtered_tasks
 
     except Exception as error:

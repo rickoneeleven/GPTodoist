@@ -21,7 +21,8 @@ from long_term_operations import (
     handle_non_recurring_task,
     touch_task,
     add_task,
-    rename_task
+    rename_task,
+    change_task_priority
 )
 
 from long_term_indexing import (

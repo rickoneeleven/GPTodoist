@@ -278,3 +278,44 @@ def rename_task(api, index, new_name):
         print(f"[red]An unexpected error occurred renaming task index [{index}]: {error}[/red]")
         traceback.print_exc()
         return None
+
+
+def change_task_priority(api, index, priority_level):
+    """Changes the priority of a long-term task."""
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return None
+
+    if priority_level not in [1, 2, 3, 4]:
+        print("[red]Invalid priority level. Use 1-4 (1=P4 lowest, 4=P1 highest).[/red]")
+        return None
+
+    try:
+        target_task = find_task_by_index(api, project_id, index)
+
+        if not target_task:
+            print(f"[yellow]No task found with index [{index}] to change priority.[/yellow]")
+            return None
+
+        # Map user input to Todoist priority values
+        priority_map = {1: 4, 2: 3, 3: 2, 4: 1}
+        todoist_priority = priority_map[priority_level]
+
+        print(f"[cyan]Changing priority of '{target_task.content}' to P{priority_level}[/cyan]")
+
+        updated_task = api.update_task(
+            task_id=target_task.id,
+            priority=todoist_priority
+        )
+
+        if updated_task:
+            print(f"[green]Task priority successfully updated to P{priority_level}.[/green]")
+            return updated_task
+        else:
+            print(f"[red]API failed to update priority for task ID {target_task.id}.[/red]")
+            return None
+
+    except Exception as error:
+        print(f"[red]An unexpected error occurred changing priority for task index [{index}]: {error}[/red]")
+        traceback.print_exc()
+        return None
