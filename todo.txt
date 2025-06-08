@@ -1,3 +1,0 @@
-- Investigate upgrading the `todoist-api-python` library from the currently pinned version (e.g., 2.1.3) to the latest stable release. This will involve analyzing API changes between versions, adapting the codebase (method calls, argument names, expected return types), and testing thoroughly.
-
-- As a temporary workaround for dependency stability, consider regenerating `requirements.txt` by running `pip freeze` within the known stable environment (the one confirmed to work with version 2.1.3 of `todoist-api-python`). Use this generated file to ensure the new virtual environment precisely mirrors the dependencies of the stable instance until the upgrade investigation is complete.
