@@ -10,8 +10,6 @@ from dateutil.parser import parse
 from datetime import timedelta, timezone
 from rich import print
 import state_manager
-import os # Needed for read_long_term_tasks check
-import json # Needed for read_long_term_tasks check
 from typing import Optional, Tuple # <<< ADDED: Import Optional and Tuple
 
 # <<< REMOVED: Constants for j_todoist_filters.json, j_active_task.json, etc. >>>
@@ -39,49 +37,6 @@ def add_to_active_task_file(task_name: str, task_id: str, task_due: Optional[str
     # <<< MODIFIED: Call state_manager >>>
     if not state_manager.set_active_task(active_task_details):
         print(f"[red]Failed to save active task: {task_name}[/red]")
-
-
-def get_active_filter() -> tuple[Optional[str], Optional[str]]:
-    """Gets the active filter query string and project ID from the state manager."""
-    # <<< MODIFIED: Call state_manager >>>
-    return state_manager.get_active_filter_details()
-
-
-# <<< KEPT: read_long_term_tasks - Assumed not managed by state_manager for now >>>
-def read_long_term_tasks(filename="j_long_term_tasks.json"): # Default filename added
-    """Reads tasks from a specified JSON file (likely deprecated/managed elsewhere)."""
-    if not os.path.exists(filename): # Keep os import for this specific function check
-        print(f"[yellow]Long term tasks file '{filename}' not found. Creating empty file.[/yellow]")
-        try:
-            with open(filename, "w") as file:
-                json.dump([], file, indent=2) # Keep json import for this specific function
-            return [] # Return empty list immediately
-        except IOError as e:
-            print(f"[red]Error creating long term tasks file {filename}: {e}[/red]")
-            return [] # Return empty list on error
-
-    try:
-        with open(filename, "r") as file:
-            tasks = json.load(file)
-        if not isinstance(tasks, list):
-            print(f"[red]Error: Expected a list in {filename}, found {type(tasks)}. Returning empty list.[/red]")
-            return []
-        return tasks
-    except json.JSONDecodeError:
-        print(f"[red]Error reading JSON from {filename}. Returning empty list.[/red]")
-        return []
-    except IOError as e:
-        print(f"[red]Error accessing long term tasks file {filename}: {e}. Returning empty list.[/red]")
-        return []
-    except Exception as e:
-        print(f"[red]An unexpected error occurred reading long term tasks: {e}. Returning empty list.[/red]")
-        # Log stack trace if needed
-        # import traceback
-        # traceback.print_exc()
-        return []
-# Re-add necessary imports if read_long_term_tasks is kept:
-import os
-import json
 
 
 # --- Task Completion ---
@@ -282,28 +237,6 @@ def get_active_task() -> Optional[dict]:
     # <<< MODIFIED: Call state_manager >>>
     return state_manager.get_active_task()
 
-# <<< MODIFIED: verify_device_id_before_command becomes a wrapper for state_manager >>>
-def verify_device_id_before_command() -> bool:
-    """Checks if the active task was last updated on the current device using state_manager."""
-    # <<< MODIFIED: Call state_manager >>>
-    return state_manager.verify_active_task_device()
-
-
-# <<< KEPT: update_task_due_date (No file I/O) >>>
-def update_task_due_date(api, task_id, due_string):
-    """Updates the due date of a specific task."""
-    try:
-        updated_task = api.update_task(task_id=task_id, due_string=due_string)
-        if updated_task:
-             print(f"Task ID {task_id} due date updated to '{due_string}'.")
-             return True
-        else:
-             print(f"[red]Failed to update due date for task ID {task_id} via API.[/red]")
-             return False
-    except Exception as e:
-        print(f"[red]Error updating due date for task ID {task_id}: {e}[/red]")
-        return False
-
 
 # <<< KEPT: get_full_task_details (No file I/O) >>>
 def get_full_task_details(api, task_id):
@@ -437,40 +370,11 @@ def delete_todoist_task(api):
         return False
 
 
-# <<< KEPT: format_due_time (No file I/O) >>>
-def format_due_time(due_time_str, timezone):
-    """Formats a due date/time string into a user-friendly format in the specified timezone."""
-    if due_time_str is None: return ""
-    try:
-        due_time = dateutil.parser.parse(due_time_str)
-        if not isinstance(timezone, datetime.tzinfo):
-             print(f"[red]Error: Invalid timezone object: {type(timezone)}[/red]")
-             return due_time_str
-        localized_due_time = due_time.astimezone(timezone)
-        friendly_due_time = localized_due_time.strftime("%Y-%m-%d %H:%M")
-        return friendly_due_time
-    except (ValueError, TypeError) as e:
-        print(f"[yellow]Warning: Could not format due time '{due_time_str}': {e}[/yellow]")
-        return due_time_str
-    except Exception as e:
-        print(f"[red]Unexpected error formatting due time '{due_time_str}': {e}[/red]")
-        return due_time_str
-
-
 def print_completed_tasks_count():
     """Reads and prints the number of tasks completed today using state_manager."""
     # <<< MODIFIED: Call state_manager >>>
     count = state_manager.get_completed_tasks_count()
     print(f"Tasks completed today: {count}")
-
-
-# <<< MODIFIED: log_completed_task becomes a simple wrapper >>>
-def log_completed_task(task_name):
-    """Logs a completed task via the state manager."""
-    log_entry = {"task_name": task_name}
-    # <<< MODIFIED: Call state_manager >>>
-    if not state_manager.add_completed_task_log(log_entry):
-        print(f"[red]Failed to log completed task: {task_name}[/red]")
 
 
 # <<< KEPT: update_recurrence_patterns (No file I/O relevant to state_manager) >>>

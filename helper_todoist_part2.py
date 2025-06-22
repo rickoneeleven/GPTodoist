@@ -17,9 +17,7 @@ import state_manager # <<< ADDED: Import state manager
 
 # Import necessary functions from part1 or state_manager
 from helper_todoist_part1 import (
-    # get_active_filter, # Now handled via state_manager
     complete_todoist_task_by_id,
-    format_due_time,
     add_to_active_task_file, # Wrapper for state_manager.set_active_task
 )
 # Import API type hint if needed
