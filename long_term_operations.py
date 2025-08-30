@@ -319,3 +319,85 @@ def change_task_priority(api, index, priority_level):
         print(f"[red]An unexpected error occurred changing priority for task index [{index}]: {error}[/red]")
         traceback.print_exc()
         return None
+
+
+def postpone_task(api, index, schedule):
+    """
+    Postpones a long-term task to the specified schedule.
+    For recurring tasks: completes current instance and creates new one with specified schedule.
+    For non-recurring tasks: updates the due date to specified schedule.
+    """
+    project_id = get_long_term_project_id(api)
+    if not project_id:
+        return None
+
+    if not schedule or not isinstance(schedule, str):
+        print("[red]Invalid schedule provided for postponing.[/red]")
+        return None
+
+    if schedule.isdigit() and len(schedule) == 4:
+        print("[red]Invalid time format for postpone. Use formats like 'tomorrow', 'next monday 9am', etc.[/red]")
+        return None
+
+    try:
+        target_task = find_task_by_index(api, project_id, index)
+
+        if not target_task:
+            print(f"[yellow]No task found with index [{index}] to postpone.[/yellow]")
+            return None
+
+        if is_task_recurring(target_task):
+            print(f"[cyan]Postponing recurring task '{target_task.content}' by completing current and creating new instance[/cyan]")
+            
+            from helper_todoist_part1 import complete_todoist_task_by_id
+            from helper_task_factory import get_next_long_task_index
+            import re
+
+            success = complete_todoist_task_by_id(api, target_task.id, skip_logging=False)
+            if not success:
+                print(f"[red]Failed to complete current recurring task instance. Cannot postpone.[/red]")
+                return None
+
+            match = re.match(r'\s*\[(\d+)\]', target_task.content)
+            if not match:
+                print(f"[red]Could not extract index from task content. Cannot create new instance.[/red]")
+                return None
+
+            original_index = match.group(1)
+            new_index = get_next_long_task_index(api, project_id)
+            content_without_index = re.sub(r'^\s*\[\d+\]\s*', '', target_task.content).strip()
+            task_content_with_index = f"[{new_index}] {content_without_index}"
+
+            new_task = api.add_task(
+                content=task_content_with_index,
+                project_id=project_id,
+                due_string=schedule,
+                priority=target_task.priority if hasattr(target_task, 'priority') else 1,
+                description=target_task.description if hasattr(target_task, 'description') else ""
+            )
+
+            if new_task:
+                print(f"[green]Recurring task postponed successfully to '{schedule}'. New task created with index [{new_index}] (original was [{original_index}]).[/green]")
+                return new_task
+            else:
+                print(f"[red]Failed to create new task instance. Postpone incomplete.[/red]")
+                return None
+        else:
+            print(f"[cyan]Postponing non-recurring task '{target_task.content}' to '{schedule}'[/cyan]")
+
+            updated_task = api.update_task(
+                task_id=target_task.id,
+                due_string=schedule
+            )
+
+            if updated_task:
+                print(f"[green]Task postponed successfully to '{schedule}'.[/green]")
+                return updated_task
+            else:
+                print(f"[red]API failed to update task due date.[/red]")
+                return None
+
+    except Exception as error:
+        print(f"[red]An unexpected error occurred postponing task index [{index}]: {error}[/red]")
+        traceback.print_exc()
+        return None

@@ -55,6 +55,7 @@ PREFIX_ADD_LONG = "add long "
 PREFIX_RENAME_LONG = "rename long "
 PREFIX_DELETE_LONG = "delete long "
 PREFIX_PRIORITY_LONG = "priority long "
+PREFIX_POSTPONE_LONG = "postpone long "
 PREFIX_FUZZY_SEARCH = "|||"
 PREFIX_DIARY_UPDATE = "diary "
 
@@ -265,6 +266,19 @@ def _handle_priority_long(api, user_message):
         traceback.print_exc()
     return True
 
+def _handle_postpone_long(api, user_message):
+    parsed = _parse_long_task_index_and_value(user_message, PREFIX_POSTPONE_LONG, "schedule")
+    if parsed is None:
+        return True # Error handled by parser
+
+    index, schedule = parsed
+    try:
+        helper_todoist_long.postpone_task(api, index, schedule)
+    except Exception as e:
+         print(f"[red]Error postponing long task (Index: {index}, Schedule: '{schedule}'): {e}[/red]")
+         traceback.print_exc()
+    return True
+
 def _handle_all(api, user_message):
     subprocess.call("reset")
     display_todoist_tasks(api)
@@ -335,6 +349,7 @@ COMMAND_DISPATCH = [
     (PREFIX_RENAME_LONG, _handle_rename_long, True),
     (PREFIX_DELETE_LONG, _handle_delete_long, True),
     (PREFIX_PRIORITY_LONG, _handle_priority_long, True),
+    (PREFIX_POSTPONE_LONG, _handle_postpone_long, True),
     # --- Other Prefixes ---
     (PREFIX_FUZZY_COMPLETE, _handle_fuzzy_complete, True),
     (PREFIX_ADHOC_COMPLETE, _handle_adhoc_complete, True),

@@ -22,7 +22,8 @@ from long_term_operations import (
     touch_task,
     add_task,
     rename_task,
-    change_task_priority
+    change_task_priority,
+    postpone_task
 )
 
 from long_term_indexing import (
