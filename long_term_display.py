@@ -73,8 +73,8 @@ def display_tasks(api, task_type=None):
     try:
         one_shot_tasks, recurring_tasks = get_categorized_tasks(api)
 
-        display_formatted_task_list("One Shots", one_shot_tasks)
         display_formatted_task_list("Recurring", recurring_tasks)
+        display_formatted_task_list("One Shots", one_shot_tasks)
 
         print()
 
