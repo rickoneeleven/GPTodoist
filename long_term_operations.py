@@ -366,7 +366,7 @@ def postpone_task(api, index, schedule):
             original_index = match.group(1)
             new_index = get_next_long_task_index(api, project_id)
             content_without_index = re.sub(r'^\s*\[\d+\]\s*', '', target_task.content).strip()
-            task_content_with_index = f"[{new_index}] {content_without_index}"
+            task_content_with_index = f"[{new_index}] postponed - {content_without_index}"
 
             new_task = api.add_task(
                 content=task_content_with_index,

@@ -203,7 +203,7 @@ def postpone_due_date(api, user_message):
             else:
                  print(f"[yellow]Warning: Failed to close original recurring task ID {task.id}.[/yellow]")
 
-            new_task_args = { "content": task.content, "due_string": due_string,
+            new_task_args = { "content": f"postponed - {task.content}", "due_string": due_string,
                               "description": task.description, "priority": task.priority }
             if hasattr(task, "project_id") and task.project_id:
                 new_task_args["project_id"] = task.project_id
