@@ -47,6 +47,11 @@ def create_task(api, task_content, task_type="normal", options=None):
 def parse_task_content(task_content):
     """Extract scheduling and priority information from task content.
     
+    Handles both single-line and multi-line inputs. If scheduling markers
+    (time like "12:00" or markers like "(every!) day") appear on the last
+    line of a multi-line input, they are extracted into `due_string` and
+    removed from the task content.
+    
     Args:
         task_content: Raw task content string
         
@@ -59,43 +64,73 @@ def parse_task_content(task_content):
         "priority": None,
         "due_string": None
     }
-    
-    # Look for "(every)" or "(every!)" markers
-    every_pattern = re.compile(r"^(.*?)\s+\((every!?)\)\s+(.+)$")
-    match_every = every_pattern.match(task_content)
-    
-    if match_every:
-        # We found an "(every)" or "(every!)" pattern
-        pre_every_text = match_every.group(1).strip()
-        every_type = match_every.group(2)  # "every" or "every!"
-        schedule_text = match_every.group(3).strip()
-        
-        # Update content to exclude the "(every)" portion and everything after
-        result["content"] = pre_every_text
-        
-        # Pass the schedule text directly to Todoist
-        result["due_string"] = f"{every_type} {schedule_text}"
+
+    # Work with the last non-empty line for scheduling cues
+    lines = task_content.splitlines() or [task_content]
+    last_idx = None
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip():
+            last_idx = i
+            break
+
+    if last_idx is None:
+        # Empty content; nothing to parse
+        return result
+
+    last_line = lines[last_idx].strip()
+
+    # Patterns: time (supports HH:MM or 9am/9pm), and (every)/(every!) marker
+    time_pattern = re.compile(r"\b(\d{1,2}:\d{2}|\d{1,2}(?:am|pm))\b", re.IGNORECASE)
+    every_marker_pattern = re.compile(r"\((every!?)\)", re.IGNORECASE)
+
+    time_match = time_pattern.search(last_line)
+    every_match = every_marker_pattern.search(last_line)
+
+    if every_match:
+        # Example: "... 10:00 (every!) day" or "... (every) monday 9am"
+        every_type = every_match.group(1).lower()  # 'every' or 'every!'
+
+        # Prefer schedule words after the marker
+        post = last_line[every_match.end():].strip()
+
+        # If a time exists, remove it from schedule words to avoid duplicate
+        time_str = time_match.group(1) if time_match else None
+        schedule_words = post
+        if time_str and schedule_words:
+            schedule_words = re.sub(rf"\b{re.escape(time_str)}\b", "", schedule_words, flags=re.IGNORECASE).strip()
+
+        # Build due_string in the order Todoist understands (e.g., "every! monday 9am")
+        due_parts = [every_type]
+        if schedule_words:
+            due_parts.append(schedule_words)
+        if time_str:
+            due_parts.append(time_str)
+
+        result["due_string"] = " ".join(due_parts).strip()
+
+        # Clean last line content: drop from first of (time or every) to end
+        cut_positions = []
+        if time_match:
+            cut_positions.append(time_match.start())
+        cut_positions.append(every_match.start())
+        cut_at = min(cut_positions)
+        cleaned_last = last_line[:cut_at].rstrip()
+        lines[last_idx] = cleaned_last
+        result["content"] = "\n".join(lines).rstrip()
+
     else:
-        # If no "(every)" pattern, try the existing time pattern
-        time_day_pattern = re.compile(r"^(.*?)(\d{2}:\d{2})(.*)$")
-        match_time = time_day_pattern.match(task_content)
-        
-        if match_time:
-            pre_time_text = match_time.group(1).strip() if match_time.group(1) else ''
-            task_time = match_time.group(2).strip() if match_time.group(2) else None
-            task_day = match_time.group(3).strip() if match_time.group(3) else None
-            
-            # Update content to exclude time/day info
-            result["content"] = pre_time_text
-            
-            # Create due string
-            if task_time:
-                if task_day:
-                    result["due_string"] = f"{task_time} {task_day}".strip()
-                else:
-                    result["due_string"] = task_time.strip()
-    
-    # Extract priority
+        # No (every) marker; try time-only parsing on the last line
+        if time_match:
+            time_str = time_match.group(1)
+            post = last_line[time_match.end():].strip()
+            # Due string: include any words after the time on the same line
+            result["due_string"] = f"{time_str} {post}".strip()
+            # Remove time and trailing words from content (keep everything before time)
+            cleaned_last = last_line[:time_match.start()].rstrip()
+            lines[last_idx] = cleaned_last
+            result["content"] = "\n".join(lines).rstrip()
+
+    # Extract priority from remaining content
     for i, priority_flag in enumerate(["p1", "p2", "p3"]):
         if priority_flag in result["content"].lower():
             # Todoist uses 4 for p1, 3 for p2, etc.
