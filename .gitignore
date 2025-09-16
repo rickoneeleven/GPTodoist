@@ -1,6 +1,7 @@
 system_message.txt
 *.json
 venv/
+.venv/
 __pycache__/
 .breakpoints
 replit.nix

@@ -5,8 +5,8 @@ A command-line interface (CLI) tool designed for efficient interaction with your
 ## Installation
 
 1.  **Prerequisites:**
-    *   Python 3 (tested with Python 3.11+)
-    *   `pip` (Python package installer)
+    - Python 3 (tested with Python 3.11+; 3.10 also works)
+    - `pip` (Python package installer)
 
 2.  **Clone the Repository (if applicable):**
     ```bash
@@ -14,10 +14,22 @@ A command-line interface (CLI) tool designed for efficient interaction with your
     cd <repository-directory>
     ```
 
-3.  **Install Dependencies:**
-    Ensure you are in the project directory containing the `requirements.txt` file. Then install the required packages using pip:
+3.  **Create and Activate a Virtual Environment (recommended):**
     ```bash
-    pip3 install -r requirements.txt
+    python3 -m venv .venv
+    source .venv/bin/activate   # Windows: .venv\Scripts\activate
+    python -m pip install --upgrade pip setuptools wheel
+    ```
+
+4.  **Install Dependencies:**
+    Ensure you are in the project directory containing `requirements.txt`, then:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+5.  **Deactivating the Environment:**
+    ```bash
+    deactivate
     ```
 
 ## Configuration
@@ -25,7 +37,7 @@ A command-line interface (CLI) tool designed for efficient interaction with your
 1.  **Todoist API Key:**
     The tool requires your Todoist API key to interact with your account. Set it as an environment variable.
     *   Find your API key in Todoist: Settings -> Integrations -> Developer -> API token.
-    *   Add the key to your shell's configuration file (e.g., `~/.bashrc`, `~/.zshrc`):
+    *   Add the key to your shell's configuration file (e.g., `~/.bashrc`, `~/.zshrc`). If using the virtual environment above, ensure this is set in the shell before running the app:
         ```bash
         export TODOIST_API_KEY="YOUR_ACTUAL_API_KEY"
         ```
@@ -65,8 +77,48 @@ A command-line interface (CLI) tool designed for efficient interaction with your
 
 1.  **Run the Application:**
     ```bash
-    python3 main.py
+    # In a new shell, from the project root
+    source .venv/bin/activate   # Windows: .venv\Scripts\activate
+    python main.py
     ```
+
+## Migrating State (Old ➜ New)
+
+If you used GPTodoist on another machine, copy your state files to avoid missing-timesheets alerts and to bring over today’s completed items.
+
+- Key files in the project root on the old machine:
+  - `j_diary.json` — timesheets/diary entries (used for the weekly audit)
+  - `j_todays_completed_tasks.json` — rolling log of completed tasks (all days)
+  - `j_number_of_todays_completed_tasks.json` — today’s completed count (recomputed by the merge tool)
+
+### Option A: Straight copy (replace)
+
+1) On the old machine (from the project root):
+```bash
+tar -czf gptodoist-state.tar.gz j_diary.json j_todays_completed_tasks.json j_number_of_todays_completed_tasks.json || true
+```
+
+2) Transfer the archive to the new machine and extract it in the new project root:
+```bash
+scp <old>:/path/to/repo/gptodoist-state.tar.gz .
+tar -xzf gptodoist-state.tar.gz
+```
+
+### Option B: Merge with the provided tool (recommended)
+
+If you’ve already run GPTodoist on the new machine and don’t want to lose anything, merge instead of replace.
+
+1) Copy your old files anywhere on the new machine, then run:
+```bash
+source .venv/bin/activate
+# Merge diary (timesheets). Use --overwrite-existing-diary to replace duplicates.
+python tools/merge_state.py --old-diary /path/to/old/j_diary.json
+
+# Merge completed tasks. Use --today-only to import just today’s tasks.
+python tools/merge_state.py --old-completed /path/to/old/j_todays_completed_tasks.json --today-only
+```
+
+The merge tool also recalculates `j_number_of_todays_completed_tasks.json` based on the current log.
 
 2.  **Interaction:**
     *   The application will display the next task based on your active filter, completed task counts, and other status info.
