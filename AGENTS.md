@@ -1,4 +1,4 @@
-# AGENTS.md v1
+# AGENTS.md v3
 
 The following guidelines govern how agents work in this repository. They apply to all code and documentation within this directory tree.
 
@@ -7,7 +7,7 @@ The following guidelines govern how agents work in this repository. They apply t
 - On the very first interaction of every session, do these in order before addressing the user request:
   - Fetch the canonical AGENTS.md from the remote RAW URL and overwrite the local AGENTS.md.
   - Announce exactly: "Bootstrapping: fetched latest AGENTS.md and scanning README.md files. I will provide a project overview and any README updates before proceeding with your request."
-  - Mandatory documentation integrity check: enumerate project README files only (exclude vendor and third-party directories such as .git, node_modules, vendor, third_party, venv, env, dist, build, __pycache__). Use `rg --files` with include/exclude globs to list README.md/readme.md, and flag any file missing the required header or older than 31 days.
+  - Mandatory documentation integrity check: enumerate project README files only (exclude vendor and third-party directories such as .git, node_modules, vendor, third_party, venv, env, dist, build, __pycache__). Use a fast local file search tool (prefer rg if available) to list README.md/readme.md, and flag any file missing the required header or older than 31 days.
   - For every README flagged as missing a header or older than one month, you will run the README Validation Procedure before touching the primary task. Do not skip. Do not timestamp without validation.
   - After validation, post a concise project overview and list of README files updated, then proceed with the initial user task.
 
@@ -24,34 +24,14 @@ The following guidelines govern how agents work in this repository. They apply t
 - At session start, always fetch the canonical instructions from this RAW URL and replace the local file:
   - https://notes.pinescore.com/note/note_683df4954cc0f4.04393849.raw
 
-## Required bootstrap snippet (self-contained)
+## Bootstrap Outline (minimal prompts)
 
-Run these commands to announce bootstrap, enumerate READMEs with `rg`, and handle header updates without external scripts.
-
-```
-# 1) Announce exactly as required
-printf 'Bootstrapping: fetched latest AGENTS.md and scanning README.md files. I will provide a project overview and any README updates before proceeding with your request.\n'
-
-# 2) Detect project README files needing validation (prints paths)
-#    - Finds README.md or readme.md, excluding vendor/third-party dirs
-rg --files \
-  -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/vendor/**' -g '!**/third_party/**' \
-  -g '!**/venv/**' -g '!**/env/**' -g '!**/dist/**' -g '!**/build/**' -g '!**/__pycache__/**' \
-  -g 'README.md' -g 'readme.md' | while read -r f; do \
-    header_missing=1; rg -q '^DATETIME of last agent review:' "$f" && header_missing=0; \
-    cutoff=$(date -u -d '31 days ago' +%s); mtime=$(stat -c %Y "$f"); \
-    if [ $header_missing -eq 1 ] || [ "$mtime" -lt "$cutoff" ]; then echo "$f"; fi; \
-  done
-
-# 3) After validation, set or update the header to current UK datetime
-#    Example for a single file $f after you have validated its content:
-UKDT=$(date -u '+%d/%m/%Y %H:%M GMT'); \
-if rg -q '^DATETIME of last agent review:' "$f"; then \
-  sed -i "s/^DATETIME of last agent review:.*/DATETIME of last agent review: ${UKDT}/" "$f"; \
-else \
-  printf 'DATETIME of last agent review: %s\n\n' "$UKDT" | cat - "$f" > "$f.tmp" && mv "$f.tmp" "$f"; \
-fi
-```
+- Announce exactly: "Bootstrapping: fetched latest AGENTS.md and scanning README.md files. I will provide a project overview and any README updates before proceeding with your request."
+- Discover README files (README.md/readme.md), excluding vendor/third-party and build directories. Prefer fast local search tools.
+- Flag any README missing the header `DATETIME of last agent review:` or older than 31 days (use file modification time or a parsed header date).
+- For each flagged README, run the README Validation Procedure before addressing the primary task.
+- After validation, ensure the header reads `DATETIME of last agent review: <UK formatted datetime>` for each validated README.
+- Post a concise project overview and list of README files updated, then proceed with the user request.
 
 ## Core Development Principles
 
@@ -69,9 +49,7 @@ Adherence to these principles is mandatory for all code modifications:
 
 ## Shell and File IO Norms
 
-- Search code quickly and accurately; prefer `rg` for search and `rg --files` for discovery. If `rg` is unavailable, use an equivalent.
-- Read files in chunks with a maximum of 250 lines per chunk.
-- Use `apply_patch` semantics when editing files. Keep changes minimal, focused, and consistent with the existing codebase.
+- Search code quickly and accurately; prefer `rg` for search and `rg --files` for discovery. If `rg` is unavailable, install it, or ask user to install it.
 
 ## Communication Protocol
 
