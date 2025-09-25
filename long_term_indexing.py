@@ -1,10 +1,11 @@
 import re
 import pytz
 import traceback
-from datetime import datetime, time
+from datetime import datetime, date, time
 from dateutil.parser import parse
 from rich import print
 from long_term_core import get_long_term_project_id, is_task_recurring, is_task_due_today_or_earlier
+import todoist_compat
 
 
 def get_sort_index(task):
@@ -19,31 +20,43 @@ def get_sort_index(task):
 
 
 def get_due_sort_key(task, now_london, london_tz):
-    """Determine the datetime sort key for a task."""
     if not task:
         return datetime.max.replace(tzinfo=pytz.utc)
 
-    due_datetime_sort = datetime.max.replace(tzinfo=pytz.utc)
+    sort_dt = datetime.max.replace(tzinfo=pytz.utc)
+    due = getattr(task, 'due', None)
+    if not due:
+        return sort_dt
 
-    if hasattr(task, 'due') and task.due:
-        if hasattr(task.due, 'datetime') and task.due.datetime:
-            try:
-                parsed_dt = parse(task.due.datetime)
-                if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
-                    due_datetime_sort = london_tz.localize(parsed_dt, is_dst=None)
+    dv = getattr(due, 'date', None)
+    if dv is None:
+        return sort_dt
+
+    try:
+        if isinstance(dv, str):
+            if 'T' in dv:
+                dt = parse(dv)
+                if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                    sort_dt = london_tz.localize(dt, is_dst=None)
                 else:
-                    due_datetime_sort = parsed_dt.astimezone(london_tz)
-            except (ValueError, TypeError, pytz.exceptions.PyTZException):
-                pass
-        elif hasattr(task.due, 'date') and task.due.date:
-            try:
-                due_date = parse(task.due.date).date()
-                time_comp = now_london.time() if due_date <= now_london.date() else time.min
-                due_datetime_sort = london_tz.localize(datetime.combine(due_date, time_comp))
-            except (ValueError, TypeError):
-                pass
+                    sort_dt = dt.astimezone(london_tz)
+            else:
+                d = parse(dv).date()
+                t = now_london.time() if d <= now_london.date() else time.min
+                sort_dt = london_tz.localize(datetime.combine(d, t))
+        elif isinstance(dv, datetime):
+            dt = dv
+            if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                sort_dt = london_tz.localize(dt, is_dst=None)
+            else:
+                sort_dt = dt.astimezone(london_tz)
+        elif isinstance(dv, date):
+            t = now_london.time() if dv <= now_london.date() else time.min
+            sort_dt = london_tz.localize(datetime.combine(dv, t))
+    except Exception:
+        pass
 
-    return due_datetime_sort
+    return sort_dt
 
 
 def fetch_and_index_long_tasks(api, project_id):
@@ -56,7 +69,7 @@ def fetch_and_index_long_tasks(api, project_id):
     unindexed_tasks = []
 
     try:
-        tasks = api.get_tasks(project_id=project_id)
+        tasks = todoist_compat.get_tasks_by_project(api, project_id)
         if tasks is None:
             print(f"[red]Error retrieving tasks for project ID {project_id}.[/red]")
             return {}

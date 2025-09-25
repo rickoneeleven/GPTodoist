@@ -3,6 +3,7 @@ import re, os
 from fuzzywuzzy import process
 from rich import print
 from todoist_api_python.api import TodoistAPI
+import todoist_compat
 
 api = TodoistAPI(os.environ["TODOIST_API_KEY"])
 
@@ -18,8 +19,7 @@ def search_todoist_tasks(user_message):
     # Strip "|||" from user_message
     search_term = user_message.lstrip("|").strip()
     try:
-        # Use Todoist API's native search
-        tasks = api.get_tasks(filter=f"search:{search_term}")
+        tasks = todoist_compat.get_tasks_by_filter(api, f"search:{search_term}")
         
         if not tasks:
             print("[yellow]No matching tasks found[/yellow]")

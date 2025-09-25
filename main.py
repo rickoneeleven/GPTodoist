@@ -4,11 +4,13 @@ import readline
 import time
 import helper_todoist_part1
 import helper_todoist_part2
+import helper_display
 import helper_commands
 import module_call_counter
 import helper_general # Still needed for connectivity_check and backup_json_files
 import helper_parse
 import helper_diary
+import helper_recurrence
 import state_manager # <<< ADDED: Import the new state manager
 from rich import print
 from datetime import datetime, timedelta, timezone # Keep necessary datetime components
@@ -76,10 +78,10 @@ def main_loop():
         _check_and_trigger_backup() # Uses state_manager for timestamps now
         helper_todoist_part2.get_next_todoist_task(api) # Will be refactored later
         helper_todoist_part1.print_completed_tasks_count() # Will be refactored later
-        helper_todoist_part2.check_if_grafting(api) # Will be refactored later
+        helper_display.check_if_grafting(api)
         helper_diary.weekly_audit() # Will be refactored later
         helper_diary.purge_old_completed_tasks() # Will be refactored later
-        helper_todoist_part1.update_recurrence_patterns(api) # Will be refactored later
+        helper_recurrence.update_recurrence_patterns(api)
 
         user_message = helper_parse.get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")

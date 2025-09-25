@@ -1,16 +1,17 @@
 import re
 import pytz
 import traceback
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, date, timedelta, timezone
 from dateutil.parser import parse
 from rich import print
+import todoist_compat
 
 
 def get_long_term_project_id(api):
     """Get the ID of the 'Long Term Tasks' project, returns None if not found or error occurs."""
     project_name = "Long Term Tasks"
     try:
-        projects = api.get_projects()
+        projects = todoist_compat.get_all_projects(api)
         if projects is None:
             print(f"[red]Error: Failed to retrieve projects from Todoist API.[/red]")
             return None
@@ -35,7 +36,7 @@ def get_long_term_project_id(api):
 def find_task_by_index(api, project_id, index):
     """Find a task by its index '[index]' in a project."""
     try:
-        tasks = api.get_tasks(project_id=project_id)
+        tasks = todoist_compat.get_tasks_by_project(api, project_id)
         if tasks is None:
             print(f"[red]Error retrieving tasks for project ID {project_id}.[/red]")
             return None
@@ -82,57 +83,58 @@ def is_task_recurring(task):
 
 
 def is_task_due_today_or_earlier(task):
-    """
-    Checks if a task is due today or earlier, handling timezones and specific times.
-    Returns True if due, False otherwise.
-    Note: Tasks with no due date are considered "due" to ensure they appear in the list.
-    """
     if not task:
         return False
-
-    if not task.due:
+    if not getattr(task, "due", None):
         return True
 
     try:
         london_tz = pytz.timezone("Europe/London")
         now_london = datetime.now(london_tz)
 
-        if task.due.datetime:
-            task_due_datetime_london = None
-            try:
-                raw_dt_str = task.due.datetime
-                parsed_dt = parse(raw_dt_str)
-
-                if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
-                    try:
-                        task_due_datetime_london = london_tz.localize(parsed_dt, is_dst=None)
-                    except (pytz.exceptions.AmbiguousTimeError, pytz.exceptions.NonExistentTimeError) as dst_err:
-                        print(f"[yellow]Warning: DST ambiguity/non-existence for task '{task.content}' (ID: {task.id}) due '{raw_dt_str}': {dst_err}. Treating as not due.[/yellow]")
-                        return False
-                else:
-                    task_due_datetime_london = parsed_dt.astimezone(london_tz)
-
-                if task_due_datetime_london:
-                    return task_due_datetime_london <= now_london
-                else:
-                    print(f"[yellow]Warning: Failed to determine valid London due time for task '{task.content}' (ID: {task.id}). Treating as not due.[/yellow]")
-                    return False
-
-            except (ValueError, TypeError) as parse_err:
-                print(f"[yellow]Warning: Error parsing due datetime '{task.due.datetime}' for task '{task.content}' (ID: {task.id}): {parse_err}. Treating as not due.[/yellow]")
-                return False
-
-        elif task.due.date:
-            try:
-                task_due_date = parse(task.due.date).date()
-                return task_due_date <= now_london.date()
-            except (ValueError, TypeError) as parse_err:
-                print(f"[yellow]Warning: Error parsing due date '{task.due.date}' for task '{task.content}' (ID: {task.id}): {parse_err}. Treating as not due.[/yellow]")
-                return False
-        else:
+        due_val = getattr(task.due, "date", None)
+        if due_val is None:
             return True
 
+        # String date or datetime from API
+        if isinstance(due_val, str):
+            try:
+                if "T" in due_val:
+                    dt = parse(due_val)
+                    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                        try:
+                            dt_london = london_tz.localize(dt, is_dst=None)
+                        except (pytz.exceptions.AmbiguousTimeError, pytz.exceptions.NonExistentTimeError):
+                            dt_london = dt
+                    else:
+                        dt_london = dt.astimezone(london_tz)
+                    return dt_london <= now_london
+                else:
+                    d = parse(due_val).date()
+                    return d <= now_london.date()
+            except Exception:
+                return False
+
+        # Datetime instance
+        if isinstance(due_val, datetime):
+            dt = due_val
+            if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                try:
+                    dt_london = london_tz.localize(dt, is_dst=None)
+                except (pytz.exceptions.AmbiguousTimeError, pytz.exceptions.NonExistentTimeError):
+                    dt_london = dt
+            else:
+                dt_london = dt.astimezone(london_tz)
+            return dt_london <= now_london
+
+        # Date instance (all-day tasks)
+        if isinstance(due_val, date):
+            return due_val <= now_london.date()
+
+        # Fallback: unknown type -> not due
+        return False
+
     except Exception as e:
-        print(f"[red]Unexpected error checking due status for task '{task.content}' (ID: {task.id}): {e}[/red]")
+        print(f"[red]Unexpected error checking due status for task '{getattr(task, 'content', 'N/A')}' (ID: {getattr(task, 'id', 'N/A')}): {e}[/red]")
         traceback.print_exc()
         return False

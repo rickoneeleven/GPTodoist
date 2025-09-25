@@ -1,6 +1,7 @@
 import re, datetime, os
 import module_call_counter
 from rich import print
+import todoist_compat
 from datetime import timedelta
 
 def create_task(api, task_content, task_type="normal", options=None):
@@ -180,7 +181,7 @@ def create_task_parameters(content, parsed_data, task_type, options):
 def get_long_term_project_id(api):
     """Get the ID of the Long Term Tasks project, or None if it doesn't exist."""
     try:
-        projects = api.get_projects()
+        projects = todoist_compat.get_all_projects(api)
         for project in projects:
             if project.name == "Long Term Tasks":
                 return project.id
@@ -201,8 +202,7 @@ def get_next_long_task_index(api, project_id):
         Next available index (integer)
     """
     try:
-        # Get existing tasks to determine next index
-        tasks = api.get_tasks(project_id=project_id)
+        tasks = todoist_compat.get_tasks_by_project(api, project_id)
         
         # Extract existing indices
         indices = []

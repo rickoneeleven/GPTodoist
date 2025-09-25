@@ -1,3 +1,5 @@
+DATETIME of last agent review: 25/09/2025 14:55
+
 # Todoist CLI Helper
 
 A command-line interface (CLI) tool designed for efficient interaction with your Todoist account. It focuses on managing your active task, handling a separate list of long-term tasks, viewing tasks, and generating daily timesheet entries based on completed items.
@@ -82,7 +84,7 @@ A command-line interface (CLI) tool designed for efficient interaction with your
     python main.py
     ```
 
-## Migrating State (Old ➜ New)
+## Migrating State (Old -> New)
 
 If you used GPTodoist on another machine, copy your state files to avoid missing-timesheets alerts and to bring over today’s completed items.
 
@@ -104,21 +106,16 @@ scp <old>:/path/to/repo/gptodoist-state.tar.gz .
 tar -xzf gptodoist-state.tar.gz
 ```
 
-### Option B: Merge with the provided tool (recommended)
+### Option B: Merge manually (no tool provided)
 
-If you’ve already run GPTodoist on the new machine and don’t want to lose anything, merge instead of replace.
+This repository does not include a merge tool. If you have already created entries on the new machine and want to merge:
 
-1) Copy your old files anywhere on the new machine, then run:
-```bash
-source .venv/bin/activate
-# Merge diary (timesheets). Use --overwrite-existing-diary to replace duplicates.
-python tools/merge_state.py --old-diary /path/to/old/j_diary.json
+1) Open both old and new files side-by-side and reconcile manually:
+   - `j_diary.json`: merge per-day entries. Keep valid JSON; prefer the most complete record for overlapping dates.
+   - `j_todays_completed_tasks.json`: append missing entries, ensuring each item has a unique integer `id` and a `datetime` in `YYYY-MM-DD HH:MM:SS`.
+   - `j_number_of_todays_completed_tasks.json`: optional, it will be recalculated by the app as you complete tasks.
 
-# Merge completed tasks. Use --today-only to import just today’s tasks.
-python tools/merge_state.py --old-completed /path/to/old/j_todays_completed_tasks.json --today-only
-```
-
-The merge tool also recalculates `j_number_of_todays_completed_tasks.json` based on the current log.
+2) Save merged files to the new project root and run the app. The application will read these files via `state_manager`.
 
 2.  **Interaction:**
     *   The application will display the next task based on your active filter, completed task counts, and other status info.

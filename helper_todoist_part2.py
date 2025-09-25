@@ -12,8 +12,10 @@ import module_call_counter
 import helper_todoist_long
 from dateutil.parser import parse
 from rich import print
-import traceback # Import traceback for logging
+import traceback
 import state_manager # <<< ADDED: Import state manager
+import todoist_compat
+from helper_display import get_task_display_info
 
 # Import necessary functions from part1 or state_manager
 from helper_todoist_part1 import (
@@ -78,8 +80,7 @@ def fetch_todoist_tasks(api):
             raise TimeoutError("Todoist task fetch timed out after 5 seconds")
     # else: # Warning printed elsewhere
 
-    # <<< MODIFIED: Get filter query via state_manager >>>
-    active_filter_query, _ = state_manager.get_active_filter_details() # Project ID not needed here
+    active_filter_query, _ = state_manager.get_active_filter_details()
     if not active_filter_query:
         print("[red]Error: No active filter query found. Cannot fetch tasks.[/red]")
         return None # Return None to indicate failure
@@ -93,13 +94,7 @@ def fetch_todoist_tasks(api):
                 signal.signal(signal.SIGALRM, handler)
                 signal.alarm(5)
 
-            # <<< MODIFIED: Added comment explaining potential TypeError >>>
-            # Note: The following line uses the 'filter=' keyword argument.
-            # This is correct for todoist-api-python v2.x.
-            # If you encounter a TypeError "got an unexpected keyword argument 'filter'",
-            # ensure you have the correct library version installed (e.g., v2.1.3 or later v2.x)
-            # as specified or investigated per todo.txt.
-            tasks = api.get_tasks(filter=active_filter_query)
+            tasks = todoist_compat.get_tasks_by_filter(api, active_filter_query)
 
             if hasattr(signal, 'SIGALRM'): signal.alarm(0)
 
@@ -115,46 +110,93 @@ def fetch_todoist_tasks(api):
             for task in tasks:
                 try:
                     task.has_time = False
-                    if task.due:
+                    # Default fields
+                    task.due_string_raw = None
+                    task.is_recurring_flag = False
+
+                    if getattr(task, 'due', None):
                         task.due_string_raw = getattr(task.due, 'string', None)
                         task.is_recurring_flag = getattr(task.due, 'is_recurring', False)
-                        if task.due.datetime:
-                            parsed_dt = parse(task.due.datetime)
-                            if parsed_dt.tzinfo is None or parsed_dt.tzinfo.utcoffset(parsed_dt) is None:
-                                try:
-                                    london_dt = london_tz.localize(parsed_dt, is_dst=None)
-                                except pytz.exceptions.AmbiguousTimeError:
-                                     london_dt = london_tz.localize(parsed_dt, is_dst=True)
-                                except pytz.exceptions.NonExistentTimeError:
-                                     london_dt = parsed_dt # Keep naive
-                            else:
-                                london_dt = parsed_dt.astimezone(london_tz)
-                            task.due.datetime_localized = london_dt
-                            task.has_time = True
-                        elif task.due.date:
-                            due_date = parse(task.due.date).date()
-                            if due_date <= now_london.date():
-                                london_dt = london_tz.localize(datetime.datetime.combine(due_date, now_london.time()))
-                            else:
-                                london_dt = london_tz.localize(datetime.datetime.combine(due_date, datetime.time(0, 1)))
-                            task.due.datetime_localized = london_dt
-                            task.has_time = False
-                        else:
-                            task.due.datetime_localized = now_london
-                            task.has_time = False
-                            task.due_string_raw = None
-                            task.is_recurring_flag = False
-                    else:
-                        task.due = type("Due", (object,), {"datetime_localized": now_london, "string": None,"is_recurring": False})()
-                        task.has_time = False
-                        task.due_string_raw = None
-                        task.is_recurring_flag = False
 
-                    task.created_at_sortable = parse(task.created_at) if hasattr(task, 'created_at') and task.created_at else datetime.datetime.min.replace(tzinfo=pytz.utc)
+                        due_val = getattr(task.due, 'date', None)
+                        london_dt = None
+                        # due_val may be a string or a datetime depending on SDK parsing
+                        if due_val is not None:
+                            if isinstance(due_val, str):
+                                try:
+                                    # If the string contains time (T), parse as datetime; else parse as date
+                                    if 'T' in due_val:
+                                        dt = parse(due_val)
+                                        if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                                            try:
+                                                london_dt = london_tz.localize(dt, is_dst=None)
+                                            except pytz.exceptions.AmbiguousTimeError:
+                                                london_dt = london_tz.localize(dt, is_dst=True)
+                                            except pytz.exceptions.NonExistentTimeError:
+                                                london_dt = dt
+                                        else:
+                                            london_dt = dt.astimezone(london_tz)
+                                        task.has_time = True
+                                    else:
+                                        d = parse(due_val).date()
+                                        if d <= now_london.date():
+                                            london_dt = london_tz.localize(datetime.datetime.combine(d, now_london.time()))
+                                        else:
+                                            london_dt = london_tz.localize(datetime.datetime.combine(d, datetime.time(0, 1)))
+                                        task.has_time = False
+                                except Exception as e:
+                                    # Fall back to now if parsing fails
+                                    london_dt = now_london
+                                    task.has_time = False
+                            elif isinstance(due_val, datetime.datetime):
+                                dt = due_val
+                                if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                                    try:
+                                        london_dt = london_tz.localize(dt, is_dst=None)
+                                    except pytz.exceptions.AmbiguousTimeError:
+                                        london_dt = london_tz.localize(dt, is_dst=True)
+                                    except pytz.exceptions.NonExistentTimeError:
+                                        london_dt = dt
+                                else:
+                                    london_dt = dt.astimezone(london_tz)
+                                task.has_time = True
+                            elif isinstance(due_val, datetime.date):
+                                d = due_val
+                                if d <= now_london.date():
+                                    london_dt = london_tz.localize(datetime.datetime.combine(d, now_london.time()))
+                                else:
+                                    london_dt = london_tz.localize(datetime.datetime.combine(d, datetime.time(0, 1)))
+                                task.has_time = False
+                            else:
+                                # Unexpected type; default
+                                london_dt = now_london
+                                task.has_time = False
+                        else:
+                            london_dt = now_london
+                            task.has_time = False
+
+                        # Attach the computed localized datetime for downstream display/sorting
+                        setattr(task.due, 'datetime_localized', london_dt)
+                    else:
+                        # Create a lightweight due-like object to simplify rendering logic
+                        task.due = type('Due', (object,), { 'datetime_localized': now_london, 'string': None, 'is_recurring': False })()
+                        task.has_time = False
+
+                    # created_at can be string or datetime per SDK; normalize to datetime for sorting
+                    created_val = getattr(task, 'created_at', None)
+                    if isinstance(created_val, str):
+                        try:
+                            task.created_at_sortable = parse(created_val)
+                        except Exception:
+                            task.created_at_sortable = datetime.datetime.min.replace(tzinfo=pytz.utc)
+                    elif isinstance(created_val, datetime.datetime):
+                        task.created_at_sortable = created_val
+                    else:
+                        task.created_at_sortable = datetime.datetime.min.replace(tzinfo=pytz.utc)
+
                     processed_tasks.append(task)
                 except Exception as process_error:
                     print(f"[yellow]Warn: Err processing task {getattr(task, 'id', 'N/A')}: {process_error}. Skip.[/yellow]")
-                    # traceback.print_exc()
 
             # Sorting logic remains the same...
             sorted_final_tasks = sorted(
@@ -317,214 +359,16 @@ def get_next_todoist_task(api):
         print("Continuing...\n")
 
 
-def get_task_display_info(task, include_recurring_marker=True):
-    """
-    Generates a prefix string for task display including recurring (optional) and priority info.
-    (No file I/O - unchanged)
-    """
-    display_info = ""
-    if not task: return ""
-    try:
-        if include_recurring_marker:
-            if getattr(task, 'is_recurring_flag', False):
-                display_info += "[cyan](r)[/cyan] "
-        priority = getattr(task, 'priority', None)
-        if isinstance(priority, int) and priority > 1:
-             priority_map = {4: 1, 3: 2, 2: 3}
-             display_p = priority_map.get(priority)
-             if display_p:
-                 color_map = {1: "red", 2: "orange1", 3: "yellow"}
-                 color = color_map.get(display_p, "white")
-                 display_info += f"[bold {color}](p{display_p})[/bold {color}] "
-    except Exception as e:
-         print(f"[yellow]Warn: Err gen display info {getattr(task, 'id', 'N/A')}: {e}[/yellow]")
-    return display_info
+# moved: display_todoist_tasks
 
 
-def display_todoist_tasks(api):
-    """Fetches and displays all tasks from the active filter, formatted.
-    (Relies on fetch_todoist_tasks which is refactored - unchanged logic here)
-    """
-    print("[cyan]Fetching tasks for display...[/cyan]")
-    tasks = fetch_todoist_tasks(api) # Uses refactored fetch
-    if tasks is None:
-        print("[red]Could not fetch tasks to display.[/red]")
-        return
-    if not tasks:
-        print("[green]No tasks found matching the active filter.[/green]")
-        return
-
-    print("[bold magenta]--- Current Tasks ---[/bold magenta]")
-    display_data = []
-    # Pre-processing and display logic remains the same...
-    for task in tasks:
-        try:
-            base_display_info = get_task_display_info(task, include_recurring_marker=False)
-            recurring_schedule_prefix = ""
-            due_display = "(No due date)"
-            is_recurring = getattr(task, 'is_recurring_flag', False)
-            due_string = getattr(task, 'due_string_raw', None)
-            if is_recurring:
-                recurring_schedule_prefix = f"[cyan](r) {due_string}[/cyan] - " if due_string else "[cyan](r)[/cyan] "
-            if task.due and hasattr(task.due, 'datetime_localized') and task.due.datetime_localized:
-                 try:
-                    london_tz = pytz.timezone("Europe/London")
-                    now_utc = datetime.datetime.now(timezone.utc)
-                    now_london = now_utc.astimezone(london_tz)
-                    if hasattr(task.due.datetime_localized, 'tzinfo') and task.due.datetime_localized.tzinfo is not None:
-                        time_diff = abs(task.due.datetime_localized - now_london)
-                        is_effectively_now = time_diff < timedelta(seconds=1)
-                        if not (is_effectively_now and not getattr(task, 'has_time', False)):
-                            if getattr(task, 'has_time', False):
-                                due_display = task.due.datetime_localized.strftime("%Y-%m-%d %H:%M")
-                            else:
-                                due_display = task.due.datetime_localized.strftime("%Y-%m-%d") + " All day"
-                    else:
-                         due_display = f"{task.due.datetime_localized.strftime('%Y-%m-%d %H:%M')} ?TZ?"
-                 except Exception: due_display = "(Due Error)"
-            elif due_string: due_display = due_string
-            display_data.append({
-                "prefix": base_display_info, "recurring_prefix": recurring_schedule_prefix,
-                "due": due_display, "content": getattr(task, 'content', 'Unknown'),
-                "description": getattr(task, 'description', None) })
-        except Exception as e:
-             print(f"[yellow]Warn: Err proc task {getattr(task, 'id', 'N/A')} for disp: {e}[/yellow]")
-             traceback.print_exc()
-
-    max_due_len = 0
-    if display_data:
-        try: max_due_len = max(len(data['due']) for data in display_data)
-        except ValueError: pass
-    tab = "    "
-    for data in display_data:
-        try:
-            due_padded = data['due'].ljust(max_due_len)
-            full_prefix = data['prefix'] + data['recurring_prefix']
-            line = f"{due_padded}{tab}{full_prefix}{data['content']}"
-            print(line)
-            if data['description']:
-                desc_indent = " " * (max_due_len + len(tab))
-                for desc_line in data['description'].splitlines():
-                     print(f"{desc_indent}[italic blue]Desc: {desc_line}[/italic blue]")
-        except Exception as e:
-            print(f"[red]Err print line '{data.get('content', 'N/A')}': {e}[/red]")
-            traceback.print_exc()
-    print("[bold magenta]---------------------[/bold magenta]")
+from helper_display import check_if_grafting
 
 
-def check_if_grafting(api):
-     """Checks if the graft file exists and displays graft status using state_manager."""
-     # <<< MODIFIED: Use state_manager >>>
-     grafted_tasks = state_manager.get_grafted_tasks()
-
-     if grafted_tasks is None:
-          # File doesn't exist, not grafting
-          return False
-     elif not grafted_tasks:
-          # File was empty or invalid (state manager cleared it)
-          return False
-     else:
-          # Valid grafted tasks exist
-          print("[bold red]*** GRAFT MODE ACTIVE ***[/bold red]")
-          print("[yellow]Focus on these tasks:[/yellow]")
-          for i, task in enumerate(grafted_tasks):
-              # Assume state_manager returned only valid tasks
-              index = task.get("index", i + 1) # Use index if present, fallback to list order
-              print(f"  {index}. {task['task_name']}")
-          print()
-          return True
+from helper_task_edit import rename_todoist_task
 
 
-def rename_todoist_task(api, user_message):
-    """Renames the active Todoist task using state_manager."""
-    try:
-        if not user_message.lower().startswith("rename "):
-            print("[red]Invalid format. Use 'rename <new task name>'.[/red]")
-            return False
-        new_task_name = user_message[len("rename "):].strip()
-        if not new_task_name:
-            print("[yellow]No new task name provided.[/yellow]")
-            return False
-
-        # <<< MODIFIED: Get active task via state_manager >>>
-        active_task = state_manager.get_active_task()
-        if not active_task:
-            print(f"[red]Error: Active task file not found or invalid. Cannot rename.[/red]")
-            return False
-        task_id = active_task.get("task_id")
-        if not task_id:
-             print(f"[red]Error: 'task_id' missing in active task data.[/red]")
-             return False
-
-        task = api.get_task(task_id) # Verify task exists
-        if not task:
-            print(f"[yellow]Task ID {task_id} not found. Cannot rename.[/yellow]")
-            state_manager.clear_active_task()
-            return False
-
-        print(f"[cyan]Renaming task '{task.content}' to '{new_task_name}'[/cyan]")
-        update_success = api.update_task(task_id=task_id, content=new_task_name)
-
-        if update_success:
-            print(f"[green]Task successfully renamed to: '{new_task_name}'[/green]")
-            # <<< MODIFIED: Update active task via state_manager wrapper >>>
-            add_to_active_task_file(new_task_name, task_id, active_task.get("task_due"))
-            return True
-        else:
-            print(f"[red]Failed to rename task ID {task_id} via API.[/red]")
-            return False
-
-    except Exception as error:
-        print(f"[red]An unexpected error occurred renaming task: {error}[/red]")
-        traceback.print_exc()
-        return False
-
-
-def change_active_task_priority(api, user_message):
-    """Changes the priority of the active Todoist task using state_manager."""
-    try:
-        parts = user_message.lower().split()
-        if len(parts) < 2 or not parts[-1].isdigit():
-             print("[red]Invalid format. Use 'priority <1|2|3|4>'.[/red]")
-             return False
-        priority_level_str = parts[-1]
-        if priority_level_str not in ["1", "2", "3", "4"]:
-            print("[red]Invalid priority level. Use 1-4.[/red]")
-            return False
-        priority_map = {"1": 4, "2": 3, "3": 2, "4": 1}
-        todoist_priority = priority_map[priority_level_str]
-
-        # <<< MODIFIED: Get active task via state_manager >>>
-        active_task = state_manager.get_active_task()
-        if not active_task:
-            print(f"[red]Error: Active task not found. Cannot change priority.[/red]")
-            return False
-        task_id = active_task.get("task_id")
-        if not task_id:
-             print(f"[red]Error: 'task_id' missing in active task data.[/red]")
-             return False
-
-        task = api.get_task(task_id) # Verify task exists
-        if not task:
-            print(f"[yellow]Task ID {task_id} not found.[/yellow]")
-            state_manager.clear_active_task()
-            return False
-
-        print(f"[cyan]Changing priority of '{task.content}' to P{priority_level_str}[/cyan]")
-        update_success = api.update_task(task_id=task_id, priority=todoist_priority)
-
-        if update_success:
-            print(f"[green]Task priority updated to P{priority_level_str}.[/green]")
-            # Note: Active task file doesn't store priority, so no update needed there
-            return True
-        else:
-            print(f"[red]Failed to update priority for task ID {task_id} via API.[/red]")
-            return False
-
-    except Exception as error:
-        print(f"[red]An unexpected error occurred changing priority: {error}[/red]")
-        traceback.print_exc()
-        return False
+from helper_task_edit import change_active_task_priority
 
 # Apply call counter decorator (No changes needed)
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

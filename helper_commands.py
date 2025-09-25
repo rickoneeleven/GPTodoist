@@ -17,12 +17,9 @@ from helper_todoist_part1 import (
     delete_todoist_task,
     change_active_task,
 )
-from helper_todoist_part2 import (
-    display_todoist_tasks,
-    add_todoist_task,
-    rename_todoist_task,
-    change_active_task_priority,
-)
+from helper_display import display_todoist_tasks
+from helper_todoist_part2 import add_todoist_task
+from helper_task_edit import rename_todoist_task, change_active_task_priority
 
 # --- Command Constants ---
 # Exact Commands

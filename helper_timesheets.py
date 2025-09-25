@@ -531,7 +531,8 @@ def timesheet():
 
         try:
             print("\n[cyan]Refreshing current Todoist tasks view...[/cyan]")
-            helper_todoist_part2.display_todoist_tasks(api)
+            from helper_display import display_todoist_tasks
+            display_todoist_tasks(api)
         except Exception as e_current_tasks:
             print(f"[red]Error displaying current Todoist tasks post-timesheet: {e_current_tasks}[/red]")
 

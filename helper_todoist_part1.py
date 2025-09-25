@@ -11,6 +11,7 @@ from datetime import timedelta, timezone
 from rich import print
 import state_manager
 from typing import Optional, Tuple # <<< ADDED: Import Optional and Tuple
+import todoist_compat
 
 # <<< REMOVED: Constants for j_todoist_filters.json, j_active_task.json, etc. >>>
 
@@ -59,7 +60,7 @@ def complete_todoist_task_by_id(api, task_id, skip_logging=False):
             return False
 
         task_name = task.content
-        success = api.close_task(task_id=task_id)
+        success = todoist_compat.complete_task(api, task_id)
 
         if hasattr(signal, 'SIGALRM'): signal.alarm(0) # Disable alarm after API call
 
@@ -125,7 +126,7 @@ def complete_active_todoist_task(api, skip_logging=False):
                 if hasattr(signal, 'SIGALRM'): signal.alarm(0)
                 return False # Task gone
 
-            success = api.close_task(task_id=task_id)
+            success = todoist_compat.complete_task(api, task_id)
             if hasattr(signal, 'SIGALRM'): signal.alarm(0)
 
             if success:
@@ -194,7 +195,7 @@ def postpone_due_date(api, user_message):
         is_recurring = task.due and task.due.is_recurring
         if is_recurring:
             print(f"[cyan]Postponing recurring task '{task.content}' by creating new instance.[/cyan]")
-            close_success = api.close_task(task_id=task.id)
+            close_success = todoist_compat.complete_task(api, task.id)
             # Log completion (not skipped) - uses state manager
             if close_success:
                  log_entry = {"task_name": task.content}
@@ -376,54 +377,6 @@ def print_completed_tasks_count():
     count = state_manager.get_completed_tasks_count()
     print(f"Tasks completed today: {count}")
 
-
-# <<< KEPT: update_recurrence_patterns (No file I/O relevant to state_manager) >>>
-def update_recurrence_patterns(api):
-    """Updates recurring long tasks using 'every ' to 'every! '."""
-    updated_count = 0
-    error_count = 0
-    try:
-        import helper_todoist_long # Import locally
-        project_id = helper_todoist_long.get_long_term_project_id(api)
-        if not project_id: return
-
-        tasks = api.get_tasks(project_id=project_id)
-        if tasks is None:
-             print("[yellow]Could not retrieve 'Long Term Tasks'.[/yellow]")
-             return
-
-        tasks_to_update = []
-        for task in tasks:
-            if task.due and hasattr(task.due, 'string') and isinstance(task.due.string, str):
-                due_string = task.due.string.lower()
-                if task.due.is_recurring and 'every ' in due_string and 'every!' not in due_string:
-                    tasks_to_update.append(task)
-
-        if not tasks_to_update: return
-
-        print(f"[cyan]Found {len(tasks_to_update)} long tasks needing 'every ' -> 'every!'.[/cyan]")
-        for task in tasks_to_update:
-            try:
-                current_due_string = task.due.string
-                new_due_string = current_due_string.replace('every ', 'every! ')
-                if new_due_string == current_due_string: continue
-
-                print(f"  Updating: '{task.content}' ('{current_due_string}' -> '{new_due_string}')")
-                update_success = api.update_task(task_id=task.id, due_string=new_due_string)
-                if update_success:
-                    updated_count += 1
-                else:
-                    print(f"  [red]API failed updating task ID {task.id}.[/red]")
-                    error_count += 1
-            except Exception as e:
-                print(f"[red]Error updating task '{task.content}': {e}[/red]")
-                error_count += 1
-
-        if updated_count > 0 or error_count > 0:
-             print(f"[cyan]Recurrence update finished. Updated: {updated_count}, Errors: {error_count}[/cyan]")
-
-    except Exception as e:
-        print(f"[red]Unexpected error during recurrence update: {e}[/red]")
 
 
 # Apply call counter decorator (No changes needed)
