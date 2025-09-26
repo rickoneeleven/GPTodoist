@@ -1,5 +1,8 @@
 import re, datetime, os
+import json
+from typing import Dict, Any
 import module_call_counter
+from requests.exceptions import HTTPError
 from rich import print
 import todoist_compat
 from datetime import timedelta
@@ -29,21 +32,87 @@ def create_task(api, task_content, task_type="normal", options=None):
         
         # Create the task
         task = api.add_task(**task_params)
-        
+
         if not task:
             print("[red]Failed to add task.[/red]")
             return None
-            
-        # Handle post-creation tasks (like setting due dates)
-        if parsed_data["due_string"]:
-            api.update_task(task_id=task.id, due_string=parsed_data["due_string"])
-            print(f"Task due date set to '{parsed_data['due_string']}'.")
-        
+
+        _apply_post_create_updates(api, task.id, parsed_data)
         return task
-        
+
+    except HTTPError as error:
+        payload = _parse_http_error_payload(error)
+        if _is_legacy_id_error(payload):
+            fallback_task = _retry_with_quick_add(api, parsed_data, options)
+            if fallback_task:
+                return fallback_task
+        _print_http_error("Error creating task", error, payload)
+        return None
     except Exception as error:
         print(f"[red]Error creating task: {error}[/red]")
         return None
+
+
+def _apply_post_create_updates(api, task_id: str, parsed_data: Dict[str, Any]) -> None:
+    update_args: Dict[str, Any] = {}
+    if parsed_data["priority"]:
+        update_args["priority"] = parsed_data["priority"]
+    if parsed_data["due_string"]:
+        update_args["due_string"] = parsed_data["due_string"]
+
+    if update_args:
+        api.update_task(task_id=task_id, **update_args)
+        if parsed_data["due_string"]:
+            print(f"Task due date set to '{parsed_data['due_string']}'.")
+
+
+def _parse_http_error_payload(error: HTTPError) -> Dict[str, Any] | None:
+    response = getattr(error, "response", None)
+    if response is None:
+        return None
+    try:
+        return response.json()
+    except ValueError:
+        text = response.text.strip()
+        return {"text": text} if text else None
+
+
+def _is_legacy_id_error(payload: Dict[str, Any] | None) -> bool:
+    if not payload:
+        return False
+    return payload.get("error_tag") == "V1_ID_CANNOT_BE_USED"
+
+
+def _retry_with_quick_add(api, parsed_data: Dict[str, Any], options: Dict[str, Any]):
+    project_name = options.get("project_name")
+    if not project_name:
+        return None
+
+    content = parsed_data["content"].replace("\n", " ").strip()
+    fallback_text = f"{content} #{project_name}" if content else f"#{project_name}"
+    legacy_id = options.get("project_id")
+    print(f"[yellow]Project ID '{legacy_id}' was rejected. Retrying via Quick Add using '#{project_name}'.[/yellow]")
+
+    try:
+        task = api.add_task_quick(fallback_text)
+        if not task:
+            print("[red]Quick Add fallback failed to return a task.[/red]")
+            return None
+
+        _apply_post_create_updates(api, task.id, parsed_data)
+        print(f"[green]Task added to '#{project_name}' via Quick Add fallback.[/green]")
+        return task
+    except HTTPError as quick_error:
+        payload = _parse_http_error_payload(quick_error)
+        _print_http_error("Quick Add fallback failed", quick_error, payload)
+        return None
+
+
+def _print_http_error(message: str, error: HTTPError, payload: Dict[str, Any] | None) -> None:
+    if payload:
+        print(f"[red]{message}: {error} -> {json.dumps(payload)}[/red]")
+    else:
+        print(f"[red]{message}: {error}[/red]")
 
 def parse_task_content(task_content):
     """Extract scheduling and priority information from task content.

@@ -1,4 +1,3 @@
-# File: helper_todoist_part1.py (Imports Only)
 import dateutil.parser
 import datetime
 import sys
@@ -10,23 +9,14 @@ from dateutil.parser import parse
 from datetime import timedelta, timezone
 from rich import print
 import state_manager
-from typing import Optional, Tuple # <<< ADDED: Import Optional and Tuple
+from typing import Optional, Tuple
 import todoist_compat
-
-# <<< REMOVED: Constants for j_todoist_filters.json, j_active_task.json, etc. >>>
-
-# --- Functions ---
 
 def change_active_task():
     """Toggles the active filter using the state manager."""
-    # <<< MODIFIED: Use state_manager.toggle_active_filter >>>
     if not state_manager.toggle_active_filter():
         print("[red]Failed to toggle active filter.[/red]")
-    # Success/failure message handled by state_manager or logged above
 
-# <<< REMOVED: get_device_id function (logic moved to state_manager) >>>
-
-# <<< MODIFIED: add_to_active_task_file becomes a wrapper for state_manager.set_active_task >>>
 def add_to_active_task_file(task_name: str, task_id: str, task_due: Optional[str]):
     """Sets the active task details using the state manager."""
     active_task_details = {
@@ -35,9 +25,30 @@ def add_to_active_task_file(task_name: str, task_id: str, task_due: Optional[str
         "task_due": task_due, # Pass due info (can be None)
         # device_id and last_updated are added by state_manager
     }
-    # <<< MODIFIED: Call state_manager >>>
     if not state_manager.set_active_task(active_task_details):
         print(f"[red]Failed to save active task: {task_name}[/red]")
+
+
+def _due_datetime_iso(due_obj) -> Optional[str]:
+    if due_obj is None:
+        return None
+
+    def _iso(value):
+        if isinstance(value, datetime.datetime):
+            return value.isoformat()
+        if isinstance(value, str) and "T" in value:
+            return value
+        return None
+
+    for attr in ("datetime", "date", "datetime_localized"):
+        value = getattr(due_obj, attr, None)
+        if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+            continue
+        iso_value = _iso(value)
+        if iso_value:
+            return iso_value
+
+    return None
 
 
 # --- Task Completion ---
@@ -224,7 +235,7 @@ def postpone_due_date(api, user_message):
                 print(f"[green]Task postponed successfully to '{due_string}'.[/green]")
                 # Update active task file with new due info
                 # <<< MODIFIED: Use state_manager wrapper function >>>
-                add_to_active_task_file(updated_task.content, updated_task.id, updated_task.due.datetime if updated_task.due else None)
+                add_to_active_task_file(updated_task.content, updated_task.id, _due_datetime_iso(updated_task.due))
             else:
                 print(f"[red]Error: Failed to update task '{task.content}' due date.[/red]")
 
@@ -309,7 +320,7 @@ def check_and_update_task_due_date(api, user_message):
             if verification_task and verification_task.due and verification_task.due.string:
                 print(f"[green]Task due date updated. Verified due: '{verification_task.due.string}'[/green]")
                 # <<< MODIFIED: Use wrapper to update active task file >>>
-                add_to_active_task_file(verification_task.content, verification_task.id, verification_task.due.datetime if verification_task.due else None)
+                add_to_active_task_file(verification_task.content, verification_task.id, _due_datetime_iso(verification_task.due))
                 return True
             else:
                 if is_recurring:

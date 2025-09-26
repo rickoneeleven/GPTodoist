@@ -48,11 +48,13 @@ def add_todoist_task(api, user_message):
         else:
             print("[cyan]No project ID set in active filter; task will use default.[/cyan]")
 
+        project_name = _extract_primary_project_name(active_filter_query)
+
         task = helper_task_factory.create_task(
             api=api,
             task_content=task_content,
             task_type="normal",
-            options={"project_id": project_id} # Pass project_id from filter details
+            options={"project_id": project_id, "project_name": project_name} # Pass identifiers for fallback logic
         )
 
         if task:
@@ -70,6 +72,13 @@ def add_todoist_task(api, user_message):
         print(f"[red]An unexpected error occurred adding task: {error}[/red]")
         traceback.print_exc()
         return None
+
+
+def _extract_primary_project_name(filter_query: str | None) -> str | None:
+    if not filter_query:
+        return None
+    matches = re.findall(r"#([A-Za-z0-9_\-]+)", filter_query)
+    return matches[0] if matches else None
 
 
 def fetch_todoist_tasks(api):
