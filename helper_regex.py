@@ -1,5 +1,8 @@
 import module_call_counter, helper_todoist_part1, helper_todoist_part2
 import re, os
+import datetime
+import pytz
+from dateutil.parser import parse
 from fuzzywuzzy import process
 from rich import print
 from todoist_api_python.api import TodoistAPI
@@ -15,6 +18,34 @@ def complete_todoist_task_by_title(user_message):
         helper_todoist_part1.complete_todoist_task_by_id(api, task_id)
         #print(f"[green]Task ID: {task_id} complete[/green]")
 
+def _format_next_due(due):
+    if not due:
+        return None
+    london = pytz.timezone("Europe/London")
+    dt_val = getattr(due, "datetime", None)
+    if dt_val is not None:
+        try:
+            dt = parse(dt_val) if isinstance(dt_val, str) else dt_val
+            if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                try:
+                    dt = london.localize(dt, is_dst=None)
+                except Exception:
+                    pass
+            else:
+                dt = dt.astimezone(london)
+            return dt.strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            return None
+    date_val = getattr(due, "date", None)
+    if date_val:
+        try:
+            d = parse(date_val).date() if isinstance(date_val, str) else date_val
+            return f"{d.strftime('%Y-%m-%d')} All day"
+        except Exception:
+            return str(date_val)
+    return None
+
+
 def search_todoist_tasks(user_message):
     # Strip "|||" from user_message
     search_term = user_message.lstrip("|").strip()
@@ -27,19 +58,23 @@ def search_todoist_tasks(user_message):
 
         print("\n[cyan]Found matching tasks:[/cyan]")
         for task in tasks:
-            # Format the task display similar to display_todoist_tasks
-            due_info = ""
+            parts = []
             if task.due:
-                if task.due.is_recurring:
-                    due_info += "(r) "
-                if task.due.string:
-                    due_info += f"{task.due.string} | "
+                if getattr(task.due, "is_recurring", False):
+                    parts.append("(r)")
+                if getattr(task.due, "string", None):
+                    parts.append(task.due.string)
+                nxt = _format_next_due(task.due)
+                if nxt:
+                    parts.append(f"Next: {nxt}")
+            due_info = " | ".join(parts)
             
             priority_label = ""
             if task.priority and task.priority < 4:
                 priority_label = f"(p{5 - task.priority}) "
                 
-            print(f"{due_info}{priority_label}{task.content}")
+            prefix = f"{due_info} " if due_info else ""
+            print(f"{prefix}{priority_label}{task.content}")
             if task.description:
                 print(f"[italic blue]{task.description}[/italic blue]")
         print()
