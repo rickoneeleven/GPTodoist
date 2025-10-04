@@ -33,11 +33,13 @@ def create_task(api, task_content, task_type="normal", options=None):
         # Create the task
         task = api.add_task(**task_params)
 
-        if not task:
+        # Verify the API returned a task with an id
+        task_id = getattr(task, "id", None)
+        if not task or not task_id:
             print("[red]Failed to add task.[/red]")
             return None
 
-        _apply_post_create_updates(api, task.id, parsed_data)
+        _apply_post_create_updates(api, task_id, parsed_data)
         return task
 
     except HTTPError as error:
@@ -49,7 +51,12 @@ def create_task(api, task_content, task_type="normal", options=None):
         _print_http_error("Error creating task", error, payload)
         return None
     except Exception as error:
-        print(f"[red]Error creating task: {error}[/red]")
+        # Surface clearer feedback for common parsing mistakes in due strings
+        msg = str(error).lower()
+        if "due" in msg or "date" in msg or "invalid" in msg:
+            print("[red]Task not created: invalid or unrecognized date/time. Please adjust the due text and try again.[/red]")
+        else:
+            print(f"[red]Error creating task: {error}[/red]")
         return None
 
 
