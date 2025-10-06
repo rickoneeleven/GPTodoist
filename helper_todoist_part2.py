@@ -57,12 +57,31 @@ def add_todoist_task(api, user_message):
             options={"project_id": project_id, "project_name": project_name} # Pass identifiers for fallback logic
         )
 
-        if task:
+        if task and getattr(task, "id", None):
             # Task factory handles success/failure messages
             # Consider displaying tasks after adding?
             # display_todoist_tasks(api)
+            task_id = getattr(task, 'id', 'N/A')
+            due_string = getattr(getattr(task, 'due', None), 'string', None)
+            # Attempt to find a concrete next due datetime; prefer the SDK's datetime/ date
+            due_obj = getattr(task, 'due', None)
+            next_due = None
+            if due_obj is not None:
+                # Todoist SDK v2 may expose 'datetime' (ISO string) or 'date'
+                next_due = getattr(due_obj, 'datetime', None) or getattr(due_obj, 'date', None)
+            schedule_str = due_string if due_string else ''
+            next_due_str = next_due if next_due else ''
+            details = []
+            details.append(f"id={task_id}")
+            if schedule_str:
+                details.append(f"schedule: {schedule_str}")
+            if next_due_str:
+                details.append(f"next due: {next_due_str}")
+            info = ", ".join(details)
+            print(f"[green]Task created successfully. {info}[/green]")
             return task
         else:
+            print("[red]Task creation failed.[/red]")
             return None
 
     except ImportError:
