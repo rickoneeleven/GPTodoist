@@ -29,11 +29,6 @@ A command-line interface (CLI) tool designed for efficient interaction with your
     pip install -r requirements.txt
     ```
 
-5.  **Deactivating the Environment:**
-    ```bash
-    deactivate
-    ```
-
 ## Configuration
 
 1.  **Todoist API Key:**
@@ -84,51 +79,6 @@ A command-line interface (CLI) tool designed for efficient interaction with your
     python main.py
     ```
 
-## Migrating State (Old -> New)
-
-If you used GPTodoist on another machine, copy your state files to avoid missing-timesheets alerts and to bring over today’s completed items.
-
-- Key files in the project root on the old machine:
-  - `j_diary.json` — timesheets/diary entries (used for the weekly audit)
-  - `j_todays_completed_tasks.json` — rolling log of completed tasks (all days)
-  - `j_number_of_todays_completed_tasks.json` — today’s completed count (recomputed by the merge tool)
-
-### Option A: Straight copy (replace)
-
-1) On the old machine (from the project root):
-```bash
-tar -czf gptodoist-state.tar.gz j_diary.json j_todays_completed_tasks.json j_number_of_todays_completed_tasks.json || true
-```
-
-2) Transfer the archive to the new machine and extract it in the new project root:
-```bash
-scp <old>:/path/to/repo/gptodoist-state.tar.gz .
-tar -xzf gptodoist-state.tar.gz
-```
-
-### Option B: Merge manually (no tool provided)
-
-This repository does not include a merge tool. If you have already created entries on the new machine and want to merge:
-
-1) Open both old and new files side-by-side and reconcile manually:
-   - `j_diary.json`: merge per-day entries. Keep valid JSON; prefer the most complete record for overlapping dates.
-   - `j_todays_completed_tasks.json`: append missing entries, ensuring each item has a unique integer `id` and a `datetime` in `YYYY-MM-DD HH:MM:SS`.
-   - `j_number_of_todays_completed_tasks.json`: optional, it will be recalculated by the app as you complete tasks.
-
-2) Save merged files to the new project root and run the app. The application will read these files via `state_manager`.
-
-2.  **Interaction:**
-    *   The application will display the next task based on your active filter, completed task counts, and other status info.
-    *   It will then prompt you for input (`You: `).
-    *   **Multi-line Input:**
-        *   Type your command. For multi-line commands or notes, press Enter to go to the next line.
-        *   End a single line and submit immediately by typing `qq` at the end of the line (e.g., `add task My new task qq`).
-        *   Submit all lines typed so far by entering `!!` on a new line.
-        *   Clear all lines typed so far (before submitting) by entering `ignore` on a new line.
-    *   Enter a command and press Enter (or use the multi-line triggers).
-
-3.  **Exit:** Press `CTRL+C`.
-
 ## Commands Reference
 
 Commands are matched case-insensitively.
@@ -176,3 +126,10 @@ Commands are matched case-insensitively.
 *   `diary`: Shows a summary of diary entries (prompts for day or week).
 *   `diary <objective>`: Updates the `overall_objective` field for today's entry in the diary file (`j_diary.json`).
 *   `timesheet`: Initiates the process to generate a timesheet entry in the diary file (`j_diary.json`) based on selecting tasks from the daily completed list (`j_todays_completed_tasks.json`).
+
+## Todoist SDK Upgrade Note
+
+- Upgraded the Python Todoist SDK to 3.x (`requirements.txt` uses `todoist_api_python>=3.1.0,<4`; `pyproject.toml` uses `todoist-api-python = "^3.1.0"`). 
+- The SDK is a client for the Todoist REST API. We do not upgrade the remote API; we upgrade the local SDK package and adjust code if needed.
+- A small compatibility layer (`todoist_compat.py`) smooths over SDK differences (for example `get_tasks(filter=...)` vs `filter_tasks(query=...)`, and `complete_task` vs `close_task`) and adds retry/backoff.
+- If the REST API evolves, the SDK releases updates. In practice you just bump the SDK version here; no manual API upgrade is required unless you are making raw HTTP calls yourself (we are not).
