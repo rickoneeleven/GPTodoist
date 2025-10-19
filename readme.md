@@ -1,4 +1,4 @@
-DATETIME of last agent review: 25/09/2025 14:55
+DATETIME of last agent review: 19/10/2025 18:49
 
 # Todoist CLI Helper
 
@@ -118,6 +118,7 @@ Commands are matched case-insensitively.
 *   `time long <index> <schedule>`: Reschedules the long-term task with the specified `[index]` using the `<schedule>` string (e.g., `time long 5 every! monday 9am`).
 *   `skip long <index>`: "Touches" the long-term task with `[index]`. Completes recurring instances, pushes non-recurring to tomorrow. Does *not* log completion.
 *   `touch long <index>`: "Touches" the long-term task with `[index]`. Completes recurring instances, pushes non-recurring to tomorrow. *Logs* non-recurring touches to the daily completed list.
+*   `hide long <index>`: Hides the long-term task with `[index]` from today's due view only. Local-only, auto-resets each day (Europe/London). Does not affect `show long all`.
 *   `rename long <index> <new_name>`: Renames the long-term task with `[index]`, preserving the index prefix.
 *   `delete long <index>`: Deletes the long-term task with `[index]` from Todoist.
 
