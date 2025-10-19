@@ -38,5 +38,10 @@ from long_term_display import (
     display_all_long_tasks
 )
 
+from long_term_hide import (
+    hide_task_for_today,
+    get_hidden_indices_for_today,
+)
+
 # Apply call counter to all imported functions
 module_call_counter.apply_call_counter_to_all(globals(), __name__)

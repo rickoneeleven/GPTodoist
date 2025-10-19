@@ -5,6 +5,7 @@ from datetime import datetime, date, time
 from dateutil.parser import parse
 from rich import print
 from long_term_core import get_long_term_project_id, is_task_recurring, is_task_due_today_or_earlier
+from long_term_hide import get_hidden_indices_for_today
 import todoist_compat
 
 
@@ -145,9 +146,11 @@ def get_categorized_tasks(api):
         if not indexed_tasks_map:
             return [], []
 
+        hidden_today = get_hidden_indices_for_today()
+
         filtered_tasks = [
             task for task in indexed_tasks_map.values()
-            if is_task_due_today_or_earlier(task)
+            if is_task_due_today_or_earlier(task) and get_sort_index(task) not in hidden_today
         ]
 
         one_shot_tasks = []

@@ -1,4 +1,3 @@
-# File: helper_commands.py
 import subprocess
 import module_call_counter
 import helper_diary
@@ -9,7 +8,6 @@ import helper_todoist_long
 from rich import print
 import traceback
 
-# Import specific functions from todoist helpers to clarify dependencies
 from helper_todoist_part1 import (
     complete_active_todoist_task,
     check_and_update_task_due_date,
@@ -21,8 +19,6 @@ from helper_display import display_todoist_tasks
 from helper_todoist_part2 import add_todoist_task
 from helper_task_edit import rename_todoist_task, change_active_task_priority
 
-# --- Command Constants ---
-# Exact Commands
 CMD_DONE = "done"
 CMD_SKIP = "skip"
 CMD_DELETE = "delete"
@@ -32,12 +28,11 @@ CMD_SHOW_ALL = "show all"
 CMD_COMPLETED = "completed"
 CMD_SHOW_COMPLETED = "show completed"
 CMD_SHOW_LONG = "show long"
-CMD_SHOW_LONG_ALL = "show long all" # <-- New Command Constant
+CMD_SHOW_LONG_ALL = "show long all"
 CMD_DIARY = "diary"
 CMD_TIMESHEET = "timesheet"
 CMD_CLEAR = "clear"
 
-# Prefix Commands
 PREFIX_FUZZY_COMPLETE = "~~~"
 PREFIX_ADHOC_COMPLETE = "xx "
 PREFIX_TIME = "time "
@@ -48,6 +43,7 @@ PREFIX_ADD_TASK = "add task "
 PREFIX_TIME_LONG = "time long "
 PREFIX_SKIP_LONG = "skip long "
 PREFIX_TOUCH_LONG = "touch long "
+PREFIX_HIDE_LONG = "hide long "
 PREFIX_ADD_LONG = "add long "
 PREFIX_RENAME_LONG = "rename long "
 PREFIX_DELETE_LONG = "delete long "
@@ -56,10 +52,7 @@ PREFIX_POSTPONE_LONG = "postpone long "
 PREFIX_FUZZY_SEARCH = "|||"
 PREFIX_DIARY_UPDATE = "diary "
 
-# --- Helper Functions ---
-
 def _parse_long_task_index(user_message: str, command_prefix: str) -> (int | None):
-    """Parses the index from commands like 'skip long <index>'."""
     try:
         parts = user_message.split()
         if len(parts) < 3:
@@ -72,7 +65,6 @@ def _parse_long_task_index(user_message: str, command_prefix: str) -> (int | Non
         return None
 
 def _parse_long_task_index_and_value(user_message: str, command_prefix: str, value_name: str) -> (tuple[int, str] | None):
-    """Parses index and remaining value for commands like 'time long <index> <schedule>'."""
     if len(user_message) <= len(command_prefix):
         print(f"[red]Invalid format. Usage: '{command_prefix.strip()} <index> <{value_name}>'[/red]")
         return None
@@ -98,9 +90,6 @@ def _parse_long_task_index_and_value(user_message: str, command_prefix: str, val
         print(f"[red]Invalid index format '{index_str}'. Index must be a number.[/red]")
         return None
 
-# --- Command Handler Functions ---
-# Each handler returns True if the command was recognized and handled (even if an error occurred during handling),
-# otherwise it shouldn't be called or would implicitly return None (interpreted as False by the dispatcher).
 
 def _handle_done(api, user_message):
     subprocess.call("reset")
@@ -150,7 +139,6 @@ def _handle_flip(api, user_message):
 
 def _handle_add_task(api, user_message):
     add_todoist_task(api, user_message)
-    # Consider calling display_todoist_tasks(api) after adding?
     return True
 
 def _handle_time_long(api, user_message):
@@ -199,7 +187,6 @@ def _handle_add_long(api, user_message):
          return True # Handled (as invalid)
     try:
         helper_todoist_long.add_task(api, task_name)
-        # Consider calling helper_todoist_long.display_tasks(api) after adding?
     except Exception as e:
         print(f"[red]Error adding long task ('{task_name}'): {e}[/red]")
         traceback.print_exc()
@@ -215,8 +202,6 @@ def _handle_rename_long(api, user_message):
         renamed_task = helper_todoist_long.rename_task(api, index, new_name)
         if renamed_task:
             subprocess.call("reset")
-            # Optionally display long tasks after rename:
-            # helper_todoist_long.display_tasks(api)
     except Exception as e:
         print(f"[red]Error renaming long task (Index: {index}, New Name: '{new_name}'): {e}[/red]")
         traceback.print_exc()
@@ -231,8 +216,6 @@ def _handle_delete_long(api, user_message):
         deleted_task = helper_todoist_long.delete_task(api, index)
         if deleted_task:
             subprocess.call("reset")
-             # Optionally display long tasks after delete:
-             # helper_todoist_long.display_tasks(api)
     except Exception as e:
         print(f"[red]Error deleting long task (Index: {index}): {e}[/red]")
         traceback.print_exc()
@@ -256,8 +239,6 @@ def _handle_priority_long(api, user_message):
         updated_task = helper_todoist_long.change_task_priority(api, index, priority_level)
         if updated_task:
             subprocess.call("reset")
-            # Optionally display long tasks after priority change:
-            # helper_todoist_long.display_tasks(api)
     except Exception as e:
         print(f"[red]Error changing priority for long task (Index: {index}): {e}[/red]")
         traceback.print_exc()
@@ -292,7 +273,6 @@ def _handle_show_long(api, user_message):
     helper_todoist_long.display_tasks(api) # Displays DUE long tasks
     return True
 
-# --- New Handler Function ---
 def _handle_show_long_all(api, user_message):
     subprocess.call("reset")
     try:
@@ -301,7 +281,18 @@ def _handle_show_long_all(api, user_message):
         print(f"[red]Error displaying all long tasks: {e}[/red]")
         traceback.print_exc()
     return True
-# --- End New Handler ---
+
+def _handle_hide_long(api, user_message):
+    index = _parse_long_task_index(user_message, PREFIX_HIDE_LONG)
+    if index is None:
+        return True
+    try:
+        from helper_todoist_long import hide_task_for_today
+        hide_task_for_today(index)
+    except Exception as e:
+        print(f"[red]Error hiding long task (Index: {index}): {e}[/red]")
+        traceback.print_exc()
+    return True
 
 def _handle_fuzzy_search(api, user_message):
     helper_regex.search_todoist_tasks(user_message)
@@ -333,12 +324,9 @@ def _handle_clear(api, user_message):
     return True
 
 
-# --- Main Dispatcher Function ---
-
-# Order matters: Check more specific prefixes before shorter ones.
-# Tuples: (prefix_or_command, handler_function, is_prefix_check)
+# --- Command Dispatch ---
 COMMAND_DISPATCH = [
-    # --- Long Task Prefixes ---
+    (PREFIX_HIDE_LONG, _handle_hide_long, True),
     (PREFIX_TIME_LONG, _handle_time_long, True),
     (PREFIX_SKIP_LONG, _handle_skip_long, True),
     (PREFIX_TOUCH_LONG, _handle_touch_long, True),
@@ -347,28 +335,26 @@ COMMAND_DISPATCH = [
     (PREFIX_DELETE_LONG, _handle_delete_long, True),
     (PREFIX_PRIORITY_LONG, _handle_priority_long, True),
     (PREFIX_POSTPONE_LONG, _handle_postpone_long, True),
-    # --- Other Prefixes ---
     (PREFIX_FUZZY_COMPLETE, _handle_fuzzy_complete, True),
     (PREFIX_ADHOC_COMPLETE, _handle_adhoc_complete, True),
-    (PREFIX_TIME, _handle_time, True), # Checked AFTER "time long "
+    (PREFIX_TIME, _handle_time, True),
     (PREFIX_POSTPONE, _handle_postpone, True),
-    (PREFIX_RENAME, _handle_rename, True), # Checked AFTER "rename long "
-    (PREFIX_PRIORITY, _handle_priority, True), # Checked AFTER "priority long "
+    (PREFIX_RENAME, _handle_rename, True),
+    (PREFIX_PRIORITY, _handle_priority, True),
     (PREFIX_ADD_TASK, _handle_add_task, True),
     (PREFIX_FUZZY_SEARCH, _handle_fuzzy_search, True),
     (PREFIX_DIARY_UPDATE, _handle_diary_update, True),
-    # --- Exact Commands ---
     (CMD_DONE, _handle_done, False),
     (CMD_SKIP, _handle_skip, False),
     (CMD_DELETE, _handle_delete, False),
     (CMD_FLIP, _handle_flip, False),
     (CMD_ALL, _handle_all, False),
-    (CMD_SHOW_ALL, _handle_all, False), # Alias for "all"
+    (CMD_SHOW_ALL, _handle_all, False),
     (CMD_COMPLETED, _handle_completed, False),
-    (CMD_SHOW_COMPLETED, _handle_completed, False), # Alias for "completed"
-    (CMD_SHOW_LONG, _handle_show_long, False), # Shows DUE long tasks
-    (CMD_SHOW_LONG_ALL, _handle_show_long_all, False), # <-- New Command Dispatch Entry
-    (CMD_DIARY, _handle_diary, False), # Checked AFTER "diary "
+    (CMD_SHOW_COMPLETED, _handle_completed, False),
+    (CMD_SHOW_LONG, _handle_show_long, False),
+    (CMD_SHOW_LONG_ALL, _handle_show_long_all, False),
+    (CMD_DIARY, _handle_diary, False),
     (CMD_TIMESHEET, _handle_timesheet, False),
     (CMD_CLEAR, _handle_clear, False),
 ]
@@ -406,11 +392,8 @@ def process_command(api, user_message):
     # If no handler was found
     return False
 
-# Keep the old function name for compatibility with main.py, but it now calls the new dispatcher
 def ifelse_commands(api, user_message):
     return process_command(api, user_message)
 
 
-# Apply call counter decorator to all functions defined in this module
-# Note: This will now decorate the individual handlers as well
 module_call_counter.apply_call_counter_to_all(globals(), __name__)
