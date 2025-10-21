@@ -77,7 +77,7 @@ def main_loop():
         print("-" * 60)
         _check_and_trigger_backup() # Uses state_manager for timestamps now
         helper_todoist_part2.get_next_todoist_task(api) # Will be refactored later
-        helper_todoist_part1.print_completed_tasks_count() # Will be refactored later
+        # helper_todoist_part1.print_completed_tasks_count()  # Hidden by request
         helper_display.check_if_grafting(api)
         helper_diary.weekly_audit() # Will be refactored later
         helper_diary.purge_old_completed_tasks() # Will be refactored later

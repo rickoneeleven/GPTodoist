@@ -2,7 +2,11 @@ import re
 import traceback
 from rich import print
 from long_term_core import is_task_recurring
-from long_term_indexing import get_categorized_tasks, get_all_long_tasks_sorted_by_index
+from long_term_indexing import (
+    get_categorized_tasks,
+    get_all_long_tasks_sorted_by_index,
+    get_next_due_long_task,
+)
 
 
 def format_task_for_display(task):
@@ -93,4 +97,45 @@ def display_all_long_tasks(api):
 
     except Exception as e:
         print(f"[red]An error occurred displaying all long-term tasks: {e}[/red]")
+        traceback.print_exc()
+
+
+def display_next_long_task(api):
+    """Displays the next due long-term task following current ordering rules.
+
+    Shows one task at a time: Recurring first (sorted by priority, due, index),
+    then One-Shots when no recurring remain. Only due/overdue tasks are considered.
+    """
+    print("\n[bold cyan]--- Next Long Task ---[/bold cyan]")
+    try:
+        task = get_next_due_long_task(api)
+        if not task:
+            print("[dim]  No due long-term tasks.[/dim]\n")
+            return
+
+        base_text = format_task_for_display(task)
+
+        # Append due info for non-recurring tasks (recurring already include schedule in base_text)
+        due_extra = ""
+        try:
+            if not is_task_recurring(task) and getattr(task, 'due', None):
+                due_obj = task.due
+                due_str = getattr(due_obj, 'string', None)
+                due_date_val = getattr(due_obj, 'date', None)
+                if due_str:
+                    due_extra = f" (Due: {due_str})"
+                elif due_date_val:
+                    due_extra = f" (Due: {due_date_val})"
+        except Exception:
+            pass
+
+        print(f"  [green]{base_text}{due_extra}[/green]")
+
+        if hasattr(task, 'description') and task.description:
+            desc_preview = (task.description[:120] + '...') if len(task.description) > 120 else task.description
+            print(f"    [italic blue]Desc: {desc_preview.replace(chr(10), ' ')}[/italic blue]")
+        print()
+
+    except Exception as e:
+        print(f"[red]An error occurred displaying next long-term task: {e}[/red]")
         traceback.print_exc()

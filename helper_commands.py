@@ -28,7 +28,6 @@ CMD_SHOW_ALL = "show all"
 CMD_COMPLETED = "completed"
 CMD_SHOW_COMPLETED = "show completed"
 CMD_SHOW_LONG = "show long"
-CMD_SHOW_LONG_ALL = "show long all"
 CMD_DIARY = "diary"
 CMD_TIMESHEET = "timesheet"
 CMD_CLEAR = "clear"
@@ -259,7 +258,13 @@ def _handle_postpone_long(api, user_message):
 
 def _handle_all(api, user_message):
     subprocess.call("reset")
+    # Show standard tasks for the active filter
     display_todoist_tasks(api)
+    # Then show due long-term tasks (recurring first, then one-shots)
+    try:
+        helper_todoist_long.display_tasks(api)
+    except Exception as e:
+        print(f"[red]Error displaying due long-term tasks: {e}[/red]")
     print("###################################################################################################")
     return True
 
@@ -271,15 +276,6 @@ def _handle_completed(api, user_message):
 def _handle_show_long(api, user_message):
     subprocess.call("reset")
     helper_todoist_long.display_tasks(api) # Displays DUE long tasks
-    return True
-
-def _handle_show_long_all(api, user_message):
-    subprocess.call("reset")
-    try:
-        helper_todoist_long.display_all_long_tasks(api) # Call new display function
-    except Exception as e:
-        print(f"[red]Error displaying all long tasks: {e}[/red]")
-        traceback.print_exc()
     return True
 
 def _handle_hide_long(api, user_message):
@@ -351,10 +347,9 @@ COMMAND_DISPATCH = [
     (CMD_ALL, _handle_all, False),
     (CMD_SHOW_ALL, _handle_all, False),
     (CMD_COMPLETED, _handle_completed, False),
-    (CMD_SHOW_COMPLETED, _handle_completed, False),
-    (CMD_SHOW_LONG, _handle_show_long, False),
-    (CMD_SHOW_LONG_ALL, _handle_show_long_all, False),
-    (CMD_DIARY, _handle_diary, False),
+    (CMD_SHOW_COMPLETED, _handle_completed, False), # Alias for "completed"
+    (CMD_SHOW_LONG, _handle_show_long, False), # Shows DUE long tasks
+    (CMD_DIARY, _handle_diary, False), # Checked AFTER "diary "
     (CMD_TIMESHEET, _handle_timesheet, False),
     (CMD_CLEAR, _handle_clear, False),
 ]

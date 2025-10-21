@@ -29,13 +29,14 @@ from long_term_operations import (
 from long_term_indexing import (
     get_categorized_tasks,
     get_all_long_tasks_sorted_by_index,
+    get_next_due_long_task,
     fetch_tasks  # Deprecated but kept for compatibility
 )
 
 from long_term_display import (
     format_task_for_display,
     display_tasks,
-    display_all_long_tasks
+    display_next_long_task
 )
 
 from long_term_hide import (

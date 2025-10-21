@@ -230,3 +230,24 @@ def fetch_tasks(api, prefix=None):
     except Exception as error:
         print(f"[red]Error fetching tasks (deprecated method): {error}[/red]")
         return []
+
+
+def get_next_due_long_task(api):
+    """Returns the next due long-term task following ordering rules.
+
+    Ordering:
+    - Consider only tasks due today or earlier (handled by get_categorized_tasks).
+    - Prioritize Recurring tasks; if none remain, use One-Shots.
+    - Within each category: priority(desc), then due date/time(asc), then index(asc).
+    """
+    try:
+        one_shot_tasks, recurring_tasks = get_categorized_tasks(api)
+        if recurring_tasks:
+            return recurring_tasks[0]
+        if one_shot_tasks:
+            return one_shot_tasks[0]
+        return None
+    except Exception as error:
+        print(f"[red]An unexpected error occurred selecting next due long task: {error}[/red]")
+        traceback.print_exc()
+        return None
