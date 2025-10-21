@@ -37,7 +37,12 @@ DIARY_FILENAME = "j_diary.json"
 GRAFT_FILENAME = "j_grafted_tasks.json"
 
 # --- Default State Values ---
-DEFAULT_OPTIONS = {"enable_diary_prompts": "yes", "last_backup_timestamp": None}
+DEFAULT_OPTIONS = {
+    "enable_diary_prompts": "yes",
+    "last_backup_timestamp": None,
+    # Date string YYYY-MM-DD (Europe/London) when the all-done celebration last played
+    "last_all_done_celebration_date": None,
+}
 DEFAULT_FILTERS = [{"id": 1, "filter": "(no due date | today | overdue) & !#Team Virtue", "isActive": 1, "project_id": None}]
 DEFAULT_COMPLETED_COUNT = {"total_today": 0, "todays_date": ""}
 
@@ -104,6 +109,21 @@ def set_last_backup_timestamp(timestamp: datetime.datetime) -> bool:
     else:
         timestamp = timestamp.astimezone(datetime.timezone.utc)
     options["last_backup_timestamp"] = timestamp.isoformat()
+    return save_options(options)
+
+# --- All-done Celebration Tracking ---
+def get_last_all_done_celebration_date() -> Optional[str]:
+    """Returns the stored date string (YYYY-MM-DD) when the all-done celebration last played."""
+    options = get_options()
+    value = options.get("last_all_done_celebration_date")
+    return value if isinstance(value, str) and value else None
+
+def set_last_all_done_celebration_date(date_str: str) -> bool:
+    """Sets the last all-done celebration date string (YYYY-MM-DD)."""
+    if not isinstance(date_str, str) or not date_str:
+        return False
+    options = get_options()
+    options["last_all_done_celebration_date"] = date_str
     return save_options(options)
 
 # --- Filters State ---

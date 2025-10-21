@@ -12,10 +12,12 @@ import helper_parse
 import helper_diary
 import helper_recurrence
 import state_manager # <<< ADDED: Import the new state manager
+import helper_effects
 from rich import print
 from datetime import datetime, timedelta, timezone # Keep necessary datetime components
 import traceback # For detailed error logging
 from todoist_api_python.api import TodoistAPI
+import pytz
 # <<< REMOVED: load_json, save_json imports as they are handled by state_manager for backups now
 
 # --- Constants ---
@@ -102,6 +104,27 @@ def main_loop():
         if not command_handled:
             print()
             print("[bold][wheat1]          eh? (Command not recognized)[/wheat1][/bold]\n")
+
+        # Trigger celebration once when both regular and long-term due tasks are done
+        try:
+            tasks = helper_todoist_part2.fetch_todoist_tasks(api)
+            regular_done = tasks is not None and len(tasks) == 0
+        except Exception:
+            regular_done = False
+
+        try:
+            from long_term_indexing import get_next_due_long_task
+            long_done = get_next_due_long_task(api) is None
+        except Exception:
+            long_done = False
+
+        if regular_done and long_done:
+            london_tz = pytz.timezone("Europe/London")
+            today_london = datetime.now(london_tz).date().isoformat()
+            last_date = state_manager.get_last_all_done_celebration_date()
+            if last_date != today_london:
+                helper_effects.play_completion_celebration(duration=10.0)
+                state_manager.set_last_all_done_celebration_date(today_london)
 
 # --- Entry Point (Unchanged) ---
 if __name__ == "__main__":

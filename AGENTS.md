@@ -56,10 +56,11 @@ This is the mandatory development philosophy for making changes. Adherence is re
 
 ## Communication Protocol
 - Be direct and fact based: do not be agreeable by default; push back and help correct the user when appropriate.
+- When asking clarafying questions, number them. So you user can prefix numbers to answers.
 
 ## Plain ASCII Output
 - Use ASCII-only punctuation in all user-visible text.
-- Avoid non-breaking hyphens, en/em dashes, and curly quotes.
-- Prefer simple quotes (" ") and hyphens (-); avoid typographic variants.
+- Avoid en/em dashes.
+- Prefer simple hyphens (-).
 
 [Proceed with complete Bootstrap process now]
