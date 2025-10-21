@@ -4,7 +4,6 @@ from rich import print
 from long_term_core import is_task_recurring
 from long_term_indexing import (
     get_categorized_tasks,
-    get_all_long_tasks_sorted_by_index,
     get_next_due_long_task,
 )
 
@@ -87,17 +86,7 @@ def display_tasks(api, task_type=None):
         traceback.print_exc()
 
 
-def display_all_long_tasks(api):
-    """Fetches and displays ALL long-term tasks, sorted by index."""
-    print("\n[bold magenta]--- All Long Term Tasks (by Index) ---[/bold magenta]")
-    try:
-        all_tasks = get_all_long_tasks_sorted_by_index(api)
-        display_formatted_task_list("All Tasks", all_tasks)
-        print()
-
-    except Exception as e:
-        print(f"[red]An error occurred displaying all long-term tasks: {e}[/red]")
-        traceback.print_exc()
+    
 
 
 def display_next_long_task(api):
