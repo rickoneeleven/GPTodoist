@@ -15,9 +15,11 @@ if not os.path.exists(json_file):
 
 
 def apply_call_counter_to_all(module_globals, target_module_name):
+    """Decorate top-level functions only; never wrap classes or exceptions."""
     for name, obj in module_globals.copy().items():
+        # Only wrap plain functions defined in the target module
         if (
-            callable(obj)
+            inspect.isfunction(obj)
             and not name.startswith("_")
             and getattr(obj, "__module__", None) == target_module_name
         ):

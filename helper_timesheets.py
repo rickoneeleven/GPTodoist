@@ -13,6 +13,11 @@ import helper_todoist_part2
 import state_manager
 import helper_diary # Import helper_diary for constants
 import helper_parse # <<< ADDED: Import helper_parse for multi-line input
+from helper_effects import _clear_screen as _clear_screen
+
+# --- Exceptions ---
+class ResetTimesheet(Exception):
+    """Raised to signal a user-requested reset of the timesheet process."""
 
 # --- Constants ---
 DEFAULT_TASK_DURATION = 5
@@ -183,6 +188,51 @@ def get_selected_task_ids(filtered_tasks: list) -> list[int]:
             print("[yellow]Invalid input. Please enter numbers separated by commas.[/yellow]")
 
 
+def sequential_select_task_ids(filtered_tasks: list) -> list[int]:
+    """Sequential selection UX: clear screen, show one task, default include on Enter/y."""
+    if not filtered_tasks:
+        return []
+
+    selected_ids: list[int] = []
+    total = len(filtered_tasks)
+
+    for idx, task in enumerate(filtered_tasks, start=1):
+        # Clear the screen to focus on a single task
+        try:
+            _clear_screen()
+        except Exception:
+            # Fallback ANSI clear if helper effects is not supported
+            print("\033[2J\033[H", end="")
+
+        task_id = task.get('id', '?')
+        task_dt = task.get('datetime', '')
+        task_name = task.get('task_name', 'Unknown Task')
+        time_part = task_dt.split(' ')[-1] if isinstance(task_dt, str) and ' ' in task_dt else task_dt
+
+        print(f"[cyan]Completed tasks {idx}/{total}[/cyan]")
+        print("[bold]Include this task in timesheet?[/bold] [dim](Enter=Yes, n=No, r=reset)[/dim]")
+        print(f"  Time: [white]{time_part or '?'}[/white]")
+        print(f"  Task: [white]{task_name}[/white]")
+
+        while True:
+            choice = prompt_user("Include? (Enter=y / n / r=reset):").strip().lower()
+            if choice in ("", "y", "yes"):
+                if isinstance(task_id, int):
+                    selected_ids.append(task_id)
+                break
+            if choice in ("n", "no"):
+                break
+            if choice in ("r", "reset"):
+                confirm = prompt_user("Reset timesheet process and start again? (y/N):").strip().lower()
+                if confirm == 'y':
+                    raise ResetTimesheet()
+                # else continue prompting for this task
+                continue
+            print("[yellow]Press Enter for Yes, 'n' for No, or 'r' to reset.[/yellow]")
+
+    return selected_ids
+
+
 def get_task_details_from_user(task: dict) -> Optional[dict]:
     """Gets updated summary (supports multi-line) and duration for a selected task."""
     original_summary = task.get('task_name', 'Unknown Task')
@@ -193,7 +243,7 @@ def get_task_details_from_user(task: dict) -> Optional[dict]:
     if change_summary_choice == 'y':
         # <<< MODIFIED: Use helper_parse.get_user_input for multi-line summary >>>
         entered_summary = helper_parse.get_user_input(
-            prompt_message="Enter new summary (end with 'qq' on the same line, or '!!' on a new line): "
+            prompt_message="Enter new summary (end with 'qq' on the same line): "
         ).strip() # .strip() applied to the whole multi-line input
 
         if entered_summary:
@@ -241,7 +291,7 @@ def get_additional_task_details(timesheet_date: date) -> Optional[dict]:
     print("\nAdding additional task...")
     # <<< MODIFIED: Use helper_parse.get_user_input for multi-line summary >>>
     summary = helper_parse.get_user_input(
-        prompt_message="Enter task summary (end with 'qq' on the same line, or '!!' on a new line): "
+        prompt_message="Enter task summary (end with 'qq' on the same line): "
     ).strip()
 
     if not summary:
@@ -436,7 +486,7 @@ def update_objective_for_today():
     if update_choice != 'n':
         # <<< MODIFIED: Use helper_parse.get_user_input for multi-line objective >>>
         entered_objective = helper_parse.get_user_input(
-            prompt_message="Enter new objective for today (end with 'qq' or '!!'): "
+            prompt_message="Enter new objective for today (end with 'qq' on the same line): "
         ).strip()
         if entered_objective:
             new_objective_to_set = entered_objective
@@ -473,70 +523,165 @@ def timesheet():
         timesheet_date = get_timesheet_date()
         if not timesheet_date: return
 
-        filtered_tasks = load_and_filter_tasks(timesheet_date)
-        display_tasks_for_selection(filtered_tasks)
-        selected_ids = get_selected_task_ids(filtered_tasks)
+        while True:  # allow user-requested reset without re-asking date
+            try:
+                filtered_tasks = load_and_filter_tasks(timesheet_date)
+                # New sequential selection UX: clear screen between tasks, default include on Enter
+                selected_ids = sequential_select_task_ids(filtered_tasks)
 
-        timesheet_entries = []
-        task_map = {task.get('id'): task for task in filtered_tasks if isinstance(task.get('id'), int)}
-        for task_id in selected_ids:
-            task_from_map = task_map.get(task_id)
-            if task_from_map:
-                entry_details = get_task_details_from_user(task_from_map)
-                if entry_details:
-                    timesheet_entries.append(entry_details)
+                timesheet_entries = []
+                task_map = {task.get('id'): task for task in filtered_tasks if isinstance(task.get('id'), int)}
+                selected_tasks = [task_map.get(task_id) for task_id in selected_ids if task_map.get(task_id)]
 
-        while True:
-            add_more_choice = prompt_user("Add another task manually? (y/N):").lower().strip()
-            if add_more_choice == 'y':
-                additional_entry = get_additional_task_details(timesheet_date)
-                if additional_entry:
-                    timesheet_entries.append(additional_entry)
-                    lock_status_display = "(locked)" if additional_entry.get('is_locked') else ""
-                    print(f"  Added: {additional_entry['summary']} ({additional_entry['duration']} mins) {lock_status_display}")
-            else:
-                break
+                # Phase 1: Rename pass (one at a time, clear screen, default No)
+                renamed_summaries: dict[int, str] = {}
+                for idx, task in enumerate(selected_tasks, start=1):
+                    try:
+                        _clear_screen()
+                    except Exception:
+                        print("\033[2J\033[H", end="")
 
-        if not timesheet_entries:
-            print("[yellow]No tasks selected or added. Timesheet process aborted.[/yellow]")
-            return
+                    task_id = task.get('id', '?')
+                    original_summary = task.get('task_name', 'Unknown Task')
+                    task_dt = task.get('datetime', '')
+                    time_part = task_dt.split(' ')[-1] if isinstance(task_dt, str) and ' ' in task_dt else task_dt
 
-        try:
-            # Sort entries by their original completion time for logical order before adjustment/saving
-            timesheet_entries.sort(key=lambda x: datetime.strptime(x.get('datetime', ''), "%Y-%m-%d %H:%M:%S") if isinstance(x.get('datetime'), str) else datetime.min)
-        except ValueError:
-             print("[yellow]Warning: Error sorting timesheet entries by datetime. Order may be incorrect before saving.[/yellow]")
+                    print(f"[cyan]Rename tasks {idx}/{len(selected_tasks)}[/cyan]")
+                    print(f"  Time: [white]{time_part or '?'}[/white]")
+                    print(f"  Task: [white]{original_summary}[/white]")
 
-        target_duration_minutes = get_random_target_duration()
-        timesheet_entries = adjust_durations(timesheet_entries, target_duration_minutes)
+                    while True:
+                        choice = prompt_user("Rename this task? (Enter=No, y=Yes, r=reset):").strip().lower()
+                        if choice in ("r", "reset"):
+                            confirm_rnm = prompt_user("Reset timesheet process and start again? (y/N):").strip().lower()
+                            if confirm_rnm == 'y':
+                                raise ResetTimesheet()
+                            else:
+                                continue
+                        if choice in ("", "n", "no"):
+                            renamed_summaries[task_id] = original_summary
+                            break
+                        if choice in ("y", "yes"):
+                            entered_summary = helper_parse.get_user_input(
+                                prompt_message="Enter new summary (end with 'qq' on the same line): "
+                            ).strip()
+                            if entered_summary:
+                                if any(ch.isdigit() for ch in entered_summary):
+                                    confirm = prompt_user(f"[red]New summary '{entered_summary}' contains numbers. Confirm? (y/N):[/red]").strip().lower()
+                                    if confirm == 'y':
+                                        renamed_summaries[task_id] = entered_summary
+                                    else:
+                                        print("[yellow]Summary change cancelled.[/yellow]")
+                                        renamed_summaries[task_id] = original_summary
+                                else:
+                                    renamed_summaries[task_id] = entered_summary
+                            else:
+                                print("[yellow]No new summary entered, keeping original.[/yellow]")
+                                renamed_summaries[task_id] = original_summary
+                            break
+                        print("[yellow]Press Enter for No, 'y' for Yes, or 'r' to reset.[/yellow]")
 
-        print("\n[bold green] --- Final Timesheet --- [/bold green]")
-        current_total_duration = 0
-        for entry in timesheet_entries: # Iterate over potentially adjusted entries
-            lock_status_display = "[red](locked)[/red]" if entry.get('is_locked') else ""
-            summary_display = entry.get('summary', 'Unknown Task')
-            duration_display = entry.get('duration', 0)
-            print(f"  {summary_display}: {duration_display} minutes {lock_status_display}")
-            current_total_duration += duration_display
-        total_hours_display = current_total_duration / 60
-        print(f"\nTotal Time: {current_total_duration} minutes ({total_hours_display:.2f} hours)")
-        print("[bold green]-------------------------[/bold green]")
+                # Phase 2: Duration pass (one at a time, clear screen, default 5)
+                for idx, task in enumerate(selected_tasks, start=1):
+                    try:
+                        _clear_screen()
+                    except Exception:
+                        print("\033[2J\033[H", end="")
 
-        save_timesheet_to_diary(timesheet_entries, timesheet_date)
+                    task_id = task.get('id', '?')
+                    task_dt = task.get('datetime', '')
+                    time_part = task_dt.split(' ')[-1] if isinstance(task_dt, str) and ' ' in task_dt else task_dt
+                    summary_for_entry = renamed_summaries.get(task_id, task.get('task_name', 'Unknown Task'))
 
-        try:
-            helper_todoist_long.display_tasks(api)
-        except Exception as e_long_tasks:
-            print(f"[red]Error displaying long-term tasks post-timesheet: {e_long_tasks}[/red]")
+                    print(f"[cyan]Set time {idx}/{len(selected_tasks)}[/cyan]")
+                    print(f"  Time: [white]{time_part or '?'}[/white]")
+                    print(f"  Task: [white]{summary_for_entry}[/white]")
 
-        try:
-            print("\n[cyan]Refreshing current Todoist tasks view...[/cyan]")
-            from helper_display import display_todoist_tasks
-            display_todoist_tasks(api)
-        except Exception as e_current_tasks:
-            print(f"[red]Error displaying current Todoist tasks post-timesheet: {e_current_tasks}[/red]")
+                    while True:
+                        try:
+                            duration_input = prompt_user(f"Enter minutes (Enter={DEFAULT_TASK_DURATION}, wrap in () to lock, r=reset):").strip()
+                            if duration_input.lower() in ('r', 'reset'):
+                                confirm_r = prompt_user("Reset timesheet process and start again? (y/N):").strip().lower()
+                                if confirm_r == 'y':
+                                    raise ResetTimesheet()
+                                else:
+                                    continue
 
-        update_objective_for_today()
+                            is_locked = False
+                            if duration_input.startswith('(') and duration_input.endswith(')'):
+                                is_locked = True
+                                duration_input = duration_input[1:-1].strip()
+
+                            duration = int(duration_input) if duration_input else DEFAULT_TASK_DURATION
+                            if duration <= 0:
+                                print(f"[yellow]Duration must be positive. Using default {DEFAULT_TASK_DURATION}.[/yellow]")
+                                duration = DEFAULT_TASK_DURATION
+
+                            timesheet_entries.append({
+                                'summary': summary_for_entry,
+                                'duration': duration,
+                                'is_locked': is_locked,
+                                'datetime': task.get('datetime')
+                            })
+                            break
+                        except ValueError:
+                            print("[yellow]Invalid number entered for duration.[/yellow]")
+
+                while True:
+                    add_more_choice = prompt_user("Add another task manually? (y/N):").lower().strip()
+                    if add_more_choice == 'y':
+                        additional_entry = get_additional_task_details(timesheet_date)
+                        if additional_entry:
+                            timesheet_entries.append(additional_entry)
+                            lock_status_display = "(locked)" if additional_entry.get('is_locked') else ""
+                            print(f"  Added: {additional_entry['summary']} ({additional_entry['duration']} mins) {lock_status_display}")
+                    else:
+                        break
+
+                if not timesheet_entries:
+                    print("[yellow]No tasks selected or added. Timesheet process aborted.[/yellow]")
+                    return
+
+                try:
+                    # Sort entries by their original completion time for logical order before adjustment/saving
+                    timesheet_entries.sort(key=lambda x: datetime.strptime(x.get('datetime', ''), "%Y-%m-%d %H:%M:%S") if isinstance(x.get('datetime'), str) else datetime.min)
+                except ValueError:
+                     print("[yellow]Warning: Error sorting timesheet entries by datetime. Order may be incorrect before saving.[/yellow]")
+
+                target_duration_minutes = get_random_target_duration()
+                timesheet_entries = adjust_durations(timesheet_entries, target_duration_minutes)
+
+                print("\n[bold green] --- Final Timesheet --- [/bold green]")
+                current_total_duration = 0
+                for entry in timesheet_entries: # Iterate over potentially adjusted entries
+                    lock_status_display = "[red](locked)[/red]" if entry.get('is_locked') else ""
+                    summary_display = entry.get('summary', 'Unknown Task')
+                    duration_display = entry.get('duration', 0)
+                    print(f"  {summary_display}: {duration_display} minutes {lock_status_display}")
+                    current_total_duration += duration_display
+                total_hours_display = current_total_duration / 60
+                print(f"\nTotal Time: {current_total_duration} minutes ({total_hours_display:.2f} hours)")
+                print("[bold green]-------------------------[/bold green]")
+
+                save_timesheet_to_diary(timesheet_entries, timesheet_date)
+
+                try:
+                    helper_todoist_long.display_tasks(api)
+                except Exception as e_long_tasks:
+                    print(f"[red]Error displaying long-term tasks post-timesheet: {e_long_tasks}[/red]")
+
+                try:
+                    print("\n[cyan]Refreshing current Todoist tasks view...[/cyan]")
+                    from helper_display import display_todoist_tasks
+                    display_todoist_tasks(api)
+                except Exception as e_current_tasks:
+                    print(f"[red]Error displaying current Todoist tasks post-timesheet: {e_current_tasks}[/red]")
+
+                update_objective_for_today()
+                break  # Completed successfully, exit reset loop
+            except ResetTimesheet:
+                print("[yellow]Timesheet process reset. Starting selection again.[/yellow]")
+                continue
 
     except Exception as e_main_timesheet:
         print(f"\n[bold red]An unexpected error occurred during the timesheet process:[/bold red]")
