@@ -16,6 +16,7 @@ import traceback
 import state_manager # <<< ADDED: Import state manager
 import todoist_compat
 from helper_display import get_task_display_info
+import helper_hide # Import helper_hide to filter hidden tasks
 
 # Import necessary functions from part1 or state_manager
 from helper_todoist_part1 import (
@@ -129,6 +130,15 @@ def fetch_todoist_tasks(api):
             if not isinstance(tasks, list):
                 print(f"[red]Error: API returned unexpected data type: {type(tasks)}[/red]")
                 return None
+
+            # --- Filter out hidden tasks ---
+            hidden_task_ids = helper_hide.get_hidden_task_ids_for_today()
+            if hidden_task_ids:
+                original_count = len(tasks)
+                tasks = [task for task in tasks if getattr(task, 'id', None) not in hidden_task_ids]
+                if original_count > len(tasks):
+                    print(f"[dim yellow]Filtered out {original_count - len(tasks)} hidden tasks for today.[/dim yellow]")
+            # --- End filter out hidden tasks ---
 
             # Timezone processing logic remains the same...
             london_tz = pytz.timezone("Europe/London")

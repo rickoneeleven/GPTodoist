@@ -5,6 +5,8 @@ import helper_tasks
 import helper_regex
 import helper_timesheets
 import helper_todoist_long
+import state_manager
+import helper_hide
 from rich import print
 import traceback
 
@@ -31,6 +33,7 @@ CMD_SHOW_LONG = "show long"
 CMD_DIARY = "diary"
 CMD_TIMESHEET = "timesheet"
 CMD_CLEAR = "clear"
+CMD_HIDE = "hide" # New command
 
 PREFIX_FUZZY_COMPLETE = "~~~"
 PREFIX_ADHOC_COMPLETE = "xx "
@@ -243,6 +246,17 @@ def _handle_priority_long(api, user_message):
         traceback.print_exc()
     return True
 
+def _handle_hide(api, user_message):
+    subprocess.call("reset")
+    active_task = state_manager.get_active_task()
+    if active_task and "task_id" in active_task:
+        task_id = active_task["task_id"]
+        helper_hide.hide_task_for_today(task_id)
+        print(f"[green]Regular task with ID {task_id} hidden for today.[/green]")
+    else:
+        print("[yellow]No active regular task to hide.[/yellow]")
+    return True
+
 def _handle_postpone_long(api, user_message):
     parsed = _parse_long_task_index_and_value(user_message, PREFIX_POSTPONE_LONG, "schedule")
     if parsed is None:
@@ -344,6 +358,7 @@ COMMAND_DISPATCH = [
     (CMD_SKIP, _handle_skip, False),
     (CMD_DELETE, _handle_delete, False),
     (CMD_FLIP, _handle_flip, False),
+    (CMD_HIDE, _handle_hide, False), # New exact match command
     (CMD_ALL, _handle_all, False),
     (CMD_SHOW_ALL, _handle_all, False),
     (CMD_COMPLETED, _handle_completed, False),
