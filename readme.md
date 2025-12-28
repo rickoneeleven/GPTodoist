@@ -1,4 +1,4 @@
-DATETIME of last agent review: 21/10/2025 10:45
+DATETIME of last agent review: 28/12/2025 00:00
 
 # Todoist CLI Helper
 
@@ -7,7 +7,7 @@ A command-line interface (CLI) tool designed for efficient interaction with your
 ## Installation
 
 1.  **Prerequisites:**
-    - Python 3 (tested with Python 3.11+; 3.10 also works)
+    - Python 3 (tested with Python 3.11; 3.10 also works)
     - `pip` (Python package installer)
 
 2.  **Clone the Repository (if applicable):**
@@ -110,6 +110,7 @@ Commands are matched case-insensitively.
 *   `all` / `show all`: Clears the screen and displays tasks matching the current active filter, then all due long-term tasks (Recurring first, then One-Shots).
 *   `completed` / `show completed`: Clears the screen and displays tasks logged as completed today from `j_todays_completed_tasks.json`.
 *   `flip`: Switches the `isActive` flag in `j_todoist_filters.json` to the next filter definition, changing the active view.
+*   `hide`: Hides the currently active regular task for today only. Hidden task IDs are stored in `j_regular_hidden.json` and excluded from the active filter view until the next day.
 *   `clear`: Clears the terminal screen.
 
 **Long-Term Task Management (Operates on "Long Term Tasks" Project):**
@@ -118,10 +119,12 @@ Commands are matched case-insensitively.
 *   `add long <task_name>`: Adds a new task to the "Long Term Tasks" project, automatically assigning the next available `[index]` prefix.
 *   `time long <index> <schedule>`: Reschedules the long-term task with the specified `[index]` using the `<schedule>` string (e.g., `time long 5 every! monday 9am`).
 *   `skip long <index>`: "Touches" the long-term task with `[index]`. Completes recurring instances, pushes non-recurring to tomorrow. Does *not* log completion.
-*   `touch long <index>`: "Touches" the long-term task with `[index]`. Completes recurring instances, pushes non-recurring to tomorrow. *Logs* non-recurring touches to the daily completed list.
+*   `touch long <index>`: "Touches" the long-term task with `[index]`. Completes recurring instances, pushes non-recurring to tomorrow, and logs the action to the daily completed list.
 *   `hide long <index>`: Hides the long-term task with `[index]` from today's due view only. Local-only, auto-resets each day (Europe/London).
 *   `rename long <index> <new_name>`: Renames the long-term task with `[index]`, preserving the index prefix.
 *   `delete long <index>`: Deletes the long-term task with `[index]` from Todoist.
+*   `priority long <index> <1|2|3|4>`: Changes the priority of the long-term task with `[index]` (1=P1 High, 4=P4 Low).
+*   `postpone long <index> <schedule>`: Postpones the long-term task with `[index]`. For recurring tasks, completes the current instance and creates a new one with the specified due date; for non-recurring tasks, updates the due date in place.
 
 **Diary & Timesheets:**
 

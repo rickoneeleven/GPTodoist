@@ -21,6 +21,16 @@ def delete_task(api, index):
 
         task_content_for_log = target_task.content
 
+        print(f"[bold red]You are about to delete long-term task index [{index}]:[/bold red] {task_content_for_log}")
+        for remaining in range(5, 0, -1):
+            print(f"[yellow]Deleting in {remaining} second(s)... Press Ctrl+C to abort.[/yellow]")
+            time_module.sleep(1)
+
+        choice = input("Delete this long-term task? (y/N): ").strip().lower()
+        if choice != "y":
+            print("[cyan]Delete cancelled.[/cyan]")
+            return None
+
         print(f"[cyan]Attempting to delete task: {task_content_for_log} (ID: {target_task.id})[/cyan]")
         success = api.delete_task(task_id=target_task.id)
 

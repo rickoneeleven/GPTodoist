@@ -1,4 +1,5 @@
 import subprocess
+import time
 import module_call_counter
 import helper_diary
 import helper_tasks
@@ -131,6 +132,22 @@ def _handle_priority(api, user_message):
     return True
 
 def _handle_delete(api, user_message):
+    # Confirmation with countdown before deleting the active regular task
+    from rich import print as rprint
+
+    active_task = state_manager.get_active_task()
+    task_name = active_task.get("task_name", "Unknown Task") if active_task else "Unknown Task"
+
+    rprint(f"[bold red]You are about to delete the active task:[/bold red] [white]{task_name}[/white]")
+    for remaining in range(5, 0, -1):
+        rprint(f"[yellow]Deleting in {remaining} second(s)... Press Ctrl+C to abort.[/yellow]")
+        time.sleep(1)
+
+    choice = input("Delete this task? (y/N): ").strip().lower()
+    if choice != "y":
+        print("[cyan]Delete cancelled.[/cyan]")
+        return True
+
     delete_todoist_task(api)
     return True
 
