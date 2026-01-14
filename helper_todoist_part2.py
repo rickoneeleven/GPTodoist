@@ -156,7 +156,7 @@ def fetch_todoist_tasks(api):
                         task.due_string_raw = getattr(task.due, 'string', None)
                         task.is_recurring_flag = getattr(task.due, 'is_recurring', False)
 
-                        due_val = getattr(task.due, 'date', None)
+                        due_val = getattr(task.due, 'datetime', None) or getattr(task.due, 'date', None)
                         london_dt = None
                         # due_val may be a string or a datetime depending on SDK parsing
                         if due_val is not None:
