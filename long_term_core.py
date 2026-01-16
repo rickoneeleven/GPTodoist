@@ -92,7 +92,7 @@ def is_task_due_today_or_earlier(task):
         london_tz = pytz.timezone("Europe/London")
         now_london = datetime.now(london_tz)
 
-        due_val = getattr(task.due, "date", None)
+        due_val = getattr(task.due, "datetime", None) or getattr(task.due, "date", None)
         if due_val is None:
             return True
 
@@ -104,8 +104,10 @@ def is_task_due_today_or_earlier(task):
                     if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
                         try:
                             dt_london = london_tz.localize(dt, is_dst=None)
-                        except (pytz.exceptions.AmbiguousTimeError, pytz.exceptions.NonExistentTimeError):
-                            dt_london = dt
+                        except pytz.exceptions.AmbiguousTimeError:
+                            dt_london = london_tz.localize(dt, is_dst=True)
+                        except pytz.exceptions.NonExistentTimeError:
+                            dt_london = london_tz.localize(dt + timedelta(hours=1), is_dst=True)
                     else:
                         dt_london = dt.astimezone(london_tz)
                     return dt_london <= now_london
@@ -121,8 +123,10 @@ def is_task_due_today_or_earlier(task):
             if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
                 try:
                     dt_london = london_tz.localize(dt, is_dst=None)
-                except (pytz.exceptions.AmbiguousTimeError, pytz.exceptions.NonExistentTimeError):
-                    dt_london = dt
+                except pytz.exceptions.AmbiguousTimeError:
+                    dt_london = london_tz.localize(dt, is_dst=True)
+                except pytz.exceptions.NonExistentTimeError:
+                    dt_london = london_tz.localize(dt + timedelta(hours=1), is_dst=True)
             else:
                 dt_london = dt.astimezone(london_tz)
             return dt_london <= now_london

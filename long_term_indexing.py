@@ -29,7 +29,7 @@ def get_due_sort_key(task, now_london, london_tz):
     if not due:
         return sort_dt
 
-    dv = getattr(due, 'date', None)
+    dv = getattr(due, 'datetime', None) or getattr(due, 'date', None)
     if dv is None:
         return sort_dt
 
