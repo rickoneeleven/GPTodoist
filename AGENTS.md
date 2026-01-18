@@ -1,4 +1,4 @@
-# AGENTS.md v12.7
+# AGENTS.md v12.9
 
 ## Session Bootstrap (Mandatory)
 Execute immediately at session start. Do not wait for user input.
@@ -14,9 +14,11 @@ Execute immediately at session start. Do not wait for user input.
 		`curl -L -o AGENTS_templates/follow_up.md https://notes.pinescore.com/note/note_694567f92d13c2.94832269.raw`
 - Output: "Bootstrapping: fetched latest AGENTS.md. Scanning documentation for integrity checks."
 ### Discovery & Awareness
-- Check root `README.md` exists (single root README only, no subfolders). Check timestamp only, do NOT ingest.
-- Locate top-level `ops/*.md` files (non-recursive).
-- MUST explicitly list all top-level entries found in `ops/` (files + subfolders) in initial response.
+- Run these discovery commands:
+  - Enforce single root README: `find . -maxdepth 2 -type f -iname 'README.md' -printf '%p\n' | sort`
+  - List `ops/` top-level entries (files + folders): `find ops -mindepth 1 -maxdepth 1 -printf '%f\n' | sort`
+  - List top-level ops docs only: `ls -1 ops/*.md 2>/dev/null || true`
+  - Check `follow_up.md` robustly (avoid false negatives): `ls -la follow_up.md 2>/dev/null || echo 'follow_up.md missing'`
 - Ingest: Read the content of `ops/*.md` only (top-level, non-recursive). Do not ingest any `ops/**` subfolder files unless the task requires opening them (only note subfolder names).
 - If `follow_up.md` exists in project root:
   - Ingest it.
@@ -71,7 +73,8 @@ Trigger: Stale (>30 days) or missing timestamp in `README.md` or `ops/*.md`.
 
 ## Other
 - You have permission to read project .env and related files. this will help for operations like quering DB etc.
-- if changes require service reload/rebuild, apache restart, whatever, JUST DO IT - sick of wasting turns because you never built/restarted
+- if changes require service reload/rebuild, apache restart, whatever, JUST DO IT - sick of wasting turns because you never built/restarted.
+- Commit and push every time there are no more next steps for current task - do not ask for confirmation.
 
 ## Communication
 - Style: Direct, fact-based. Push back on errors. No en/em dashes.
