@@ -1,6 +1,6 @@
 # GPTodoist
 
-DATETIME of last agent review: 18 Jan 2026 09:10 (Europe/London)
+DATETIME of last agent review: 26 Jan 2026 18:33 (Europe/London)
 
 A command-line interface (CLI) tool for fast interaction with your Todoist account: pick and act on an active task, manage long-term tasks, and generate diary and timesheet entries from completed items.
 
@@ -48,7 +48,7 @@ Example:
 python main.py
 ```
 
-The main loop shows one Next Long Task automatically (recurring first, then one-shots; only due or overdue). Use `show long` to list all due long tasks.
+The main loop shows up to two Next Long Tasks automatically (recurring first, then one-shots; only due or overdue). Use `show long` to list all due long tasks.
 
 ## Commands Reference
 Commands are matched case-insensitively.

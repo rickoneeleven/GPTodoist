@@ -383,7 +383,7 @@ def get_next_todoist_task(api):
                  # Fallback display using name from potentially stale active file info if needed
                  print(f"                   [green]{task_name}[/green]\n") # Use task_name from above
 
-        # Display the next long-term task (one at a time)
+        # Display the next long-term tasks (up to two at a time)
         try:
             helper_todoist_long.display_next_long_task(api)
         except Exception as long_term_error:
