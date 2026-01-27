@@ -124,8 +124,7 @@ def display_next_long_task(api):
             except Exception:
                 pass
 
-            prefix = f"{idx}) " if len(tasks_to_show) > 1 else ""
-            print(f"  [green]{prefix}{base_text}{due_extra}[/green]")
+            print(f"  [green]{base_text}{due_extra}[/green]")
 
             if hasattr(task, 'description') and task.description:
                 desc_preview = (task.description[:120] + '...') if len(task.description) > 120 else task.description
