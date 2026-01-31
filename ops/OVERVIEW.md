@@ -1,9 +1,9 @@
 # GPTodoist - Overview
 
-DATETIME of last agent review: 26 Jan 2026 18:33 (Europe/London)
+DATETIME of last agent review: 31 Jan 2026 12:17 (Europe/London)
 
 ## Purpose
-Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-term task handling (shows up to two next due long-term tasks each loop).
+Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-term task handling (shows up to two next due long-term tasks each loop, with absolute due date/time surfaced).
 
 ## Key Files
 - `main.py` - main loop and orchestration
