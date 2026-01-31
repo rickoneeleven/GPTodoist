@@ -7,6 +7,7 @@ from rich import print
 from long_term_core import is_task_recurring
 from long_term_indexing import (
     get_categorized_tasks,
+    get_next_long_tasks,
 )
 
 def _format_due_absolute_for_display(task, now_london: datetime | None = None) -> str:
@@ -163,20 +164,14 @@ def display_tasks(api, task_type=None):
 
 
 def display_next_long_task(api):
-    """Displays the next due long-term task following current ordering rules.
+    """Displays up to two due/overdue long-term tasks.
 
-    Shows up to two tasks at a time: Recurring first (sorted by priority, due, index),
-    then One-Shots when no recurring remain. Only due/overdue tasks are considered.
+    Ordering is priority-first; within the same priority recurring comes first, then due, then index.
     """
     print("\n[bold cyan]--- Next Long Tasks ---[/bold cyan]")
     try:
-        one_shot_tasks, recurring_tasks = get_categorized_tasks(api)
         now_london = datetime.now(pytz.timezone("Europe/London"))
-
-        tasks_to_show = []
-        tasks_to_show.extend(recurring_tasks[:2])
-        if len(tasks_to_show) < 2:
-            tasks_to_show.extend(one_shot_tasks[: (2 - len(tasks_to_show))])
+        tasks_to_show = get_next_long_tasks(api, count=2)
 
         if not tasks_to_show:
             print("[dim]  No due long-term tasks.[/dim]\n")

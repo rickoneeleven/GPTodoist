@@ -1,6 +1,6 @@
 # GPTodoist - Overview
 
-DATETIME of last agent review: 31 Jan 2026 12:17 (Europe/London)
+DATETIME of last agent review: 31 Jan 2026 12:40 (Europe/London)
 
 ## Purpose
 Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-term task handling (shows up to two next due long-term tasks each loop, with absolute due date/time surfaced).

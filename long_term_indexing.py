@@ -251,3 +251,38 @@ def get_next_due_long_task(api):
         print(f"[red]An unexpected error occurred selecting next due long task: {error}[/red]")
         traceback.print_exc()
         return None
+
+
+def get_next_long_tasks(api, count: int = 2):
+    """Return the next N due/overdue long-term tasks using priority-first ordering.
+
+    Rules:
+    - Consider only tasks due today or earlier (and not hidden today).
+    - Priority trumps everything (P1 before P2/P3/P4).
+    - Within the same priority: Recurring before One-Shots.
+    - Then: due date/time (asc), then index (asc).
+    """
+    if not isinstance(count, int) or count <= 0:
+        return []
+
+    try:
+        one_shot_tasks, recurring_tasks = get_categorized_tasks(api)
+        combined = list(recurring_tasks) + list(one_shot_tasks)
+        if not combined:
+            return []
+
+        london_tz = pytz.timezone("Europe/London")
+        now_london = datetime.now(london_tz)
+
+        def sort_key(task):
+            priority = -getattr(task, "priority", 1)
+            recurring_rank = 0 if is_task_recurring(task) else 1
+            return (priority, recurring_rank, get_due_sort_key(task, now_london, london_tz), get_sort_index(task))
+
+        combined.sort(key=sort_key)
+        return combined[:count]
+
+    except Exception as error:
+        print(f"[red]An unexpected error occurred selecting next long tasks: {error}[/red]")
+        traceback.print_exc()
+        return []
