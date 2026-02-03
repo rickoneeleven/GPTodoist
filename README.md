@@ -1,6 +1,6 @@
 # GPTodoist
 
-DATETIME of last agent review: 26 Jan 2026 18:33 (Europe/London)
+DATETIME of last agent review: 03 Feb 2026 17:50 (Europe/London)
 
 A command-line interface (CLI) tool for fast interaction with your Todoist account: pick and act on an active task, manage long-term tasks, and generate diary and timesheet entries from completed items.
 
@@ -65,6 +65,7 @@ Commands are matched case-insensitively.
 ### Task Creation
 - `add task <content>`: Create task (uses active filter `project_id` if set)
 - `xx <task_name>`: Log an ad-hoc completion without creating a Todoist task
+- `xx (t) <task_name>`: Log an ad-hoc completion as if completed tomorrow at 09:00
 
 ### Fuzzy Matching / Search
 - `~~~ <fuzzy_name>`: Fuzzy match and complete from active filter

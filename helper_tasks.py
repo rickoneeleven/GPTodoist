@@ -13,6 +13,11 @@ import state_manager # <<< ADDED: Import the state manager
 
 # --- Functions ---
 
+def _tomorrow_at_9am_local(now: datetime) -> datetime:
+    tomorrow = now + timedelta(days=1)
+    return tomorrow.replace(hour=9, minute=0, second=0, microsecond=0)
+
+
 def add_completed_task(user_message: str):
     """Logs an ad-hoc completed task using the state manager."""
     # Remove the "xx " prefix from the user message
@@ -20,6 +25,14 @@ def add_completed_task(user_message: str):
     if not task_content:
         print("[yellow]No task content provided for 'xx' command.[/yellow]")
         return
+
+    scheduled_datetime: datetime | None = None
+    if task_content.lower().startswith("(t)"):
+        task_content = task_content[3:].strip()
+        if not task_content:
+            print("[yellow]No task content provided after '(t)'.[/yellow]")
+            return
+        scheduled_datetime = _tomorrow_at_9am_local(datetime.now())
 
     # Get the current timestamp (handled by state_manager, but can be added here if specific format is needed)
     # timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # State manager adds this
@@ -29,12 +42,18 @@ def add_completed_task(user_message: str):
         # "datetime": timestamp, # Let state_manager handle timestamping
         "task_name": task_content
     }
+    if scheduled_datetime is not None:
+        task_entry["datetime"] = scheduled_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
     # <<< MODIFIED: Call state_manager to add the entry >>>
     if state_manager.add_completed_task_log(task_entry):
         # State manager now assigns the ID, so we can't easily print it here unless add_completed_task_log returns it
         # Simplifiying the confirmation message
-        print(f"[bright_magenta]Ad-hoc task added to completed daily tasks:[/bright_magenta] {task_content}")
+        if scheduled_datetime is not None:
+            when = scheduled_datetime.strftime("%Y-%m-%d %H:%M")
+            print(f"[bright_magenta]Ad-hoc task logged as completed at {when}:[/bright_magenta] {task_content}")
+        else:
+            print(f"[bright_magenta]Ad-hoc task added to completed daily tasks:[/bright_magenta] {task_content}")
     else:
         print(f"[red]Failed to log ad-hoc task: {task_content}[/red]")
 
