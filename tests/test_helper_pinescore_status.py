@@ -1,9 +1,11 @@
 import unittest
 from datetime import datetime
+from threading import Event
 
 import pytz
 
 import helper_pinescore_status
+import helper_todoist_part2
 
 
 class _Due:
@@ -73,7 +75,92 @@ class HelperPinescoreStatusTests(unittest.TestCase):
         self.assertEqual(sent["todo.tasks_last_updated_by"], "gptodoist")
         self.assertEqual(sent["todo.long_tasks_showing_count"], 0)
 
+    def test_push_from_live_data_uses_fetched_tasks_and_long_count(self):
+        fake_tasks = [_Task(due=_Due(datetime_localized=None), has_time=False)]
+        captured = {}
+        original_fetch = helper_todoist_part2.fetch_todoist_tasks
+        original_count = helper_pinescore_status._count_due_long_tasks_for_status
+        original_push = helper_pinescore_status.push_tasks_up_to_date_status
+
+        def _fake_push(*, token, regular_tasks, long_tasks_showing_count, updated_by, base_url, timeout_s):
+            captured["token"] = token
+            captured["regular_tasks"] = regular_tasks
+            captured["long_tasks_showing_count"] = long_tasks_showing_count
+            captured["updated_by"] = updated_by
+            captured["base_url"] = base_url
+            captured["timeout_s"] = timeout_s
+            status = helper_pinescore_status.compute_tasks_up_to_date_status(
+                regular_tasks=regular_tasks,
+                long_tasks_showing_count=long_tasks_showing_count,
+            )
+            return helper_pinescore_status.PinescorePushResult(status=status, etag="\"live\"")
+
+        try:
+            helper_todoist_part2.fetch_todoist_tasks = lambda _api: fake_tasks  # type: ignore[assignment]
+            helper_pinescore_status._count_due_long_tasks_for_status = lambda *, api, max_count=2: 2  # type: ignore[assignment]
+            helper_pinescore_status.push_tasks_up_to_date_status = _fake_push  # type: ignore[assignment]
+
+            result = helper_pinescore_status.push_tasks_up_to_date_status_from_live_data(
+                api=object(),
+                token="tok",
+                updated_by="gptodoist",
+                base_url="https://data.pinescore.com",
+                timeout_s=1.5,
+            )
+        finally:
+            helper_todoist_part2.fetch_todoist_tasks = original_fetch  # type: ignore[assignment]
+            helper_pinescore_status._count_due_long_tasks_for_status = original_count  # type: ignore[assignment]
+            helper_pinescore_status.push_tasks_up_to_date_status = original_push  # type: ignore[assignment]
+
+        self.assertEqual(result.etag, "\"live\"")
+        self.assertEqual(captured["token"], "tok")
+        self.assertEqual(captured["regular_tasks"], fake_tasks)
+        self.assertEqual(captured["long_tasks_showing_count"], 2)
+        self.assertEqual(captured["updated_by"], "gptodoist")
+        self.assertEqual(captured["base_url"], "https://data.pinescore.com")
+        self.assertEqual(captured["timeout_s"], 1.5)
+
+    def test_push_from_live_data_raises_when_task_fetch_fails(self):
+        original_fetch = helper_todoist_part2.fetch_todoist_tasks
+        try:
+            helper_todoist_part2.fetch_todoist_tasks = lambda _api: None  # type: ignore[assignment]
+            with self.assertRaises(RuntimeError):
+                helper_pinescore_status.push_tasks_up_to_date_status_from_live_data(
+                    api=object(),
+                    token="tok",
+                    updated_by="gptodoist",
+                )
+        finally:
+            helper_todoist_part2.fetch_todoist_tasks = original_fetch  # type: ignore[assignment]
+
+    def test_background_loop_calls_success_and_stops(self):
+        stop_event = Event()
+        success = []
+        original_push_live = helper_pinescore_status.push_tasks_up_to_date_status_from_live_data
+
+        def _fake_push_live(*, api, token, updated_by, base_url, timeout_s):
+            status = helper_pinescore_status.compute_tasks_up_to_date_status(
+                regular_tasks=[],
+                long_tasks_showing_count=0,
+            )
+            stop_event.set()
+            return helper_pinescore_status.PinescorePushResult(status=status, etag="\"bg\"")
+
+        try:
+            helper_pinescore_status.push_tasks_up_to_date_status_from_live_data = _fake_push_live  # type: ignore[assignment]
+            helper_pinescore_status.background_status_push_loop(
+                stop_event=stop_event,
+                api=object(),
+                token="tok",
+                updated_by="gptodoist",
+                interval_s=9999.0,
+                on_success=lambda pushed: success.append(pushed.etag),
+            )
+        finally:
+            helper_pinescore_status.push_tasks_up_to_date_status_from_live_data = original_push_live  # type: ignore[assignment]
+
+        self.assertEqual(success, ["\"bg\""])
+
 
 if __name__ == "__main__":
     unittest.main()
-
