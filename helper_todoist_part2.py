@@ -6,6 +6,7 @@ import datetime
 import time
 import os # KEPT: For os.environ.get in timesheet, but potentially removable later
 import signal
+import threading
 import subprocess
 from datetime import timedelta, timezone # Ensure timezone is imported
 import module_call_counter
@@ -104,10 +105,10 @@ def _extract_primary_project_name(filter_query: str | None) -> str | None:
 def fetch_todoist_tasks(api):
     """Fetches and sorts tasks based on the active filter (obtained via state_manager)."""
     # Timeout logic remains
-    if hasattr(signal, 'SIGALRM'):
+    use_signal_timeout = hasattr(signal, "SIGALRM") and threading.current_thread() is threading.main_thread()
+    if use_signal_timeout:
         def handler(signum, frame):
             raise TimeoutError("Todoist task fetch timed out after 5 seconds")
-    # else: # Warning printed elsewhere
 
     active_filter_query, _ = state_manager.get_active_filter_details()
     if not active_filter_query:
@@ -119,13 +120,14 @@ def fetch_todoist_tasks(api):
 
     for attempt in range(retries):
         try:
-            if hasattr(signal, 'SIGALRM'):
+            if use_signal_timeout:
                 signal.signal(signal.SIGALRM, handler)
                 signal.alarm(5)
 
             tasks = todoist_compat.get_tasks_by_filter(api, active_filter_query)
 
-            if hasattr(signal, 'SIGALRM'): signal.alarm(0)
+            if use_signal_timeout:
+                signal.alarm(0)
 
             if not isinstance(tasks, list):
                 print(f"[red]Error: API returned unexpected data type: {type(tasks)}[/red]")
@@ -249,10 +251,12 @@ def fetch_todoist_tasks(api):
             return sorted_final_tasks
 
         except TimeoutError as te:
-            if hasattr(signal, 'SIGALRM'): signal.alarm(0)
+            if use_signal_timeout:
+                signal.alarm(0)
             print(f"[yellow]Attempt {attempt + 1}: Task fetch timed out. {te}. Retrying...[/yellow]")
         except Exception as e:
-            if hasattr(signal, 'SIGALRM'): signal.alarm(0)
+            if use_signal_timeout:
+                signal.alarm(0)
             print(f"[red]Attempt {attempt + 1}: Error fetching tasks: {e}[/red]")
             # Only print traceback here if it's not the specific TypeError we commented on
             if not isinstance(e, TypeError) or "unexpected keyword argument 'filter'" not in str(e):
