@@ -142,7 +142,7 @@ def main_loop():
                     status = pushed.status
                     print(
                         f"[dim]data.pinescore.com status push: up_to_date={status.up_to_date} "
-                        f"reason={status.reason} etag={pushed.etag}[/dim]"
+                        f"reason={status.reason}[/dim]"
                     )
                 except Exception as exc:
                     print(f"[red]data.pinescore.com status push failed: {exc}[/red]")
