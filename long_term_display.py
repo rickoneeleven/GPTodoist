@@ -163,7 +163,7 @@ def display_tasks(api, task_type=None):
     
 
 
-def display_next_long_task(api):
+def display_next_long_task(api) -> int:
     """Displays up to two due/overdue long-term tasks.
 
     Ordering is priority-first; within the same priority recurring comes first, then due, then index.
@@ -175,7 +175,7 @@ def display_next_long_task(api):
 
         if not tasks_to_show:
             print("[dim]  No due long-term tasks.[/dim]\n")
-            return
+            return 0
 
         for idx, task in enumerate(tasks_to_show, start=1):
             base_text = format_task_for_display(task)
@@ -189,7 +189,9 @@ def display_next_long_task(api):
                 desc_preview = (task.description[:120] + '...') if len(task.description) > 120 else task.description
                 print(f"    [italic blue]Desc: {desc_preview.replace(chr(10), ' ')}[/italic blue]")
         print()
+        return len(tasks_to_show)
 
     except Exception as e:
         print(f"[red]An error occurred displaying next long-term task: {e}[/red]")
         traceback.print_exc()
+        return 0

@@ -271,7 +271,7 @@ def get_next_todoist_task(api):
         tasks = fetch_todoist_tasks(api) # Uses state_manager for filter query
         if tasks is None:
             print("[yellow]Unable to fetch tasks.[/yellow]\n")
-            return # Cannot proceed
+            return None, 0  # Cannot proceed
         if not tasks:
             print("\u2705 [bold green]All tasks complete! \u2705[/bold green]\n")
             # <<< MODIFIED: Clear active task via state_manager >>>
@@ -384,17 +384,22 @@ def get_next_todoist_task(api):
                  print(f"                   [green]{task_name}[/green]\n") # Use task_name from above
 
         # Display the next long-term tasks (up to two at a time)
+        long_tasks_showing_count = 0
         try:
-            helper_todoist_long.display_next_long_task(api)
+            long_tasks_showing_count = helper_todoist_long.display_next_long_task(api)
         except Exception as long_term_error:
             print(f"[red]Error displaying next long-term task: {long_term_error}[/red]")
             # traceback.print_exc() # Can be verbose
             print()
+            long_tasks_showing_count = 0
+
+        return tasks, long_tasks_showing_count
 
     except Exception as e:
         print(f"[red]An unexpected error occurred in get_next_todoist_task: {e}[/red]")
         traceback.print_exc()
         print("Continuing...\n")
+        return None, 0
 
 
 # moved: display_todoist_tasks

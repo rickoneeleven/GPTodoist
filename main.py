@@ -13,6 +13,7 @@ import helper_diary
 import helper_recurrence
 import state_manager # <<< ADDED: Import the new state manager
 import helper_effects
+import helper_pinescore_status
 from rich import print
 from datetime import datetime, timedelta, timezone # Keep necessary datetime components
 import traceback # For detailed error logging
@@ -22,6 +23,12 @@ import pytz
 
 # --- Constants ---
 TODOIST_API_KEY = os.environ["TODOIST_API_KEY"]
+_raw_pinescore_token = os.environ.get("PINESCOREDATA_WRITE_TOKEN")
+PINESCOREDATA_WRITE_TOKEN = _raw_pinescore_token.strip() if isinstance(_raw_pinescore_token, str) else None
+if PINESCOREDATA_WRITE_TOKEN == "":
+    PINESCOREDATA_WRITE_TOKEN = None
+PINESCOREDATA_BASE_URL = os.environ.get("PINESCOREDATA_BASE_URL", "https://data.pinescore.com")
+PINESCOREDATA_UPDATED_BY = os.environ.get("PINESCOREDATA_UPDATED_BY", "gptodoist")
 # <<< REMOVED: BACKUP_TIMESTAMP_FILE and OPTIONS_FILENAME, LAST_BACKUP_KEY as they are managed within state_manager
 BACKUP_INTERVAL_HOURS = 1
 
@@ -75,15 +82,38 @@ def _check_and_trigger_backup():
 # --- Main Loop (Uses refactored state_manager for verify_device_id implicitly) ---
 def main_loop():
     """The main execution loop of the application."""
+    if PINESCOREDATA_WRITE_TOKEN:
+        print("[dim]data.pinescore.com status push: enabled[/dim]")
+    else:
+        print("[dim]data.pinescore.com status push: disabled (PINESCOREDATA_WRITE_TOKEN not set)[/dim]")
+
     while True:
         print("-" * 60)
         _check_and_trigger_backup() # Uses state_manager for timestamps now
-        helper_todoist_part2.get_next_todoist_task(api) # Will be refactored later
+        regular_tasks, long_tasks_showing_count = helper_todoist_part2.get_next_todoist_task(api) # Will be refactored later
         # helper_todoist_part1.print_completed_tasks_count()  # Hidden by request
         helper_display.check_if_grafting(api)
         helper_diary.weekly_audit() # Will be refactored later
         helper_diary.purge_old_completed_tasks() # Will be refactored later
         helper_recurrence.update_recurrence_patterns(api)
+
+        if PINESCOREDATA_WRITE_TOKEN and regular_tasks is not None:
+            try:
+                pushed = helper_pinescore_status.push_tasks_up_to_date_status(
+                    token=PINESCOREDATA_WRITE_TOKEN,
+                    regular_tasks=regular_tasks,
+                    long_tasks_showing_count=long_tasks_showing_count,
+                    updated_by=PINESCOREDATA_UPDATED_BY,
+                    base_url=PINESCOREDATA_BASE_URL,
+                    timeout_s=3.0,
+                )
+                status = pushed.status
+                print(
+                    f"[dim]data.pinescore.com status push: up_to_date={status.up_to_date} "
+                    f"reason={status.reason} etag={pushed.etag}[/dim]"
+                )
+            except Exception as exc:
+                print(f"[red]data.pinescore.com status push failed: {exc}[/red]")
 
         user_message = helper_parse.get_user_input()
         print("processing... ++++++++++++++++++++++++++++++++++++++++++++++")

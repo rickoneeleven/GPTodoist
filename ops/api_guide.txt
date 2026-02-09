@@ -1,0 +1,142 @@
+# data.pinescore.com API Guide (v1)
+
+Last updated (Europe/London): 09 Feb 2026 15:18 (GMT)
+
+Goal: a minimal authenticated HTTP API that lets a handful of personal apps read and write a shared state document. Client apps own business logic. This service stores and serves state only.
+
+Base URL
+- Production: `https://data.pinescore.com`
+- All endpoints are under `/v1`
+
+Authentication
+- Send tokens via `Authorization: Bearer <token>`
+- Token classes:
+  - Read token: can read state
+  - Write token: can read and write state
+- Tokens are secrets. Never publish them in docs, logs, screenshots, or issues.
+
+Content
+- Requests and responses are JSON: `Content-Type: application/json`
+- Timestamps are ISO 8601 with timezone (prefer `Z`), for example `2026-02-09T13:18:40Z`.
+
+Concurrency (ETag + If-Match)
+- `GET /v1/state` returns an `ETag` header.
+- Writes must include `If-Match: <etag>` to prevent lost updates.
+- If `If-Match` is missing: respond `428 Precondition Required`.
+- If the ETag does not match current state: respond `409 Conflict`.
+Notes:
+- ETag values are opaque. Clients must treat them as opaque strings.
+
+Endpoints
+
+1) GET /v1/state
+- Auth: read or write token
+- Purpose: read the current shared state document
+- v1 note: no partial reads (`?keys=...`); clients filter locally.
+- Response:
+  - Headers:
+    - `ETag: "<opaque>"`
+    - `Cache-Control: no-store`
+  - Body:
+    - `{ "ok": true, "data": { "state": <object> }, "meta": { "etag": "<opaque>", "server_time": "<iso8601>" } }`
+
+2) PATCH /v1/state
+- Auth: write token
+- Purpose: partial update of the shared state document
+- Required headers:
+  - `If-Match: "<opaque>"`
+- Request body:
+  - `set`: object of key/value pairs to set (optional)
+  - `unset`: list of keys to remove (optional)
+  - `updated_by`: client identifier string (required)
+  - Example:
+    - `{ "set": { "todo.tasks_up_to_date": true }, "unset": [], "updated_by": "todoist-sync" }`
+- Server behavior:
+  - Validates key and value types (see Key Governance).
+  - Applies `unset` then `set`.
+  - Always updates these state keys:
+    - `meta.updated_at` (server time)
+    - `meta.updated_by` (from request `updated_by`)
+  - Returns updated state and new ETag.
+- Response:
+  - Headers:
+    - `ETag: "<new-opaque>"`
+    - `Cache-Control: no-store`
+  - Body:
+    - `{ "ok": true, "data": { "state": <object> }, "meta": { "etag": "<new-opaque>", "server_time": "<iso8601>" } }`
+
+3) GET /v1/health
+- Auth: none (unauthenticated)
+- Purpose: liveness check for monitors and scripts
+- Response: `{ "ok": true }`
+
+State Document (v1)
+- State is a single JSON object.
+- Reserved namespace:
+  - `meta.*` is owned by the server (clients do not set it directly).
+- Freshness note: the server does not enforce TTL; consumers decide how stale is acceptable using timestamps like `todo.tasks_last_checked_at`.
+- v1 suggested keys (guidance only; clients may add additional keys as needed):
+  - `todo.tasks_up_to_date` (boolean)
+  - `todo.tasks_last_checked_at` (iso8601 timestamp; when computed, not when fetched)
+  - `todo.tasks_last_updated_by` (string; writer identifier)
+  - `meta.updated_at` (iso8601 timestamp; server time)
+  - `meta.updated_by` (string; client identifier from request)
+
+Key Governance (v1)
+- Unknown keys are allowed (this hub is an endpoint for personal apps).
+- Reserved namespace enforcement:
+  - Clients must not set or unset `meta.*` keys; those are server-owned.
+- Value type mismatches for known suggested keys should be rejected with `400`.
+- The server enforces basic key format rules (dotted namespaces) and size limits to avoid abuse.
+  - Key format: dotted names with alphanumerics plus `_` and `-` (no spaces)
+  - Key max length: 200 characters
+
+Error Model
+- Error envelope:
+  - `{ "ok": false, "error": { "code": "<CODE>", "message": "<human>", "details": <optional> } }`
+- Expected statuses:
+  - 400 `INVALID_REQUEST` (bad JSON, unknown keys, invalid types)
+  - 401 `UNAUTHORIZED` (missing/invalid token)
+  - 403 `FORBIDDEN` (read token used on write endpoint)
+  - 409 `ETAG_MISMATCH` (If-Match failed)
+  - 428 `PRECONDITION_REQUIRED` (If-Match missing)
+  - 500 `INTERNAL` (unexpected server error)
+
+Examples (curl)
+
+Read state (capture ETag)
+```bash
+READ_TOKEN="REDACTED"
+
+curl -sS -D /tmp/headers.txt \\
+  -H "Authorization: Bearer $READ_TOKEN" \\
+  -H "Accept: application/json" \\
+  https://data.pinescore.com/v1/state \\
+  -o /tmp/body.json
+
+grep -i '^etag:' /tmp/headers.txt
+cat /tmp/body.json
+```
+
+Write update (optimistic concurrency)
+```bash
+WRITE_TOKEN="REDACTED"
+ETAG="$(grep -i '^etag:' /tmp/headers.txt | sed -E 's/^etag: *//I' | tr -d '\r')"
+
+curl -sS -D /tmp/headers2.txt \\
+  -H "Authorization: Bearer $WRITE_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -H "If-Match: $ETAG" \\
+  -X PATCH https://data.pinescore.com/v1/state \\
+  --data-binary '{
+    "updated_by": "todoist-sync",
+    "set": {
+      "todo.tasks_up_to_date": true,
+      "todo.tasks_last_checked_at": "2026-02-09T13:18:40Z",
+      "todo.tasks_last_updated_by": "todoist-sync"
+    },
+    "unset": []
+  }'
+
+grep -i '^etag:' /tmp/headers2.txt
+```
