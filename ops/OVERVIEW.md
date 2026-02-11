@@ -1,6 +1,5 @@
 # GPTodoist - Overview
-
-DATETIME of last agent review: 09 Feb 2026 20:44 (Europe/London)
+DATETIME of last agent review: 11 Feb 2026 10:38 (Europe/London)
 
 ## Purpose
 Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-term task handling (shows up to two next due long-term tasks each loop, with absolute due date/time surfaced).
@@ -36,5 +35,6 @@ python main.py
 - Any `data.pinescore.com` integration must follow the API contract at `https://data.pinescore.com/api_guide.txt`.
 - Auth tokens for `data.pinescore.com` are secrets and must be provided via env vars only (never committed).
 - Optional: set `PINESCOREDATA_WRITE_TOKEN` to push `todo.tasks_up_to_date` to `data.pinescore.com` on loop refresh and in a background 5-minute loop (loop debug output prints `up_to_date` and `reason`, omitting `etag`; override interval with `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS`).
+- Background status push has device ownership gating: only `todo.tasks_background_owner_device_id` can publish from the 5-minute loop, and manual non-empty user input claims ownership via `todo.tasks_background_owner_*` fields.
 - `helper_todoist_part2.fetch_todoist_tasks` now uses `SIGALRM` timeout only on main thread; background sync path skips signal handlers safely.
 - `module_call_counter.py` uses thread-safe, atomic JSON writes so background and main loops do not corrupt `j_function_calls.json`.

@@ -30,6 +30,8 @@ if PINESCOREDATA_WRITE_TOKEN == "":
     PINESCOREDATA_WRITE_TOKEN = None
 PINESCOREDATA_BASE_URL = os.environ.get("PINESCOREDATA_BASE_URL", "https://data.pinescore.com")
 PINESCOREDATA_UPDATED_BY = os.environ.get("PINESCOREDATA_UPDATED_BY", "gptodoist")
+PINESCOREDATA_DEVICE_ID = helper_pinescore_status.get_local_device_id()
+PINESCOREDATA_DEVICE_LABEL = helper_pinescore_status.get_local_device_label()
 _raw_pinescore_interval = os.environ.get("PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS", "300")
 try:
     PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS = max(1.0, float(_raw_pinescore_interval))
@@ -105,6 +107,7 @@ def main_loop():
                 "base_url": PINESCOREDATA_BASE_URL,
                 "interval_s": PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS,
                 "timeout_s": 3.0,
+                "local_device_id": PINESCOREDATA_DEVICE_ID,
                 "on_error": lambda exc: print(f"[red]data.pinescore.com background status push failed: {exc}[/red]"),
             },
             daemon=True,
@@ -114,6 +117,10 @@ def main_loop():
         print(
             f"[dim]data.pinescore.com background status push interval: "
             f"{int(PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS)}s[/dim]"
+        )
+        print(
+            f"[dim]data.pinescore.com device: "
+            f"{PINESCOREDATA_DEVICE_LABEL} ({PINESCOREDATA_DEVICE_ID[:8]})[/dim]"
         )
     else:
         print("[dim]data.pinescore.com status push: disabled (PINESCOREDATA_WRITE_TOKEN not set)[/dim]")
@@ -161,6 +168,19 @@ def main_loop():
                 print("[bold red]Command blocked due to device ID mismatch.[/bold red]")
                 time.sleep(1)
                 continue
+
+            if PINESCOREDATA_WRITE_TOKEN and isinstance(user_message, str) and user_message.strip():
+                try:
+                    helper_pinescore_status.claim_background_push_ownership(
+                        token=PINESCOREDATA_WRITE_TOKEN,
+                        updated_by=PINESCOREDATA_UPDATED_BY,
+                        base_url=PINESCOREDATA_BASE_URL,
+                        timeout_s=3.0,
+                        device_id=PINESCOREDATA_DEVICE_ID,
+                        device_label=PINESCOREDATA_DEVICE_LABEL,
+                    )
+                except Exception as exc:
+                    print(f"[red]data.pinescore.com background ownership claim failed: {exc}[/red]")
 
             command_handled = helper_commands.ifelse_commands(api, user_message) # Will be refactored later
             if not command_handled:

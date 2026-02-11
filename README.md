@@ -1,6 +1,6 @@
 # GPTodoist
 
-DATETIME of last agent review: 09 Feb 2026 19:28 (Europe/London)
+DATETIME of last agent review: 11 Feb 2026 10:38 (Europe/London)
 
 A command-line interface (CLI) tool for fast interaction with your Todoist account: pick and act on an active task, manage long-term tasks, and generate diary and timesheet entries from completed items.
 
@@ -49,11 +49,15 @@ Optional API status push to `data.pinescore.com`.
 - `PINESCOREDATA_WRITE_TOKEN`: enables status updates (`todo.tasks_up_to_date` and metadata)
 - `PINESCOREDATA_BASE_URL`: optional override (default `https://data.pinescore.com`)
 - `PINESCOREDATA_UPDATED_BY`: optional source label (default `gptodoist`)
+- `PINESCOREDATA_DEVICE_ID`: optional stable device ID override for ownership gating (default: machine fingerprint hash)
+- `PINESCOREDATA_DEVICE_LABEL`: optional human label for ownership debugging (default: hostname)
 - `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS`: background refresh interval in seconds (default `300`)
 
 When enabled, status updates run both:
 - once per interactive loop refresh
-- in a background loop every `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS` (default 5 minutes), so status stays fresh even if no command is entered
+- in a background loop every `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS` (default 5 minutes), but only on the device that currently owns background status updates
+
+Ownership is claimed when a non-empty manual command is entered in the app. The owner device ID is stored in API state so stale/idle machines no longer overwrite `todo.tasks_up_to_date` from background threads.
 
 ## Usage
 ```bash
