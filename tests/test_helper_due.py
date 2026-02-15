@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 import unittest
 
 import pytz
@@ -48,16 +48,18 @@ class _FakeApi:
     def update_task(self, *, task_id, **kwargs):
         self.last_update_kwargs = kwargs
         if "due_datetime" in kwargs:
+            dt_value = kwargs["due_datetime"]
             is_recurring = False if self._drop_recurring_on_datetime_update else bool(self._task.due.is_recurring)
             self._task.due = _Due(
-                datetime_value=kwargs["due_datetime"],
+                datetime_value=dt_value if isinstance(dt_value, str) else dt_value.isoformat(),
                 is_recurring=is_recurring,
                 string=self._task.due.string,
             )
             return True
         if "due_date" in kwargs:
+            d_value = kwargs["due_date"]
             self._task.due = _Due(
-                date=kwargs["due_date"],
+                date=d_value if isinstance(d_value, str) else d_value.isoformat(),
                 is_recurring=bool(self._task.due.is_recurring),
                 string=self._task.due.string,
             )
@@ -101,7 +103,8 @@ class TestHelperDue(unittest.TestCase):
         self.assertEqual(api.probe_created, 1)
         self.assertEqual(api.probe_deleted, 1)
         self.assertIn("due_datetime", api.last_update_kwargs)
-        self.assertIn("2026-02-21T09:30:00", api.last_update_kwargs["due_datetime"])
+        self.assertIsInstance(api.last_update_kwargs["due_datetime"], datetime)
+        self.assertEqual(api.last_update_kwargs["due_datetime"].date(), date(2026, 2, 21))
 
     def test_update_task_due_recovers_recurrence_if_lost(self):
         due = _Due(

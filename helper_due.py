@@ -138,7 +138,7 @@ def _build_due_update_payload(task, target_date: date) -> dict:
     due_obj = getattr(task, "due", None)
     parsed_dt = _parse_due_datetime(due_obj)
     if parsed_dt is None:
-        return {"due_date": target_date.isoformat()}
+        return {"due_date": target_date}
 
     tz = _timezone_or_london(getattr(due_obj, "timezone", None))
     local_dt = parsed_dt.astimezone(tz)
@@ -155,7 +155,7 @@ def _build_due_update_payload(task, target_date: date) -> dict:
         target_local_dt = tz.localize(naive_target, is_dst=None)
     except Exception:
         target_local_dt = tz.localize(naive_target)
-    return {"due_datetime": target_local_dt.isoformat()}
+    return {"due_datetime": target_local_dt}
 
 
 def update_task_due_preserving_schedule(api, task, raw_due_input: str):

@@ -26,6 +26,9 @@ def due_task(api, index: int, due_input: str):
             f"[green]Long task [{index}] due date moved to {target_date.isoformat()} while preserving recurrence/time metadata.[/green]"
         )
         return updated_task
+    except ValueError as error:
+        print(f"[red]{error}[/red]")
+        return None
     except Exception as error:
         print(f"[red]An unexpected error occurred updating due for long task index [{index}]: {error}[/red]")
         traceback.print_exc()
