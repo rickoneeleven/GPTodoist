@@ -1,5 +1,5 @@
 # GPTodoist - Overview
-DATETIME of last agent review: 11 Feb 2026 10:38 (Europe/London)
+DATETIME of last agent review: 15 Feb 2026 12:28 (Europe/London)
 
 ## Purpose
 Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-term task handling (shows up to two next due long-term tasks each loop, with absolute due date/time surfaced).
@@ -7,14 +7,14 @@ Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-
 ## Key Files
 - `main.py` - main loop and orchestration
 - `helper_commands.py` - command dispatch (`ifelse_commands`)
-- `helper_todoist_part1.py` - Todoist task operations (part 1)
+- `helper_todoist_part1.py` + `regular_due.py` - active-task actions and `due` command flow
 - `helper_todoist_part2.py` - Todoist task operations (part 2)
 - `pinescore_data_v1.py` - data.pinescore.com state hub client (ETag + If-Match)
 - `pinescore_tasks_status.py` - computes `todo.tasks_up_to_date` payload from current loop state
 - `helper_pinescore_status.py` - status push helpers + live background push loop
 - `state_manager.py` - local state + backup timestamps + device guard
 - `todoist_compat.py` - Todoist SDK compatibility and retries
-- `long_term_*.py` - long-term task logic and indexing
+- `long_term_*.py` + `long_term_due.py` - long-term task logic, indexing, and `due long`
 
 ## Related
 - `requirements.txt` - runtime dependencies

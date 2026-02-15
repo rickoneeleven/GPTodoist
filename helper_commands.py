@@ -6,6 +6,7 @@ import helper_tasks
 import helper_regex
 import helper_timesheets
 import helper_todoist_long
+import regular_due
 import state_manager
 import helper_hide
 from rich import print
@@ -39,11 +40,13 @@ CMD_HIDE = "hide" # New command
 PREFIX_FUZZY_COMPLETE = "~~~"
 PREFIX_ADHOC_COMPLETE = "xx "
 PREFIX_TIME = "time "
+PREFIX_DUE = "due "
 PREFIX_POSTPONE = "postpone "
 PREFIX_RENAME = "rename "
 PREFIX_PRIORITY = "priority "
 PREFIX_ADD_TASK = "add task "
 PREFIX_TIME_LONG = "time long "
+PREFIX_DUE_LONG = "due long "
 PREFIX_SKIP_LONG = "skip long "
 PREFIX_TOUCH_LONG = "touch long "
 PREFIX_HIDE_LONG = "hide long "
@@ -117,6 +120,10 @@ def _handle_time(api, user_message):
     check_and_update_task_due_date(api, user_message)
     return True
 
+def _handle_due(api, user_message):
+    regular_due.due_active_task(api, user_message)
+    return True
+
 def _handle_postpone(api, user_message):
     postpone_due_date(api, user_message)
     return True
@@ -170,6 +177,19 @@ def _handle_time_long(api, user_message):
         helper_todoist_long.reschedule_task(api, index, schedule)
     except Exception as e:
          print(f"[red]Error rescheduling long task (Index: {index}, Schedule: '{schedule}'): {e}[/red]")
+         traceback.print_exc()
+    return True
+
+def _handle_due_long(api, user_message):
+    parsed = _parse_long_task_index_and_value(user_message, PREFIX_DUE_LONG, "due_text")
+    if parsed is None:
+        return True
+
+    index, due_text = parsed
+    try:
+        helper_todoist_long.due_task(api, index, due_text)
+    except Exception as e:
+         print(f"[red]Error updating due date for long task (Index: {index}, Due: '{due_text}'): {e}[/red]")
          traceback.print_exc()
     return True
 
@@ -355,6 +375,7 @@ def _handle_clear(api, user_message):
 COMMAND_DISPATCH = [
     (PREFIX_HIDE_LONG, _handle_hide_long, True),
     (PREFIX_TIME_LONG, _handle_time_long, True),
+    (PREFIX_DUE_LONG, _handle_due_long, True),
     (PREFIX_SKIP_LONG, _handle_skip_long, True),
     (PREFIX_TOUCH_LONG, _handle_touch_long, True),
     (PREFIX_ADD_LONG, _handle_add_long, True),
@@ -365,6 +386,7 @@ COMMAND_DISPATCH = [
     (PREFIX_FUZZY_COMPLETE, _handle_fuzzy_complete, True),
     (PREFIX_ADHOC_COMPLETE, _handle_adhoc_complete, True),
     (PREFIX_TIME, _handle_time, True),
+    (PREFIX_DUE, _handle_due, True),
     (PREFIX_POSTPONE, _handle_postpone, True),
     (PREFIX_RENAME, _handle_rename, True),
     (PREFIX_PRIORITY, _handle_priority, True),

@@ -25,6 +25,7 @@ from long_term_operations import (
     change_task_priority,
     postpone_task
 )
+from long_term_due import due_task
 
 from long_term_indexing import (
     get_categorized_tasks,

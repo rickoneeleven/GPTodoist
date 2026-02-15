@@ -1,6 +1,6 @@
 # GPTodoist
 
-DATETIME of last agent review: 11 Feb 2026 10:38 (Europe/London)
+DATETIME of last agent review: 15 Feb 2026 12:28 (Europe/London)
 
 A command-line interface (CLI) tool for fast interaction with your Todoist account: pick and act on an active task, manage long-term tasks, and generate diary and timesheet entries from completed items.
 
@@ -74,6 +74,7 @@ Commands are matched case-insensitively.
 - `skip`: Complete without logging
 - `delete`: Delete from Todoist
 - `time <due_string>`: Set due date/time
+- `due <due_string|day_of_month>`: Move due date while preserving recurrence and existing due-time metadata
 - `postpone <due_string>`: Postpone (recurring: complete and recreate)
 - `rename <new_name>`: Rename
 - `priority <1|2|3|4>`: Set priority (1=P1 High, 4=P4 Low)
@@ -98,6 +99,7 @@ Commands are matched case-insensitively.
 - `show long`: Show due long-term tasks (requires `[index]` prefixes)
 - `add long <task_name>`: Create long-term task with next `[index]`
 - `time long <index> <schedule>`: Reschedule
+- `due long <index> <due_string|day_of_month>`: Move due date while preserving recurrence and existing due-time metadata
 - `skip long <index>`: Touch without logging completion
 - `touch long <index>`: Touch and log completion
 - `hide long <index>`: Hide for today only (Europe/London)

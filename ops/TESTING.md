@@ -1,6 +1,6 @@
 # GPTodoist - Testing
 
-DATETIME of last agent review: 11 Feb 2026 10:38 (Europe/London)
+DATETIME of last agent review: 15 Feb 2026 12:28 (Europe/London)
 
 ## Purpose
 Fast sanity checks for Python syntax, import wiring, and small unit tests.
@@ -12,6 +12,7 @@ Fast sanity checks for Python syntax, import wiring, and small unit tests.
 
 ## Key Test Files
 - `main.py` - imports most modules and is the best smoke entrypoint
+- `tests/test_helper_due.py` - due-date normalization and due-preserving payload behavior
 - `tests/test_helper_pinescore_status.py` - data.pinescore.com status patch, ownership claim, and background ownership gate behavior
 
 ## Coverage Scope
