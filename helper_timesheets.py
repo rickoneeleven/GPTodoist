@@ -671,9 +671,9 @@ def timesheet():
                     print(f"[red]Error displaying long-term tasks post-timesheet: {e_long_tasks}[/red]")
 
                 try:
-                    print("\n[cyan]Refreshing current Todoist tasks view...[/cyan]")
-                    from helper_display import display_todoist_tasks
-                    display_todoist_tasks(api)
+                    print("\n[cyan]Refreshing active filter tasks (grouped for objective)...[/cyan]")
+                    from helper_display import display_todoist_tasks_grouped_for_objective
+                    display_todoist_tasks_grouped_for_objective(api)
                 except Exception as e_current_tasks:
                     print(f"[red]Error displaying current Todoist tasks post-timesheet: {e_current_tasks}[/red]")
 

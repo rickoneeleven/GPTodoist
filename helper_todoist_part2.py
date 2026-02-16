@@ -102,8 +102,8 @@ def _extract_primary_project_name(filter_query: str | None) -> str | None:
     return matches[0] if matches else None
 
 
-def fetch_todoist_tasks(api):
-    """Fetches and sorts tasks based on the active filter (obtained via state_manager)."""
+def fetch_todoist_tasks(api, filter_query_override=None):
+    """Fetches and sorts tasks based on the active filter (or an explicit query override)."""
     # Timeout logic remains
     use_signal_timeout = hasattr(signal, "SIGALRM") and threading.current_thread() is threading.main_thread()
     if use_signal_timeout:
@@ -111,7 +111,8 @@ def fetch_todoist_tasks(api):
             raise TimeoutError("Todoist task fetch timed out after 5 seconds")
 
     active_filter_query, _ = state_manager.get_active_filter_details()
-    if not active_filter_query:
+    filter_query = filter_query_override or active_filter_query
+    if not filter_query:
         print("[red]Error: No active filter query found. Cannot fetch tasks.[/red]")
         return None # Return None to indicate failure
 
@@ -124,7 +125,7 @@ def fetch_todoist_tasks(api):
                 signal.signal(signal.SIGALRM, handler)
                 signal.alarm(5)
 
-            tasks = todoist_compat.get_tasks_by_filter(api, active_filter_query)
+            tasks = todoist_compat.get_tasks_by_filter(api, filter_query)
 
             if use_signal_timeout:
                 signal.alarm(0)

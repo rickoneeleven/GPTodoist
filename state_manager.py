@@ -139,11 +139,15 @@ def save_filters(filters_data: List[Dict]) -> bool:
     """Saves the provided list of filter definitions."""
     return _save_data(FILTERS_FILENAME, filters_data)
 
+def _is_filter_active(value: Any) -> bool:
+    """Accept common JSON encodings for active flags: 1, '1', true."""
+    return value in (1, "1", True)
+
 def get_active_filter_details() -> Tuple[Optional[str], Optional[str]]:
     """Finds the active filter and returns its query string and project_id."""
     filters = get_filters()
     for filter_data in filters:
-        if isinstance(filter_data, dict) and filter_data.get("isActive") == 1:
+        if isinstance(filter_data, dict) and _is_filter_active(filter_data.get("isActive")):
             if "filter" in filter_data:
                  # Use .get with default None for project_id
                 return filter_data.get("filter"), filter_data.get("project_id")
@@ -163,7 +167,7 @@ def toggle_active_filter() -> bool:
 
     active_index = -1
     for i, f in enumerate(filters):
-        if isinstance(f, dict) and f.get("isActive") == 1:
+        if isinstance(f, dict) and _is_filter_active(f.get("isActive")):
             active_index = i
             break
 
