@@ -49,6 +49,7 @@ PREFIX_TIME_LONG = "time long "
 PREFIX_DUE_LONG = "due long "
 PREFIX_SKIP_LONG = "skip long "
 PREFIX_TOUCH_LONG = "touch long "
+PREFIX_DONE_LONG = "done long "
 PREFIX_HIDE_LONG = "hide long "
 PREFIX_ADD_LONG = "add long "
 PREFIX_RENAME_LONG = "rename long "
@@ -80,6 +81,7 @@ STARTUP_COMMAND_REFERENCE = [
     ("add long <task_name>", "Create a long-term task with next [index]."),
     ("time long <index> <schedule>", "Reschedule a long-term task."),
     ("due long <index> <due_text>", "Move long-term task due date while preserving schedule metadata."),
+    ("done long <index>", "Complete and log long-term task."),
     ("skip long <index>", "Complete long-term task without logging."),
     ("touch long <index>", "Complete and log long-term task."),
     ("hide long <index>", "Hide long-term task index for today only."),
@@ -95,7 +97,7 @@ STARTUP_COMMAND_REFERENCE = [
 
 
 def print_startup_command_reference():
-    print("[bold cyan]--- Commands Quick Reference (shown once) ---[/bold cyan]")
+    print("[bold cyan]--- Commands Quick Reference ---[/bold cyan]")
     for command, description in STARTUP_COMMAND_REFERENCE:
         print(f"  [green]{command:<34}[/green] {description}")
     print()
@@ -261,6 +263,19 @@ def _handle_touch_long(api, user_message):
          traceback.print_exc()
     return True
 
+def _handle_done_long(api, user_message):
+    index = _parse_long_task_index(user_message, PREFIX_DONE_LONG)
+    if index is None:
+        return True
+
+    try:
+        subprocess.call("reset")
+        helper_todoist_long.touch_task(api, index, skip_logging=False)
+    except Exception as e:
+         print(f"[red]Error completing long task (Index: {index}): {e}[/red]")
+         traceback.print_exc()
+    return True
+
 def _handle_add_long(api, user_message):
     task_name = user_message[len(PREFIX_ADD_LONG):].strip()
     if not task_name:
@@ -418,6 +433,7 @@ COMMAND_DISPATCH = [
     (PREFIX_HIDE_LONG, _handle_hide_long, True),
     (PREFIX_TIME_LONG, _handle_time_long, True),
     (PREFIX_DUE_LONG, _handle_due_long, True),
+    (PREFIX_DONE_LONG, _handle_done_long, True),
     (PREFIX_SKIP_LONG, _handle_skip_long, True),
     (PREFIX_TOUCH_LONG, _handle_touch_long, True),
     (PREFIX_ADD_LONG, _handle_add_long, True),
