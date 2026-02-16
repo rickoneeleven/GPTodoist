@@ -92,6 +92,7 @@ def main_loop():
     """The main execution loop of the application."""
     pinescore_stop_event = None
     pinescore_thread = None
+    startup_commands_shown = False
 
     if PINESCOREDATA_WRITE_TOKEN:
         print("[dim]data.pinescore.com status push: enabled[/dim]")
@@ -129,6 +130,9 @@ def main_loop():
         while True:
             print("-" * 60)
             _check_and_trigger_backup() # Uses state_manager for timestamps now
+            if not startup_commands_shown:
+                helper_commands.print_startup_command_reference()
+                startup_commands_shown = True
             regular_tasks, long_tasks_showing_count = helper_todoist_part2.get_next_todoist_task(api) # Will be refactored later
             # helper_todoist_part1.print_completed_tasks_count()  # Hidden by request
             helper_display.check_if_grafting(api)

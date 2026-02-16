@@ -1,5 +1,5 @@
 # GPTodoist - Overview
-DATETIME of last agent review: 16 Feb 2026 10:20 (Europe/London)
+DATETIME of last agent review: 16 Feb 2026 12:22 (Europe/London)
 
 ## Purpose
 Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-term task handling (shows up to two next due long-term tasks each loop, with absolute due date/time surfaced).
@@ -38,3 +38,4 @@ python main.py
 - Background status push has device ownership gating: only `todo.tasks_background_owner_device_id` can publish from the 5-minute loop, and manual non-empty user input claims ownership via `todo.tasks_background_owner_*` fields.
 - `helper_todoist_part2.fetch_todoist_tasks` supports explicit filter overrides and still uses `SIGALRM` timeout only on main thread.
 - `module_call_counter.py` uses thread-safe, atomic JSON writes so background and main loops do not corrupt `j_function_calls.json`.
+- First loop only: a startup command quick reference now prints once before regular/long task output.

@@ -58,6 +58,48 @@ PREFIX_POSTPONE_LONG = "postpone long "
 PREFIX_FUZZY_SEARCH = "|||"
 PREFIX_DIARY_UPDATE = "diary "
 
+STARTUP_COMMAND_REFERENCE = [
+    ("done", "Complete the active task and log it locally."),
+    ("skip", "Complete the active task without local logging."),
+    ("delete", "Delete the active task."),
+    ("time <due_string>", "Set due date/time for the active task."),
+    ("due <due_string|day>", "Move active task due date while preserving schedule metadata."),
+    ("postpone <due_string>", "Postpone active task (recurring tasks are recreated)."),
+    ("rename <new_name>", "Rename the active task."),
+    ("priority <1|2|3|4>", "Set active task priority."),
+    ("add task <content>", "Create a new regular task."),
+    ("~~~ <fuzzy_name>", "Fuzzy-match and complete a task from the active filter."),
+    ("||| <search_term>", "Search Todoist tasks."),
+    ("xx <task_name>", "Log ad-hoc completion without creating a Todoist task."),
+    ("xx (t) <task_name>", "Log ad-hoc completion for tomorrow 09:00."),
+    ("flip", "Switch to the next configured active filter."),
+    ("hide", "Hide the active regular task until tomorrow."),
+    ("all | show all", "Show regular tasks plus due long-term tasks."),
+    ("completed | show completed", "Show today's locally logged completed tasks."),
+    ("show long", "Show due long-term tasks."),
+    ("add long <task_name>", "Create a long-term task with next [index]."),
+    ("time long <index> <schedule>", "Reschedule a long-term task."),
+    ("due long <index> <due_text>", "Move long-term task due date while preserving schedule metadata."),
+    ("skip long <index>", "Complete long-term task without logging."),
+    ("touch long <index>", "Complete and log long-term task."),
+    ("hide long <index>", "Hide long-term task index for today only."),
+    ("rename long <index> <new_name>", "Rename long-term task while keeping [index]."),
+    ("delete long <index>", "Delete long-term task by [index]."),
+    ("priority long <index> <1|2|3|4>", "Set long-term task priority."),
+    ("postpone long <index> <schedule>", "Postpone long-term task to a new schedule."),
+    ("diary", "Open diary view."),
+    ("diary <objective>", "Update today's diary objective."),
+    ("timesheet", "Build a timesheet entry from completed tasks."),
+    ("clear", "Clear the terminal display."),
+]
+
+
+def print_startup_command_reference():
+    print("[bold cyan]--- Commands Quick Reference (shown once) ---[/bold cyan]")
+    for command, description in STARTUP_COMMAND_REFERENCE:
+        print(f"  [green]{command:<34}[/green] {description}")
+    print()
+
 def _parse_long_task_index(user_message: str, command_prefix: str) -> (int | None):
     try:
         parts = user_message.split()
