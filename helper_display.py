@@ -32,6 +32,8 @@ def _extract_due_date(task) -> Optional[datetime.date]:
     if due is None:
         return None
     due_date_val = getattr(due, "date", None)
+    if isinstance(due_date_val, datetime.datetime):
+        return due_date_val.date()
     if isinstance(due_date_val, datetime.date):
         return due_date_val
     if isinstance(due_date_val, str):

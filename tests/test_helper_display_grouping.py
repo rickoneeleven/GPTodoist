@@ -75,7 +75,16 @@ class HelperDisplayGroupingTests(unittest.TestCase):
         grouped = helper_display._group_tasks_for_objective([low, high], today=today)
         self.assertEqual(grouped["Due Today"]["One-shot"], [high, low])
 
+    def test_grouping_handles_due_date_as_datetime(self):
+        today = date(2026, 2, 16)
+        task = _Task(
+            content="datetime due date",
+            due=_Due(date_value=datetime(2026, 2, 16, 11, 30, 0)),
+        )
+
+        grouped = helper_display._group_tasks_for_objective([task], today=today)
+        self.assertEqual(grouped["Due Today"]["One-shot"], [task])
+
 
 if __name__ == "__main__":
     unittest.main()
-
