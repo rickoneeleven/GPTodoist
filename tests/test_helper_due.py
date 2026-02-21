@@ -125,6 +125,25 @@ class TestHelperDue(unittest.TestCase):
         self.assertTrue(updated_task.due.is_recurring)
         self.assertEqual(updated_task.due.date, "2026-02-21")
 
+    def test_update_task_due_recovery_replaces_existing_starting_anchor(self):
+        due = _Due(
+            datetime_value="2026-02-21T12:00:00+00:00",
+            is_recurring=True,
+            string="every! 3 months 12:00 starting 2026-02-21 starting 2026-02-22 starting 2026-02-22",
+        )
+        task = _Task(task_id="A3", due=due)
+        api = _FakeApi(
+            task=task,
+            probe_due_map={"tom": "2026-02-22"},
+            drop_recurring_on_datetime_update=True,
+        )
+
+        updated_task, target_date = helper_due.update_task_due_preserving_schedule(api, task, "tom")
+
+        self.assertEqual(target_date.isoformat(), "2026-02-22")
+        self.assertTrue(updated_task.due.is_recurring)
+        self.assertEqual(updated_task.due.date, "2026-02-22")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 import calendar
 import uuid
 from datetime import date, datetime
+import re
 from typing import Optional
 
 import pytz
@@ -187,7 +188,16 @@ def update_task_due_preserving_schedule(api, task, raw_due_input: str):
             if not original_due_string:
                 raise RuntimeError("Recurring metadata changed and could not be recovered.")
 
-            fallback_due_string = f"{original_due_string} starting {target_date.isoformat()}"
+            # Todoist recurrence strings can already contain a `starting YYYY-MM-DD` anchor.
+            # If we append another one, Todoist often keeps the first anchor, defeating the move.
+            # Normalize by removing any existing `starting <iso-date>` clauses, then add exactly one.
+            cleaned_due_string = re.sub(
+                r"\s+starting\s+\d{4}-\d{2}-\d{2}\b",
+                "",
+                original_due_string,
+                flags=re.IGNORECASE,
+            ).strip()
+            fallback_due_string = f"{cleaned_due_string} starting {target_date.isoformat()}"
             api.update_task(task_id=task.id, due_string=fallback_due_string)
             verification_task = api.get_task(task.id)
             verification_due = getattr(verification_task, "due", None) if verification_task else None
