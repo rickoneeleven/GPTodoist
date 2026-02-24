@@ -270,7 +270,7 @@ def _handle_done_long(api, user_message):
 
     try:
         subprocess.call("reset")
-        helper_todoist_long.touch_task(api, index, skip_logging=False)
+        helper_todoist_long.complete_task(api, index, skip_logging=False)
     except Exception as e:
          print(f"[red]Error completing long task (Index: {index}): {e}[/red]")
          traceback.print_exc()

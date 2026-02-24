@@ -24,18 +24,18 @@ class StartupCommandReferenceTests(unittest.TestCase):
         self.assertTrue(any("due long <index> <due_text>" in str(line) for line in captured))
         self.assertTrue(any("done long <index>" in str(line) for line in captured))
 
-    def test_done_long_dispatches_to_touch_task(self):
+    def test_done_long_dispatches_to_complete_task(self):
         calls = []
-        original_touch_task = helper_commands.helper_todoist_long.touch_task
+        original_complete_task = helper_commands.helper_todoist_long.complete_task
         original_subprocess_call = helper_commands.subprocess.call
         try:
-            helper_commands.helper_todoist_long.touch_task = (  # type: ignore[assignment]
+            helper_commands.helper_todoist_long.complete_task = (  # type: ignore[assignment]
                 lambda api, index, skip_logging=False: calls.append((api, index, skip_logging))
             )
             helper_commands.subprocess.call = lambda *_args, **_kwargs: 0  # type: ignore[assignment]
             handled = helper_commands.process_command(api=object(), user_message="done long 12")
         finally:
-            helper_commands.helper_todoist_long.touch_task = original_touch_task  # type: ignore[assignment]
+            helper_commands.helper_todoist_long.complete_task = original_complete_task  # type: ignore[assignment]
             helper_commands.subprocess.call = original_subprocess_call  # type: ignore[assignment]
 
         self.assertTrue(handled)

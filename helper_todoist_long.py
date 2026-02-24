@@ -26,6 +26,7 @@ from long_term_operations import (
     postpone_task
 )
 from long_term_due import due_task
+from long_term_complete import complete_task
 
 from long_term_indexing import (
     get_categorized_tasks,

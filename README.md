@@ -101,8 +101,8 @@ Commands are matched case-insensitively.
 - `time long <index> <schedule>`: Reschedule
 - `due long <index> <due_string|day_of_month>`: Move due date while preserving recurrence and existing due-time metadata
 - `skip long <index>`: Touch without logging completion
-- `done long <index>`: Touch and log completion (alias of `touch long`)
-- `touch long <index>`: Touch and log completion
+- `done long <index>`: Complete and log completion (recurring tasks will reappear per schedule)
+- `touch long <index>`: Touch and log (non-recurring: move due to tomorrow; recurring: complete)
 - `hide long <index>`: Hide for today only (Europe/London)
 - `rename long <index> <new_name>`: Rename (keeps index)
 - `delete long <index>`: Delete

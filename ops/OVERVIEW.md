@@ -14,7 +14,7 @@ Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-
 - `helper_pinescore_status.py` - status push helpers + live background push loop
 - `state_manager.py` - local state + backup timestamps + device guard
 - `todoist_compat.py` - Todoist SDK compatibility and retries
-- `long_term_*.py` + `long_term_due.py` - long-term task logic, indexing, and `due long`
+- `long_term_*.py` + `long_term_due.py` + `long_term_complete.py` - long-term task logic, indexing, and long-task completion
 
 ## Related
 - `requirements.txt` - runtime dependencies
@@ -22,13 +22,7 @@ Fast CLI workflow for interacting with Todoist tasks, plus local diary and long-
 - Shared state hub API shape (canonical): `https://data.pinescore.com/api_guide.txt` (snapshot: `ops/api_guide.txt`)
 
 ## Agent Commands
-```bash
-python --version
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-export TODOIST_API_KEY="..."
-python main.py
-```
+- Setup/run: see `README.md` (venv, `requirements.txt`, `TODOIST_API_KEY`, `python main.py`)
 
 ## Notes
 - `xx (t) <task>` logs an ad-hoc completion at tomorrow 09:00 (local time).
@@ -39,4 +33,4 @@ python main.py
 - `helper_todoist_part2.fetch_todoist_tasks` supports explicit filter overrides and still uses `SIGALRM` timeout only on main thread.
 - `module_call_counter.py` uses thread-safe, atomic JSON writes so background and main loops do not corrupt `j_function_calls.json`.
 - At startup, a command quick reference prints before regular/long task output.
-- `done long <index>` is available as a completion command for long-term tasks (same behavior as `touch long <index>`).
+- `done long <index>` completes the long-term task; recurring tasks will reappear per schedule.

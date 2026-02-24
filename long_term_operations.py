@@ -4,7 +4,8 @@ import time as time_module
 from datetime import datetime, timedelta
 from rich import print
 from long_term_core import get_long_term_project_id, find_task_by_index, is_task_recurring
-
+import state_manager
+import todoist_compat
 
 def delete_task(api, index):
     """Deletes a task with the given index from the Long Term Tasks project."""
@@ -45,7 +46,6 @@ def delete_task(api, index):
         print(f"[red]An unexpected error occurred deleting task with index [{index}]: {error}[/red]")
         traceback.print_exc()
         return None
-
 
 def reschedule_task(api, index, schedule):
     """Reschedules a long-term task to the specified schedule string."""
@@ -105,27 +105,28 @@ def reschedule_task(api, index, schedule):
         traceback.print_exc()
         return None
 
-
 def handle_recurring_task(api, task, skip_logging=False):
-    """Completes a recurring task using the standard completion function."""
+    """Touches a recurring long-term task by completing the current instance."""
     if not task:
         print("[red]Error: No task provided to handle_recurring_task.[/red]")
         return False
 
     print(f"[cyan]Completing recurring task: '{task.content}' (ID: {task.id})[/cyan]")
     try:
-        from helper_todoist_part1 import complete_todoist_task_by_id
-
-        success = complete_todoist_task_by_id(api, task.id, skip_logging=skip_logging)
-
+        success = todoist_compat.complete_task(api, task.id)
         if not success:
             print(f"[red]Failed to complete recurring task '{task.content}'.[/red]")
             return False
+
+        if not skip_logging:
+            state_manager.add_completed_task_log(
+                {"task_name": f"(Touched Long Task) {task.content}"}
+            )
+
+        status = "SKIPPED" if skip_logging else "COMPLETED"
+        print(f"[yellow]{task.content}[/yellow] -- {status}")
         return True
 
-    except ImportError:
-        print("[red]Error: Could not import 'complete_todoist_task_by_id'. Cannot complete recurring task.[/red]")
-        return False
     except Exception as e:
         print(f"[red]Unexpected error handling recurring task '{task.content}': {e}[/red]")
         traceback.print_exc()
@@ -133,10 +134,7 @@ def handle_recurring_task(api, task, skip_logging=False):
 
 
 def handle_non_recurring_task(api, task, skip_logging=False):
-    """
-    Handles a non-recurring long-term task 'touch'.
-    Logs completion (if not skipped) and sets due date to tomorrow.
-    """
+    """Touches a non-recurring long-term task: log (optional) and move due to tomorrow."""
     if not task:
         print("[red]Error: No task provided to handle_non_recurring_task.[/red]")
         return None
@@ -144,19 +142,13 @@ def handle_non_recurring_task(api, task, skip_logging=False):
     print(f"[cyan]Touching non-recurring task: '{task.content}' (ID: {task.id})[/cyan]")
     try:
         if not skip_logging:
-            try:
-                import state_manager
-                completed_task_log_entry = {
-                    'task_name': f"(Touched Long Task) {task.content}"
-                }
-                if state_manager.add_completed_task_log(completed_task_log_entry):
-                    print(f"  [green]Logged task touch to completed tasks.[/green]")
-                else:
-                    print(f"  [red]Failed to log non-recurring task touch via state_manager.[/red]")
-            except (NameError, ImportError):
-                print("[red]Error: state_manager not available. Cannot log task touch.[/red]")
-            except Exception as log_error:
-                print(f"[red]Error logging non-recurring task touch: {log_error}[/red]")
+            completed_task_log_entry = {
+                "task_name": f"(Touched Long Task) {task.content}"
+            }
+            if state_manager.add_completed_task_log(completed_task_log_entry):
+                print("  [green]Logged task touch to completed tasks.[/green]")
+            else:
+                print("  [red]Failed to log non-recurring task touch via state_manager.[/red]")
 
         london_tz = pytz.timezone("Europe/London")
         tomorrow_london = (datetime.now(london_tz) + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -181,9 +173,7 @@ def handle_non_recurring_task(api, task, skip_logging=False):
 
 
 def touch_task(api, task_index, skip_logging=False):
-    """
-    'Touches' a long-term task: Completes recurring ones, pushes non-recurring to tomorrow.
-    """
+    """Touches a long-term task: recurring completes; non-recurring moves due to tomorrow."""
     project_id = get_long_term_project_id(api)
     if not project_id:
         return None
@@ -332,11 +322,7 @@ def change_task_priority(api, index, priority_level):
 
 
 def postpone_task(api, index, schedule):
-    """
-    Postpones a long-term task to the specified schedule.
-    For recurring tasks: completes current instance and creates new one with specified schedule.
-    For non-recurring tasks: updates the due date to specified schedule.
-    """
+    """Postpones a long-term task (recurring: complete+recreate; non-recurring: update due)."""
     project_id = get_long_term_project_id(api)
     if not project_id:
         return None
