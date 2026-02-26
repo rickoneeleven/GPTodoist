@@ -21,10 +21,16 @@ def due_task(api, index: int, due_input: str):
             print(f"[yellow]No task found with index [{index}] to update due date.[/yellow]")
             return None
 
-        updated_task, target_date = update_task_due_preserving_schedule(api, target_task, due_input.strip())
-        print(
-            f"[green]Long task [{index}] due date moved to {target_date.isoformat()} while preserving recurrence/time metadata.[/green]"
-        )
+        updated_task, target_date, effective_date = update_task_due_preserving_schedule(api, target_task, due_input.strip())
+        if effective_date == target_date:
+            print(
+                f"[green]Long task [{index}] due date moved to {target_date.isoformat()} while preserving recurrence/time metadata.[/green]"
+            )
+        else:
+            print(f"[yellow]Requested due date: {target_date.isoformat()}.[/yellow]")
+            print(
+                f"[green]Recurrence preserved, but Todoist set next occurrence to: {effective_date}.[/green]"
+            )
         return updated_task
     except ValueError as error:
         print(f"[red]{error}[/red]")

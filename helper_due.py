@@ -10,6 +10,8 @@ from dateutil.parser import parse
 
 LONDON_TZ = pytz.timezone("Europe/London")
 
+_STARTING_ANCHOR_RE = re.compile(r"\s+starting\s+\d{4}-\d{2}-\d{2}\b", flags=re.IGNORECASE)
+
 
 def _extract_date_from_due(due_obj) -> Optional[date]:
     if due_obj is None:
@@ -49,6 +51,8 @@ def _parse_due_datetime(due_obj) -> Optional[datetime]:
 
     due_value = getattr(due_obj, "datetime", None)
     if due_value is None:
+        due_value = getattr(due_obj, "date", None)
+    if due_value is None:
         return None
 
     parsed_dt: Optional[datetime] = None
@@ -56,6 +60,8 @@ def _parse_due_datetime(due_obj) -> Optional[datetime]:
         parsed_dt = due_value
     elif isinstance(due_value, str):
         try:
+            if "T" not in due_value:
+                return None
             parsed_dt = parse(due_value)
         except Exception:
             return None
@@ -158,6 +164,11 @@ def _build_due_update_payload(task, target_date: date) -> dict:
         target_local_dt = tz.localize(naive_target)
     return {"due_datetime": target_local_dt}
 
+def _strip_starting_anchors(due_string: str) -> str:
+    if not isinstance(due_string, str):
+        return ""
+    return _STARTING_ANCHOR_RE.sub("", due_string).strip()
+
 
 def update_task_due_preserving_schedule(api, task, raw_due_input: str):
     if task is None or not getattr(task, "id", None):
@@ -182,23 +193,19 @@ def update_task_due_preserving_schedule(api, task, raw_due_input: str):
             f"Due date mismatch after update (expected {target_date.isoformat()}, got {verified_date})."
         )
 
+    effective_date = verified_date
+
     if original_is_recurring:
         verification_due = getattr(verification_task, "due", None)
         if not (verification_due and getattr(verification_due, "is_recurring", False)):
             if not original_due_string:
                 raise RuntimeError("Recurring metadata changed and could not be recovered.")
 
-            # Todoist recurrence strings can already contain a `starting YYYY-MM-DD` anchor.
-            # If we append another one, Todoist often keeps the first anchor, defeating the move.
-            # Normalize by removing any existing `starting <iso-date>` clauses, then add exactly one.
-            cleaned_due_string = re.sub(
-                r"\s+starting\s+\d{4}-\d{2}-\d{2}\b",
-                "",
-                original_due_string,
-                flags=re.IGNORECASE,
-            ).strip()
-            fallback_due_string = f"{cleaned_due_string} starting {target_date.isoformat()}"
-            api.update_task(task_id=task.id, due_string=fallback_due_string)
+            # Avoid using `starting YYYY-MM-DD` anchors.
+            # Empirically, tasks with `starting` anchors can get into a state where completing the
+            # recurrence does not advance the due date (or the task loses due entirely).
+            recovered_due_string = _strip_starting_anchors(original_due_string)
+            api.update_task(task_id=task.id, due_string=recovered_due_string)
             verification_task = api.get_task(task.id)
             verification_due = getattr(verification_task, "due", None) if verification_task else None
 
@@ -206,9 +213,6 @@ def update_task_due_preserving_schedule(api, task, raw_due_input: str):
                 raise RuntimeError("Recurring metadata changed and recovery failed.")
 
             recovered_date = _extract_date_from_due(verification_due)
-            if recovered_date != target_date:
-                raise RuntimeError(
-                    f"Recovered recurrence but due date mismatch (expected {target_date.isoformat()}, got {recovered_date})."
-                )
+            effective_date = recovered_date
 
-    return verification_task, target_date
+    return verification_task, target_date, effective_date

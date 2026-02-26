@@ -29,11 +29,19 @@ def due_active_task(api, user_message: str) -> bool:
             state_manager.clear_active_task()
             return False
 
-        updated_task, target_date = update_task_due_preserving_schedule(api, task, due_input)
+        updated_task, target_date, effective_date = update_task_due_preserving_schedule(api, task, due_input)
         add_to_active_task_file(updated_task.content, updated_task.id, _due_datetime_iso(updated_task.due))
-        print(
-            f"[green]Task due date moved to {target_date.isoformat()} while preserving recurrence/time metadata.[/green]"
-        )
+        if effective_date == target_date:
+            print(
+                f"[green]Task due date moved to {target_date.isoformat()} while preserving recurrence/time metadata.[/green]"
+            )
+        else:
+            print(
+                f"[yellow]Requested due date: {target_date.isoformat()}.[/yellow]"
+            )
+            print(
+                f"[green]Recurrence preserved, but Todoist set next occurrence to: {effective_date}.[/green]"
+            )
         return True
     except Exception as error:
         print(f"[red]Failed to apply due update: {error}[/red]")

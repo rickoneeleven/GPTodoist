@@ -65,15 +65,17 @@ class _FakeApi:
             )
             return True
         if "due_string" in kwargs:
-            if "starting " in kwargs["due_string"]:
-                date_part = kwargs["due_string"].split("starting ", 1)[1].strip()
+            due_string = kwargs["due_string"]
+            # Treat any 'every ...' update as recurrence restoration and keep the current due value.
+            if "every" in str(due_string).lower():
                 self._task.due = _Due(
-                    date=date_part,
+                    date=self._task.due.date,
+                    datetime_value=self._task.due.datetime,
                     is_recurring=True,
-                    string=self._task.due.string,
+                    string=due_string,
                 )
                 return True
-            raise ValueError("Bad fallback due_string")
+            raise ValueError("Bad due_string update")
         raise ValueError("Unsupported update payload")
 
     def get_task(self, task_id):
@@ -96,15 +98,36 @@ class TestHelperDue(unittest.TestCase):
         task = _Task(task_id="A1", due=due)
         api = _FakeApi(task=task, probe_due_map={"sat": "2026-02-21"})
 
-        updated_task, target_date = helper_due.update_task_due_preserving_schedule(api, task, "sat")
+        updated_task, target_date, effective_date = helper_due.update_task_due_preserving_schedule(api, task, "sat")
 
         self.assertEqual(target_date.isoformat(), "2026-02-21")
+        self.assertEqual(effective_date, target_date)
         self.assertTrue(updated_task.due.is_recurring)
         self.assertEqual(api.probe_created, 1)
         self.assertEqual(api.probe_deleted, 1)
         self.assertIn("due_datetime", api.last_update_kwargs)
         self.assertIsInstance(api.last_update_kwargs["due_datetime"], datetime)
         self.assertEqual(api.last_update_kwargs["due_datetime"].date(), date(2026, 2, 21))
+
+    def test_update_task_due_uses_datetime_when_due_date_is_datetime(self):
+        due = _Due(
+            date=datetime(2026, 2, 15, 9, 30, 0),
+            is_recurring=False,
+            string=None,
+        )
+        task = _Task(task_id="A1b", due=due)
+        api = _FakeApi(task=task, probe_due_map={"sat": "2026-02-21"})
+
+        _updated_task, target_date, effective_date = helper_due.update_task_due_preserving_schedule(api, task, "sat")
+
+        self.assertEqual(target_date.isoformat(), "2026-02-21")
+        self.assertEqual(effective_date, target_date)
+        self.assertIn("due_datetime", api.last_update_kwargs)
+        self.assertNotIn("due_date", api.last_update_kwargs)
+        dt_value = api.last_update_kwargs["due_datetime"]
+        self.assertIsInstance(dt_value, datetime)
+        self.assertEqual(dt_value.hour, 9)
+        self.assertEqual(dt_value.minute, 30)
 
     def test_update_task_due_recovers_recurrence_if_lost(self):
         due = _Due(
@@ -119,13 +142,14 @@ class TestHelperDue(unittest.TestCase):
             drop_recurring_on_datetime_update=True,
         )
 
-        updated_task, target_date = helper_due.update_task_due_preserving_schedule(api, task, "sat")
+        updated_task, target_date, effective_date = helper_due.update_task_due_preserving_schedule(api, task, "sat")
 
         self.assertEqual(target_date.isoformat(), "2026-02-21")
+        self.assertEqual(effective_date, target_date)
         self.assertTrue(updated_task.due.is_recurring)
-        self.assertEqual(updated_task.due.date, "2026-02-21")
+        self.assertNotIn("starting", str(updated_task.due.string).lower())
 
-    def test_update_task_due_recovery_replaces_existing_starting_anchor(self):
+    def test_update_task_due_recovery_strips_existing_starting_anchors(self):
         due = _Due(
             datetime_value="2026-02-21T12:00:00+00:00",
             is_recurring=True,
@@ -138,11 +162,12 @@ class TestHelperDue(unittest.TestCase):
             drop_recurring_on_datetime_update=True,
         )
 
-        updated_task, target_date = helper_due.update_task_due_preserving_schedule(api, task, "tom")
+        updated_task, target_date, effective_date = helper_due.update_task_due_preserving_schedule(api, task, "tom")
 
         self.assertEqual(target_date.isoformat(), "2026-02-22")
+        self.assertEqual(effective_date, target_date)
         self.assertTrue(updated_task.due.is_recurring)
-        self.assertEqual(updated_task.due.date, "2026-02-22")
+        self.assertNotIn("starting", str(updated_task.due.string).lower())
 
 
 if __name__ == "__main__":

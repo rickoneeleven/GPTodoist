@@ -3,9 +3,48 @@ import traceback
 import time as time_module
 from datetime import datetime, timedelta
 from rich import print
-from long_term_core import get_long_term_project_id, find_task_by_index, is_task_recurring
+from long_term_core import (
+    get_long_term_project_id,
+    find_task_by_index,
+    is_task_recurring,
+    is_task_due_today_or_earlier,
+)
 import state_manager
 import todoist_compat
+import long_term_recent
+
+
+def _get_due_key(task) -> str | None:
+    due = getattr(task, "due", None)
+    if due is None:
+        return None
+    key = getattr(due, "datetime", None) or getattr(due, "date", None)
+    if key is None:
+        return None
+    return str(key)
+
+
+def _verify_recurring_due_advanced(api, task_id: str, previous_due_key: str | None) -> object | None:
+    if not previous_due_key:
+        return None
+    if not hasattr(api, "get_task"):
+        return None
+
+    attempts = 4
+    delay_s = 0.35
+    last_task = None
+    for attempt in range(attempts):
+        if attempt:
+            time_module.sleep(delay_s)
+        try:
+            last_task = api.get_task(task_id)
+        except Exception:
+            last_task = None
+            continue
+        new_key = _get_due_key(last_task)
+        if new_key and new_key != previous_due_key:
+            return last_task
+    return last_task
 
 def delete_task(api, index):
     """Deletes a task with the given index from the Long Term Tasks project."""
@@ -111,12 +150,25 @@ def handle_recurring_task(api, task, skip_logging=False):
         print("[red]Error: No task provided to handle_recurring_task.[/red]")
         return False
 
+    previous_due_key = _get_due_key(task)
     print(f"[cyan]Completing recurring task: '{task.content}' (ID: {task.id})[/cyan]")
     try:
         success = todoist_compat.complete_task(api, task.id)
         if not success:
             print(f"[red]Failed to complete recurring task '{task.content}'.[/red]")
             return False
+
+        verified_task = _verify_recurring_due_advanced(api, task.id, previous_due_key)
+        if verified_task is not None:
+            verified_due_key = _get_due_key(verified_task)
+            if verified_due_key and verified_due_key != previous_due_key:
+                if not is_task_due_today_or_earlier(verified_task):
+                    long_term_recent.suppress_task_id(str(getattr(verified_task, "id", task.id)))
+                print(f"[dim]Todoist next occurrence: {verified_due_key}[/dim]")
+            elif previous_due_key:
+                print("[dim yellow]Warning: recurrence due did not advance.[/dim yellow]")
+        elif previous_due_key:
+            print("[dim yellow]Note: recurrence not yet reflected by API; it may briefly reappear.[/dim yellow]")
 
         if not skip_logging:
             state_manager.add_completed_task_log(
