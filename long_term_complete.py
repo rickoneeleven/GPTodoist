@@ -11,7 +11,7 @@ from long_term_core import (
     is_task_due_today_or_earlier,
 )
 import long_term_recent
-from long_term_operations import _get_due_key, _verify_recurring_due_advanced
+from long_term_operations import _get_due_key, _should_log_due_not_advanced, _verify_recurring_due_advanced
 
 
 def complete_task(api, task_index: int, skip_logging: bool = False):
@@ -48,18 +48,21 @@ def complete_task(api, task_index: int, skip_logging: bool = False):
                         long_term_recent.suppress_task_id(str(getattr(verified_task, "id", target_task.id)))
                     print(f"[dim]Todoist next occurrence: {verified_due_key}[/dim]")
                 elif previous_due_key:
-                    print("[dim yellow]Warning: recurrence due did not advance.[/dim yellow]")
-                    state_manager.add_recurring_anomaly_log(
-                        {
-                            "event": "recurrence_due_not_advanced",
-                            "source": "done long",
-                            "task_id": str(getattr(target_task, "id", "")),
-                            "task_content": getattr(target_task, "content", None),
-                            "due_string": getattr(getattr(target_task, "due", None), "string", None),
-                            "previous_due_key": previous_due_key,
-                            "verified_due_key": verified_due_key,
-                        }
+                    print(
+                        "[dim yellow]Note: Todoist has not reflected the next recurrence yet (it can lag briefly after completion).[/dim yellow]"
                     )
+                    if _should_log_due_not_advanced(target_task):
+                        state_manager.add_recurring_anomaly_log(
+                            {
+                                "event": "recurrence_due_not_advanced",
+                                "source": "done long",
+                                "task_id": str(getattr(target_task, "id", "")),
+                                "task_content": getattr(target_task, "content", None),
+                                "due_string": getattr(getattr(target_task, "due", None), "string", None),
+                                "previous_due_key": previous_due_key,
+                                "verified_due_key": verified_due_key,
+                            }
+                        )
             elif previous_due_key:
                 print("[dim yellow]Note: recurrence not yet reflected by API; it may briefly reappear.[/dim yellow]")
 

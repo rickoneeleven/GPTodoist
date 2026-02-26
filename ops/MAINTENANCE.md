@@ -9,6 +9,9 @@ Quick log of recent dead-code audits to avoid redoing the same work.
 - `helper_todoist_part1.py` - dead code removal applied (96 lines removed, 2025-06-22)
 - `helper_todoist_part2.py` - high-quality, minimal dead code (2025-06-22)
 - `helper_timesheets.py` - high-quality, minimal dead code (2025-06-22)
+- `todoist_api.py` - migrated off deprecated Todoist `/rest/v2/*` to `/api/v1/*` (410 Gone fix, 2026-02-26)
+- Recurring completion verification now waits up to ~8s before declaring non-advancement (reduces false alarms from Todoist eventual consistency)
+- Non-advancement anomaly logging is now gated to `starting YYYY-MM-DD` recurrences to avoid noisy false positives
 - `done long <index>` now truly completes long tasks; `touch long <index>` keeps the "push non-recurring to tomorrow" behavior and logs touches distinctly
 - `helper_due.py` - fixed `due_date`/`due_datetime` payload types for Todoist SDK (`date`/`datetime`, not strings)
 - `helper_due.py` - recurrence recovery: strip `starting YYYY-MM-DD` anchors entirely (Todoist bug: `starting` anchors can stop recurrence from advancing on completion)

@@ -5,7 +5,7 @@ import pytz
 from dateutil.parser import parse
 from fuzzywuzzy import process
 from rich import print
-from todoist_api_python.api import TodoistAPI
+from todoist_api import TodoistAPI
 import todoist_compat
 
 api = TodoistAPI(os.environ["TODOIST_API_KEY"])

@@ -14,10 +14,12 @@ import helper_todoist_long
 from dateutil.parser import parse
 from rich import print
 import traceback
+from requests.exceptions import HTTPError
 import state_manager # <<< ADDED: Import state manager
 import todoist_compat
 from helper_display import get_task_display_info
 import helper_hide # Import helper_hide to filter hidden tasks
+from todoist_errors import describe_todoist_http_error
 
 # Import necessary functions from part1 or state_manager
 from helper_todoist_part1 import (
@@ -255,6 +257,10 @@ def fetch_todoist_tasks(api, filter_query_override=None):
             if use_signal_timeout:
                 signal.alarm(0)
             print(f"[yellow]Attempt {attempt + 1}: Task fetch timed out. {te}. Retrying...[/yellow]")
+        except HTTPError as error:
+            if use_signal_timeout:
+                signal.alarm(0)
+            print(f"[red]Attempt {attempt + 1}: {describe_todoist_http_error(error)}[/red]")
         except Exception as e:
             if use_signal_timeout:
                 signal.alarm(0)

@@ -1,10 +1,10 @@
 pytz
 python-dateutil
+requests
 #transformers
 #torch
 black
 pyowm
-todoist_api_python>=3.1.0,<4
 rich
 fuzzywuzzy
 levenshtein

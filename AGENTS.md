@@ -1,4 +1,4 @@
-# AGENTS.md v13.5
+# AGENTS.md v13.6
 
 ## Session Bootstrap (Mandatory)
 Execute immediately at session start. Do not wait for user input. You work at a hospital, following intructions is not optional. 
@@ -77,11 +77,10 @@ Trigger: Stale (>30 days) or missing timestamp in `README.md` or `ops/*.md`.
 - Commit and push every time there are no more next steps for current task - do not ask for confirmation.
 
 ## Git Pre-Commit Review (Required)
-- Before any `git commit`, run: `codex review -c 'sandbox_permissions=["disk-full-read-access","network-full-access"]' "
-	- Review staged, unstaged, and untracked changes. Do not run tests as part of review.
-	- Do NOT comment on formatting or whitespace.
-	- Do NOT suggest adding comments or docblocks unless something is genuinely confusin"` (note: it can take a long time to complete, be patient) 
-- Assess feedback, correct if you agree and commit. You should only run a codex review **once** maximum per pre-committ so you don't end up in a review loop. This process should be autonomous.
+- Before any `git commit`, run:
+  - `codex review -c 'sandbox_permissions=["disk-full-read-access","network-full-access"]' "Review staged, unstaged, and untracked changes. Do not run tests as part of review. Do NOT comment on formatting or whitespace. Do NOT suggest adding comments or docblocks unless something is genuinely confusing."` (can take a while)
+- Assess feedback, correct if you agree, then commit. Run `codex review` once maximum per pre-commit to avoid loops.
+- When applying feedback: ignore formatting/whitespace-only notes and do not add comments/docblocks unless something is genuinely confusing.
 
 ## Communication
 - Style: Direct, fact-based. Push back on errors. No en/em dashes.

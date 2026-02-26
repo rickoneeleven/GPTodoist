@@ -341,6 +341,8 @@ def purge_old_completed_tasks_log(days_to_keep: int = 30) -> int:
 # --- Recurring Anomalies Log State ---
 def get_recurring_anomalies_log() -> List[Dict]:
     """Loads the log of recurring-task anomalies (e.g. completion not advancing due)."""
+    if not os.path.exists(RECURRING_ANOMALIES_LOG_FILENAME):
+        return []
     entries = _load_data(RECURRING_ANOMALIES_LOG_FILENAME, default_value=[])
     if not isinstance(entries, list):
         print(f"[yellow]Warning: Invalid data in {RECURRING_ANOMALIES_LOG_FILENAME}. Returning empty list.[/yellow]")

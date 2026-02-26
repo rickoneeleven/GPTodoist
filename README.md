@@ -6,7 +6,7 @@ A command-line interface (CLI) tool for fast interaction with your Todoist accou
 
 ## Stack
 - Python 3.10 to 3.11 (see `pyproject.toml`, tested with 3.11)
-- Todoist REST via `todoist_api_python`
+- Todoist REST via `todoist_api.py` (requests, `/api/v1/*`)
 - Dependencies pinned in `requirements.txt`
 
 ## Quick Start
@@ -114,6 +114,6 @@ Commands are matched case-insensitively.
 - `diary <objective>`: Update today's `overall_objective` in `j_diary.json`
 - `timesheet`: Build a timesheet entry from completed tasks
 
-## Todoist SDK Upgrade Note
-- Uses Todoist SDK 3.x (`requirements.txt`: `todoist_api_python>=3.1.0,<4`; `pyproject.toml`: `todoist-api-python = "^3.1.0"`)
-- Compatibility layer: `todoist_compat.py` smooths SDK method differences and adds retry/backoff
+## Todoist API Note
+- Uses Todoist `/api/v1/*` endpoints via `todoist_api.py`.
+- Compatibility layer: `todoist_compat.py` adds retry and backoff (429/5xx).

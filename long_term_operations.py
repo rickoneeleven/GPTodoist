@@ -26,6 +26,12 @@ def _get_due_key(task) -> str | None:
         return None
     return str(key)
 
+def _should_log_due_not_advanced(task) -> bool:
+    due_string = getattr(getattr(task, "due", None), "string", None)
+    if not isinstance(due_string, str) or not due_string.strip():
+        return False
+    return bool(_STARTING_ANCHOR_RE.search(due_string))
+
 
 def _verify_recurring_due_advanced(api, task_id: str, previous_due_key: str | None) -> object | None:
     if not previous_due_key:
@@ -33,21 +39,25 @@ def _verify_recurring_due_advanced(api, task_id: str, previous_due_key: str | No
     if not hasattr(api, "get_task"):
         return None
 
-    attempts = 4
+    max_wait_s = 8.0
     delay_s = 0.35
+    deadline = time_module.monotonic() + max_wait_s
     last_task = None
-    for attempt in range(attempts):
-        if attempt:
-            time_module.sleep(delay_s)
+    while True:
         try:
             last_task = api.get_task(task_id)
         except Exception:
             last_task = None
-            continue
-        new_key = _get_due_key(last_task)
-        if new_key and new_key != previous_due_key:
+        else:
+            new_key = _get_due_key(last_task)
+            if new_key and new_key != previous_due_key:
+                return last_task
+
+        now = time_module.monotonic()
+        if now >= deadline:
             return last_task
-    return last_task
+        time_module.sleep(min(delay_s, max(0.0, deadline - now)))
+        delay_s = min(delay_s * 1.7, 2.0)
 
 def delete_task(api, index):
     """Deletes a task with the given index from the Long Term Tasks project."""
@@ -176,18 +186,21 @@ def handle_recurring_task(api, task, skip_logging=False, source: str | None = No
                     long_term_recent.suppress_task_id(str(getattr(verified_task, "id", task.id)))
                 print(f"[dim]Todoist next occurrence: {verified_due_key}[/dim]")
             elif previous_due_key:
-                print("[dim yellow]Warning: recurrence due did not advance.[/dim yellow]")
-                state_manager.add_recurring_anomaly_log(
-                    {
-                        "event": "recurrence_due_not_advanced",
-                        "source": source,
-                        "task_id": str(getattr(task, "id", "")),
-                        "task_content": getattr(task, "content", None),
-                        "due_string": getattr(getattr(task, "due", None), "string", None),
-                        "previous_due_key": previous_due_key,
-                        "verified_due_key": verified_due_key,
-                    }
+                print(
+                    "[dim yellow]Note: Todoist has not reflected the next recurrence yet (it can lag briefly after completion).[/dim yellow]"
                 )
+                if _should_log_due_not_advanced(task):
+                    state_manager.add_recurring_anomaly_log(
+                        {
+                            "event": "recurrence_due_not_advanced",
+                            "source": source,
+                            "task_id": str(getattr(task, "id", "")),
+                            "task_content": getattr(task, "content", None),
+                            "due_string": getattr(getattr(task, "due", None), "string", None),
+                            "previous_due_key": previous_due_key,
+                            "verified_due_key": verified_due_key,
+                        }
+                    )
         elif previous_due_key:
             print("[dim yellow]Note: recurrence not yet reflected by API; it may briefly reappear.[/dim yellow]")
 

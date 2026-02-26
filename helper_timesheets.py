@@ -4,7 +4,7 @@ import random
 from datetime import datetime, timedelta, date # Import date explicitly
 from typing import Union, List, Dict, Optional
 from rich import print
-from todoist_api_python.api import TodoistAPI
+from todoist_api import TodoistAPI
 
 # Import specific functions/modules needed
 import module_call_counter

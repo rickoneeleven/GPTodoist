@@ -18,7 +18,7 @@ import helper_pinescore_status
 from rich import print
 from datetime import datetime, timedelta, timezone # Keep necessary datetime components
 import traceback # For detailed error logging
-from todoist_api_python.api import TodoistAPI
+from todoist_api import TodoistAPI
 import pytz
 # <<< REMOVED: load_json, save_json imports as they are handled by state_manager for backups now
 

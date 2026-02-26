@@ -4,7 +4,9 @@ import traceback
 from datetime import datetime, date, timedelta, timezone
 from dateutil.parser import parse
 from rich import print
+from requests.exceptions import HTTPError
 import todoist_compat
+from todoist_errors import describe_todoist_http_error
 
 
 def get_long_term_project_id(api):
@@ -26,6 +28,9 @@ def get_long_term_project_id(api):
 
         print(f"[yellow]Warning: Project named '{project_name}' not found in Todoist.[/yellow]")
         print(f"[yellow]Long Term Task functionality will be unavailable until the project is created.[/yellow]")
+        return None
+    except HTTPError as error:
+        print(f"[red]{describe_todoist_http_error(error)}[/red]")
         return None
     except Exception as error:
         print(f"[red]Error accessing or processing Todoist projects: {error}[/red]")
