@@ -1,4 +1,5 @@
 import pytz
+import re
 import traceback
 import time as time_module
 from datetime import datetime, timedelta
@@ -12,6 +13,8 @@ from long_term_core import (
 import state_manager
 import todoist_compat
 import long_term_recent
+
+_STARTING_ANCHOR_RE = re.compile(r"\bstarting\s+\d{4}-\d{2}-\d{2}\b", flags=re.IGNORECASE)
 
 
 def _get_due_key(task) -> str | None:
@@ -98,6 +101,13 @@ def reschedule_task(api, index, schedule):
     if schedule.isdigit() and len(schedule) == 4:
         print("[red]Invalid time format for reschedule. Use formats like 'tomorrow 9am', 'next monday', etc.[/red]")
         return None
+    if _STARTING_ANCHOR_RE.search(schedule or ""):
+        print(
+            "[bold red]Refusing schedule with 'starting YYYY-MM-DD'.[/bold red] "
+            "Todoist can stop advancing recurring tasks that include a starting anchor."
+        )
+        print("[yellow]Use the same recurrence rule without 'starting ...'.[/yellow]")
+        return None
 
     try:
         target_task = find_task_by_index(api, project_id, index)
@@ -144,7 +154,7 @@ def reschedule_task(api, index, schedule):
         traceback.print_exc()
         return None
 
-def handle_recurring_task(api, task, skip_logging=False):
+def handle_recurring_task(api, task, skip_logging=False, source: str | None = None):
     """Touches a recurring long-term task by completing the current instance."""
     if not task:
         print("[red]Error: No task provided to handle_recurring_task.[/red]")
@@ -167,6 +177,17 @@ def handle_recurring_task(api, task, skip_logging=False):
                 print(f"[dim]Todoist next occurrence: {verified_due_key}[/dim]")
             elif previous_due_key:
                 print("[dim yellow]Warning: recurrence due did not advance.[/dim yellow]")
+                state_manager.add_recurring_anomaly_log(
+                    {
+                        "event": "recurrence_due_not_advanced",
+                        "source": source,
+                        "task_id": str(getattr(task, "id", "")),
+                        "task_content": getattr(task, "content", None),
+                        "due_string": getattr(getattr(task, "due", None), "string", None),
+                        "previous_due_key": previous_due_key,
+                        "verified_due_key": verified_due_key,
+                    }
+                )
         elif previous_due_key:
             print("[dim yellow]Note: recurrence not yet reflected by API; it may briefly reappear.[/dim yellow]")
 
@@ -238,7 +259,12 @@ def touch_task(api, task_index, skip_logging=False):
             return None
 
         if is_task_recurring(target_task):
-            success = handle_recurring_task(api, target_task, skip_logging=skip_logging)
+            success = handle_recurring_task(
+                api,
+                target_task,
+                skip_logging=skip_logging,
+                source="touch long",
+            )
             return target_task if success else None
         else:
             updated_task = handle_non_recurring_task(api, target_task, skip_logging=skip_logging)
@@ -385,6 +411,13 @@ def postpone_task(api, index, schedule):
 
     if schedule.isdigit() and len(schedule) == 4:
         print("[red]Invalid time format for postpone. Use formats like 'tomorrow', 'next monday 9am', etc.[/red]")
+        return None
+    if _STARTING_ANCHOR_RE.search(schedule or ""):
+        print(
+            "[bold red]Refusing schedule with 'starting YYYY-MM-DD'.[/bold red] "
+            "Todoist can stop advancing recurring tasks that include a starting anchor."
+        )
+        print("[yellow]Use the same recurrence rule without 'starting ...'.[/yellow]")
         return None
 
     try:

@@ -14,11 +14,15 @@ class LongTermOperationsTests(unittest.TestCase):
                 return True
 
         original_add_completed_task_log = long_term_operations.state_manager.add_completed_task_log
+        original_add_anomaly = long_term_operations.state_manager.add_recurring_anomaly_log
         original_suppress = long_term_operations.long_term_recent.suppress_task_id
         original_print = long_term_operations.print
         try:
             long_term_operations.state_manager.add_completed_task_log = (  # type: ignore[assignment]
                 lambda entry: calls["log"].append(entry) or True
+            )
+            long_term_operations.state_manager.add_recurring_anomaly_log = (  # type: ignore[assignment]
+                lambda *_args, **_kwargs: True
             )
             long_term_operations.long_term_recent.suppress_task_id = (  # type: ignore[assignment]
                 lambda *_args, **_kwargs: None
@@ -29,6 +33,7 @@ class LongTermOperationsTests(unittest.TestCase):
             result = long_term_operations.handle_recurring_task(FakeApi(), task, skip_logging=False)
         finally:
             long_term_operations.state_manager.add_completed_task_log = original_add_completed_task_log  # type: ignore[assignment]
+            long_term_operations.state_manager.add_recurring_anomaly_log = original_add_anomaly  # type: ignore[assignment]
             long_term_operations.long_term_recent.suppress_task_id = original_suppress  # type: ignore[assignment]
             long_term_operations.print = original_print  # type: ignore[assignment]
 
@@ -45,11 +50,15 @@ class LongTermOperationsTests(unittest.TestCase):
                 return True
 
         original_add_completed_task_log = long_term_operations.state_manager.add_completed_task_log
+        original_add_anomaly = long_term_operations.state_manager.add_recurring_anomaly_log
         original_suppress = long_term_operations.long_term_recent.suppress_task_id
         original_print = long_term_operations.print
         try:
             long_term_operations.state_manager.add_completed_task_log = (  # type: ignore[assignment]
                 lambda entry: calls["log"].append(entry) or True
+            )
+            long_term_operations.state_manager.add_recurring_anomaly_log = (  # type: ignore[assignment]
+                lambda *_args, **_kwargs: True
             )
             long_term_operations.long_term_recent.suppress_task_id = (  # type: ignore[assignment]
                 lambda *_args, **_kwargs: None
@@ -60,6 +69,7 @@ class LongTermOperationsTests(unittest.TestCase):
             result = long_term_operations.handle_recurring_task(FakeApi(), task, skip_logging=True)
         finally:
             long_term_operations.state_manager.add_completed_task_log = original_add_completed_task_log  # type: ignore[assignment]
+            long_term_operations.state_manager.add_recurring_anomaly_log = original_add_anomaly  # type: ignore[assignment]
             long_term_operations.long_term_recent.suppress_task_id = original_suppress  # type: ignore[assignment]
             long_term_operations.print = original_print  # type: ignore[assignment]
 
@@ -87,10 +97,14 @@ class LongTermOperationsTests(unittest.TestCase):
                 )
 
         original_add_completed_task_log = long_term_operations.state_manager.add_completed_task_log
+        original_add_anomaly = long_term_operations.state_manager.add_recurring_anomaly_log
         original_suppress = long_term_operations.long_term_recent.suppress_task_id
         original_print = long_term_operations.print
         try:
             long_term_operations.state_manager.add_completed_task_log = lambda *_args, **_kwargs: True  # type: ignore[assignment]
+            long_term_operations.state_manager.add_recurring_anomaly_log = (  # type: ignore[assignment]
+                lambda *_args, **_kwargs: True
+            )
             long_term_operations.long_term_recent.suppress_task_id = (  # type: ignore[assignment]
                 lambda task_id, *_args, **_kwargs: calls["suppress"].append(task_id)
             )
@@ -109,6 +123,7 @@ class LongTermOperationsTests(unittest.TestCase):
             result = long_term_operations.handle_recurring_task(FakeApi(), task, skip_logging=True)
         finally:
             long_term_operations.state_manager.add_completed_task_log = original_add_completed_task_log  # type: ignore[assignment]
+            long_term_operations.state_manager.add_recurring_anomaly_log = original_add_anomaly  # type: ignore[assignment]
             long_term_operations.long_term_recent.suppress_task_id = original_suppress  # type: ignore[assignment]
             long_term_operations.print = original_print  # type: ignore[assignment]
 

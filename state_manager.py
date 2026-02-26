@@ -35,6 +35,7 @@ COMPLETED_TASKS_LOG_FILENAME = "j_todays_completed_tasks.json"
 COMPLETED_COUNT_FILENAME = "j_number_of_todays_completed_tasks.json"
 DIARY_FILENAME = "j_diary.json"
 GRAFT_FILENAME = "j_grafted_tasks.json"
+RECURRING_ANOMALIES_LOG_FILENAME = "j_recurring_anomalies.json"
 
 # --- Default State Values ---
 DEFAULT_OPTIONS = {
@@ -335,6 +336,40 @@ def purge_old_completed_tasks_log(days_to_keep: int = 30) -> int:
             return -1 # Indicate save failure
 
     return purged_count
+
+
+# --- Recurring Anomalies Log State ---
+def get_recurring_anomalies_log() -> List[Dict]:
+    """Loads the log of recurring-task anomalies (e.g. completion not advancing due)."""
+    entries = _load_data(RECURRING_ANOMALIES_LOG_FILENAME, default_value=[])
+    if not isinstance(entries, list):
+        print(f"[yellow]Warning: Invalid data in {RECURRING_ANOMALIES_LOG_FILENAME}. Returning empty list.[/yellow]")
+        return []
+    return entries
+
+
+def save_recurring_anomalies_log(entries: List[Dict]) -> bool:
+    return _save_data(RECURRING_ANOMALIES_LOG_FILENAME, entries)
+
+
+def add_recurring_anomaly_log(entry: Dict) -> bool:
+    """Append an anomaly entry with an ID, UTC timestamp, and device ID."""
+    if not isinstance(entry, dict):
+        return False
+
+    entries = get_recurring_anomalies_log()
+    existing_ids = set(e.get("id", 0) for e in entries if isinstance(e, dict) and isinstance(e.get("id"), int))
+    new_id = 1
+    while new_id in existing_ids:
+        new_id += 1
+
+    entry = dict(entry)
+    entry["id"] = new_id
+    entry.setdefault("datetime_utc", datetime.datetime.now(datetime.timezone.utc).isoformat())
+    entry.setdefault("device_id", _get_device_id())
+
+    entries.append(entry)
+    return save_recurring_anomalies_log(entries)
 
 
 # --- Completed Count State ---

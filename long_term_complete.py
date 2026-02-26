@@ -49,6 +49,17 @@ def complete_task(api, task_index: int, skip_logging: bool = False):
                     print(f"[dim]Todoist next occurrence: {verified_due_key}[/dim]")
                 elif previous_due_key:
                     print("[dim yellow]Warning: recurrence due did not advance.[/dim yellow]")
+                    state_manager.add_recurring_anomaly_log(
+                        {
+                            "event": "recurrence_due_not_advanced",
+                            "source": "done long",
+                            "task_id": str(getattr(target_task, "id", "")),
+                            "task_content": getattr(target_task, "content", None),
+                            "due_string": getattr(getattr(target_task, "due", None), "string", None),
+                            "previous_due_key": previous_due_key,
+                            "verified_due_key": verified_due_key,
+                        }
+                    )
             elif previous_due_key:
                 print("[dim yellow]Note: recurrence not yet reflected by API; it may briefly reappear.[/dim yellow]")
 
