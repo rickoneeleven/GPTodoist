@@ -217,7 +217,8 @@ def update_task_due_preserving_schedule(api, task, raw_due_input: str):
             if not recovery_candidates:
                 raise RuntimeError("Recurring metadata changed and recovery failed.")
 
-            recovered = False
+            last_valid_recovery_due_string = None
+            last_valid_recovery_date = None
             for due_string_candidate in recovery_candidates:
                 api.update_task(task_id=task.id, due_string=due_string_candidate)
                 verification_task = api.get_task(task.id)
@@ -227,12 +228,26 @@ def update_task_due_preserving_schedule(api, task, raw_due_input: str):
                     continue
 
                 recovered_date = _extract_date_from_due(verification_due)
-                effective_date = recovered_date
-                recovered = True
+                last_valid_recovery_due_string = due_string_candidate
+                last_valid_recovery_date = recovered_date
                 if recovered_date == target_date:
                     break
 
-            if not recovered:
+            if last_valid_recovery_due_string is None:
                 raise RuntimeError("Recurring metadata changed and recovery failed.")
+
+            verification_due = getattr(verification_task, "due", None) if verification_task else None
+            is_currently_recurring = bool(verification_due and getattr(verification_due, "is_recurring", False))
+            current_due_string = getattr(verification_due, "string", None) if verification_due else None
+            if not is_currently_recurring or current_due_string != last_valid_recovery_due_string:
+                api.update_task(task_id=task.id, due_string=last_valid_recovery_due_string)
+                verification_task = api.get_task(task.id)
+                verification_due = getattr(verification_task, "due", None) if verification_task else None
+                if not (verification_due and getattr(verification_due, "is_recurring", False)):
+                    raise RuntimeError("Recurring metadata changed and recovery failed.")
+
+            effective_date = _extract_date_from_due(verification_due)
+            if effective_date is None:
+                effective_date = last_valid_recovery_date
 
     return verification_task, target_date, effective_date

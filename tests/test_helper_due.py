@@ -78,9 +78,13 @@ class _FakeApi:
             due_string = kwargs["due_string"]
             due_override = self._due_string_result_map.get(due_string)
             if due_override is not None:
+                due_date = due_override
+                is_recurring = True
+                if isinstance(due_override, tuple):
+                    due_date, is_recurring = due_override
                 self._task.due = _Due(
-                    date=due_override,
-                    is_recurring=True,
+                    date=due_date,
+                    is_recurring=is_recurring,
                     string=due_string,
                 )
                 return True
@@ -190,6 +194,30 @@ class TestHelperDue(unittest.TestCase):
         self.assertTrue(updated_task.due.is_recurring)
         self.assertEqual(updated_task.due.string, "every year starting 2026-06-01")
         self.assertEqual(updated_task.due.date, "2026-06-01")
+
+    def test_update_task_due_recovery_keeps_last_valid_recurring_state_when_later_candidate_fails(self):
+        due = _Due(
+            is_recurring=True,
+            string="every year",
+        )
+        task = _Task(task_id="A2c", due=due)
+        api = _FakeApi(
+            task=task,
+            probe_due_map={"june 1qq": "2026-06-01"},
+            drop_recurring_on_due_date_update=True,
+            due_string_result_map={
+                "every year": "2026-03-03",
+                "every year starting 2026-06-01": ("2026-06-01", False),
+            },
+        )
+
+        updated_task, target_date, effective_date = helper_due.update_task_due_preserving_schedule(api, task, "june 1qq")
+
+        self.assertEqual(target_date.isoformat(), "2026-06-01")
+        self.assertEqual(effective_date.isoformat(), "2026-03-03")
+        self.assertTrue(updated_task.due.is_recurring)
+        self.assertEqual(updated_task.due.string, "every year")
+        self.assertEqual(updated_task.due.date, "2026-03-03")
 
     def test_update_task_due_recovery_strips_existing_starting_anchors(self):
         due = _Due(

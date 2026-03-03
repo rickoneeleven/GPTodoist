@@ -16,6 +16,7 @@ Quick log of recent dead-code audits to avoid redoing the same work.
 - `helper_due.py` - fixed `due_date`/`due_datetime` payload types for Todoist SDK (`date`/`datetime`, not strings)
 - `helper_due.py` - recurrence recovery: strip `starting YYYY-MM-DD` anchors entirely (Todoist bug: `starting` anchors can stop recurrence from advancing on completion)
 - `helper_due.py` - recurrence recovery now tries anchorless rule first, then falls back to one `starting YYYY-MM-DD` anchor only when Todoist re-anchors to "today" instead of the requested due date
+- `helper_due.py` - fallback recovery now tracks/restores the last valid recurring candidate so a later failed candidate cannot leave the task non-recurring
 - `helper_display.py` - normalize `due.date` datetimes to pure dates before objective bucket comparisons, preventing `datetime` vs `date` TypeError after timesheet refresh
 - Recurring long-task completion now verifies due advancement and suppresses stale "still due" reads for ~20s (Todoist eventual consistency)
 - Long task scheduling now refuses user schedules containing `starting YYYY-MM-DD` and logs recurrence non-advancement events to `j_recurring_anomalies.json`
