@@ -24,10 +24,20 @@ class _Task:
 
 
 class _FakeApi:
-    def __init__(self, *, task, probe_due_map=None, drop_recurring_on_datetime_update=False):
+    def __init__(
+        self,
+        *,
+        task,
+        probe_due_map=None,
+        drop_recurring_on_datetime_update=False,
+        drop_recurring_on_due_date_update=False,
+        due_string_result_map=None,
+    ):
         self._task = task
         self._probe_due_map = probe_due_map or {}
         self._drop_recurring_on_datetime_update = drop_recurring_on_datetime_update
+        self._drop_recurring_on_due_date_update = drop_recurring_on_due_date_update
+        self._due_string_result_map = due_string_result_map or {}
         self.probe_created = 0
         self.probe_deleted = 0
         self.last_update_kwargs = None
@@ -60,12 +70,20 @@ class _FakeApi:
             d_value = kwargs["due_date"]
             self._task.due = _Due(
                 date=d_value if isinstance(d_value, str) else d_value.isoformat(),
-                is_recurring=bool(self._task.due.is_recurring),
+                is_recurring=False if self._drop_recurring_on_due_date_update else bool(self._task.due.is_recurring),
                 string=self._task.due.string,
             )
             return True
         if "due_string" in kwargs:
             due_string = kwargs["due_string"]
+            due_override = self._due_string_result_map.get(due_string)
+            if due_override is not None:
+                self._task.due = _Due(
+                    date=due_override,
+                    is_recurring=True,
+                    string=due_string,
+                )
+                return True
             # Treat any 'every ...' update as recurrence restoration and keep the current due value.
             if "every" in str(due_string).lower():
                 self._task.due = _Due(
@@ -148,6 +166,30 @@ class TestHelperDue(unittest.TestCase):
         self.assertEqual(effective_date, target_date)
         self.assertTrue(updated_task.due.is_recurring)
         self.assertNotIn("starting", str(updated_task.due.string).lower())
+
+    def test_update_task_due_recovery_uses_target_anchor_when_anchorless_reanchors_to_today(self):
+        due = _Due(
+            is_recurring=True,
+            string="every year",
+        )
+        task = _Task(task_id="A2b", due=due)
+        api = _FakeApi(
+            task=task,
+            probe_due_map={"june 1qq": "2026-06-01"},
+            drop_recurring_on_due_date_update=True,
+            due_string_result_map={
+                "every year": "2026-03-03",
+                "every year starting 2026-06-01": "2026-06-01",
+            },
+        )
+
+        updated_task, target_date, effective_date = helper_due.update_task_due_preserving_schedule(api, task, "june 1qq")
+
+        self.assertEqual(target_date.isoformat(), "2026-06-01")
+        self.assertEqual(effective_date, target_date)
+        self.assertTrue(updated_task.due.is_recurring)
+        self.assertEqual(updated_task.due.string, "every year starting 2026-06-01")
+        self.assertEqual(updated_task.due.date, "2026-06-01")
 
     def test_update_task_due_recovery_strips_existing_starting_anchors(self):
         due = _Due(

@@ -170,6 +170,18 @@ def _strip_starting_anchors(due_string: str) -> str:
     return _STARTING_ANCHOR_RE.sub("", due_string).strip()
 
 
+def _build_recovery_due_candidates(original_due_string: str, target_date: date) -> list[str]:
+    cleaned_due_string = _strip_starting_anchors(original_due_string)
+    if not cleaned_due_string:
+        return []
+
+    anchored_due_string = f"{cleaned_due_string} starting {target_date.isoformat()}"
+    if anchored_due_string == cleaned_due_string:
+        return [cleaned_due_string]
+
+    return [cleaned_due_string, anchored_due_string]
+
+
 def update_task_due_preserving_schedule(api, task, raw_due_input: str):
     if task is None or not getattr(task, "id", None):
         raise ValueError("Task is missing or invalid.")
@@ -201,18 +213,26 @@ def update_task_due_preserving_schedule(api, task, raw_due_input: str):
             if not original_due_string:
                 raise RuntimeError("Recurring metadata changed and could not be recovered.")
 
-            # Avoid using `starting YYYY-MM-DD` anchors.
-            # Empirically, tasks with `starting` anchors can get into a state where completing the
-            # recurrence does not advance the due date (or the task loses due entirely).
-            recovered_due_string = _strip_starting_anchors(original_due_string)
-            api.update_task(task_id=task.id, due_string=recovered_due_string)
-            verification_task = api.get_task(task.id)
-            verification_due = getattr(verification_task, "due", None) if verification_task else None
-
-            if not (verification_due and getattr(verification_due, "is_recurring", False)):
+            recovery_candidates = _build_recovery_due_candidates(original_due_string, target_date)
+            if not recovery_candidates:
                 raise RuntimeError("Recurring metadata changed and recovery failed.")
 
-            recovered_date = _extract_date_from_due(verification_due)
-            effective_date = recovered_date
+            recovered = False
+            for due_string_candidate in recovery_candidates:
+                api.update_task(task_id=task.id, due_string=due_string_candidate)
+                verification_task = api.get_task(task.id)
+                verification_due = getattr(verification_task, "due", None) if verification_task else None
+
+                if not (verification_due and getattr(verification_due, "is_recurring", False)):
+                    continue
+
+                recovered_date = _extract_date_from_due(verification_due)
+                effective_date = recovered_date
+                recovered = True
+                if recovered_date == target_date:
+                    break
+
+            if not recovered:
+                raise RuntimeError("Recurring metadata changed and recovery failed.")
 
     return verification_task, target_date, effective_date
