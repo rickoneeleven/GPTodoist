@@ -102,11 +102,12 @@ def _retry_with_quick_add(api, parsed_data: Dict[str, Any], options: Dict[str, A
 
     try:
         task = api.add_task_quick(fallback_text)
-        if not task:
+        task_id = getattr(task, "id", None) if task else None
+        if not task or not task_id:
             print("[red]Quick Add fallback failed to return a task.[/red]")
             return None
 
-        _apply_post_create_updates(api, task.id, parsed_data)
+        _apply_post_create_updates(api, task_id, parsed_data)
         print(f"[green]Task added to '#{project_name}' via Quick Add fallback.[/green]")
         return task
     except HTTPError as quick_error:

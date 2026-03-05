@@ -1,6 +1,6 @@
 # GPTodoist - Testing
 
-DATETIME of last agent review: 16 Feb 2026 10:20 (Europe/London)
+DATETIME of last agent review: 05 Mar 2026 15:43 (Europe/London)
 
 ## Purpose
 Fast sanity checks for Python syntax, import wiring, and small unit tests.
@@ -18,6 +18,8 @@ Fast sanity checks for Python syntax, import wiring, and small unit tests.
 - `tests/test_helper_pinescore_status.py` - data.pinescore.com status patch, ownership claim, and background ownership gate behavior
 - `tests/test_helper_todoist_part2_signal.py` - signal timeout safety and explicit filter-override query behavior
 - `tests/test_state_manager_filters.py` - robust `isActive` parsing for filter selection
+- `tests/test_helper_task_factory.py` - legacy `project_id` fallback path to Quick Add and post-create update behavior
+- `tests/test_todoist_api_quick_add.py` - `POST /api/v1/tasks/quick` client behavior and response-shape fallbacks
 
 ## Coverage Scope
 - Module import errors

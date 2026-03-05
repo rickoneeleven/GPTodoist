@@ -79,6 +79,16 @@ def _coerce_project(payload: Dict[str, Any]) -> Project:
     return Project(id=str(payload.get("id")), name=payload.get("name") or "")
 
 
+def _extract_task_from_quick_add_payload(payload: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return None
+    if isinstance(payload.get("task"), dict):
+        return payload["task"]
+    if payload.get("id") is not None:
+        return payload
+    return None
+
+
 def _jsonable(value: Any) -> Any:
     if isinstance(value, datetime):
         return value.isoformat()
@@ -170,6 +180,40 @@ class TodoistAPI:
         payload = {k: _jsonable(v) for k, v in kwargs.items() if v is not None}
         response = self._request("POST", "/tasks", json=payload)
         return _coerce_task(response.json())
+
+    def add_task_quick(
+        self,
+        text: str,
+        *,
+        note: str | None = None,
+        reminder: str | None = None,
+        auto_reminder: bool = True,
+    ) -> Task:
+        payload: Dict[str, Any] = {
+            "text": text,
+            "auto_reminder": bool(auto_reminder),
+            # Quick Add can otherwise return a sparse payload.
+            "meta": True,
+        }
+        if note is not None:
+            payload["note"] = note
+        if reminder is not None:
+            payload["reminder"] = reminder
+
+        response = self._request("POST", "/tasks/quick", json=payload)
+        response_payload = response.json()
+
+        task_payload = _extract_task_from_quick_add_payload(response_payload)
+        if task_payload is not None:
+            return _coerce_task(task_payload)
+
+        # Fallback for unexpected payload shapes that still contain an id.
+        if isinstance(response_payload, dict):
+            task_id = response_payload.get("task_id") or response_payload.get("item_id")
+            if task_id:
+                return self.get_task(str(task_id))
+
+        raise ValueError("Unexpected Todoist Quick Add response shape.")
 
     def update_task(self, *, task_id: str, **kwargs: Any) -> Task:
         payload = {k: _jsonable(v) for k, v in kwargs.items() if v is not None}
