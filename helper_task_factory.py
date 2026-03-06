@@ -38,8 +38,6 @@ def create_task(api, task_content, task_type="normal", options=None):
         if not task or not task_id:
             print("[red]Failed to add task.[/red]")
             return None
-
-        _apply_post_create_updates(api, task_id, parsed_data)
         return task
 
     except HTTPError as error:
@@ -64,13 +62,9 @@ def _apply_post_create_updates(api, task_id: str, parsed_data: Dict[str, Any]) -
     update_args: Dict[str, Any] = {}
     if parsed_data["priority"]:
         update_args["priority"] = parsed_data["priority"]
-    if parsed_data["due_string"]:
-        update_args["due_string"] = parsed_data["due_string"]
 
     if update_args:
         api.update_task(task_id=task_id, **update_args)
-        if parsed_data["due_string"]:
-            print(f"Task due date set to '{parsed_data['due_string']}'.")
 
 
 def _parse_http_error_payload(error: HTTPError) -> Dict[str, Any] | None:
@@ -96,7 +90,13 @@ def _retry_with_quick_add(api, parsed_data: Dict[str, Any], options: Dict[str, A
         return None
 
     content = parsed_data["content"].replace("\n", " ").strip()
-    fallback_text = f"{content} #{project_name}" if content else f"#{project_name}"
+    due_string = (parsed_data.get("due_string") or "").strip()
+    if due_string and content:
+        fallback_text = f"{content} {due_string} #{project_name}"
+    elif due_string and not content:
+        fallback_text = f"{due_string} #{project_name}"
+    else:
+        fallback_text = f"{content} #{project_name}" if content else f"#{project_name}"
     legacy_id = options.get("project_id")
     print(f"[yellow]Project ID '{legacy_id}' was rejected. Retrying via Quick Add using '#{project_name}'.[/yellow]")
 
@@ -234,6 +234,11 @@ def create_task_parameters(content, parsed_data, task_type, options):
     # Add priority if specified
     if parsed_data["priority"]:
         task_params["priority"] = parsed_data["priority"]
+
+    # If a due string was parsed, set it on create so invalid schedules fail
+    # without creating an unscheduled task.
+    if parsed_data.get("due_string"):
+        task_params["due_string"] = parsed_data["due_string"]
     
     # Handle project ID based on task type
     if task_type == "normal":

@@ -1,6 +1,6 @@
 # Maintenance Notes
 
-DATETIME of last agent review: 05 Mar 2026 15:43 (Europe/London)
+DATETIME of last agent review: 06 Mar 2026 08:43 (Europe/London)
 
 ## Purpose
 Quick log of recent dead-code audits to avoid redoing the same work.
@@ -22,6 +22,7 @@ Quick log of recent dead-code audits to avoid redoing the same work.
 - Long task scheduling now refuses user schedules containing `starting YYYY-MM-DD` and logs recurrence non-advancement events to `j_recurring_anomalies.json`
 - `todoist_api.py` - added `add_task_quick()` using `POST /api/v1/tasks/quick` with `meta=true`, plus defensive parsing for Todoist Quick Add response shapes
 - `helper_task_factory.py` - legacy project-id fallback no longer crashes when Quick Add returns an unexpected object without `id`
+- `helper_task_factory.py` - create sets `due_string` during task creation so invalid schedules cannot leave orphan unscheduled duplicates (2026-03-06)
 
 ## Agent Commands
 ```bash

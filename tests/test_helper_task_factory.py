@@ -41,6 +41,37 @@ class _FakeApi:
 
 
 class TestHelperTaskFactory(unittest.TestCase):
+    def test_create_task_sets_due_on_create_and_skips_post_update(self):
+        created_tasks = []
+
+        class _FakeApiNormal:
+            def __init__(self):
+                self.update_calls = []
+
+            def add_task(self, **kwargs):
+                created_tasks.append(kwargs)
+                return SimpleNamespace(id="task-789")
+
+            def update_task(self, *, task_id, **kwargs):
+                self.update_calls.append((task_id, kwargs))
+                return True
+
+        api = _FakeApiNormal()
+
+        task = helper_task_factory.create_task(
+            api=api,
+            task_content="Replace sensors p1 11:00 mon",
+            task_type="normal",
+            options={},
+        )
+
+        self.assertIsNotNone(task)
+        self.assertEqual(getattr(task, "id", None), "task-789")
+        self.assertEqual(len(created_tasks), 1)
+        self.assertEqual(created_tasks[0].get("due_string"), "11:00 mon")
+        self.assertEqual(created_tasks[0].get("priority"), 4)
+        self.assertEqual(api.update_calls, [])
+
     def test_create_task_fallbacks_to_quick_add_for_legacy_project_id(self):
         api = _FakeApi(quick_task=SimpleNamespace(id="task-123"))
 
@@ -67,12 +98,12 @@ class TestHelperTaskFactory(unittest.TestCase):
         )
 
         self.assertIsNotNone(task)
-        self.assertEqual(api.quick_add_calls, ["Replace sensors p1 #RCP"])
+        self.assertEqual(api.quick_add_calls, ["Replace sensors p1 11:00 mon #RCP"])
         self.assertEqual(len(api.update_calls), 1)
         task_id, payload = api.update_calls[0]
         self.assertEqual(task_id, "task-456")
         self.assertEqual(payload.get("priority"), 4)
-        self.assertEqual(payload.get("due_string"), "11:00 mon")
+        self.assertNotIn("due_string", payload)
 
     def test_create_task_quick_add_missing_id_returns_none(self):
         api = _FakeApi(quick_task=SimpleNamespace())
