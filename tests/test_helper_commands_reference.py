@@ -10,6 +10,7 @@ class StartupCommandReferenceTests(unittest.TestCase):
         self.assertIn("due long <index> <due_text>", command_map)
         self.assertIn("time long <index> <schedule>", command_map)
         self.assertIn("done long <index>", command_map)
+        self.assertIn("diary yesterday", command_map)
 
     def test_print_startup_reference_does_not_raise(self):
         captured = []
@@ -42,6 +43,20 @@ class StartupCommandReferenceTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][1], 12)
         self.assertFalse(calls[0][2])
+
+    def test_diary_yesterday_dispatches_to_helper(self):
+        calls = []
+        original_fn = helper_commands.helper_diary.show_previous_objective_tagline
+        try:
+            helper_commands.helper_diary.show_previous_objective_tagline = (  # type: ignore[assignment]
+                lambda: calls.append("called")
+            )
+            handled = helper_commands.process_command(api=object(), user_message="diary yesterday")
+        finally:
+            helper_commands.helper_diary.show_previous_objective_tagline = original_fn  # type: ignore[assignment]
+
+        self.assertTrue(handled)
+        self.assertEqual(calls, ["called"])
 
 
 if __name__ == "__main__":

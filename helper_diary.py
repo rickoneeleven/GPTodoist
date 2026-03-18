@@ -1,6 +1,6 @@
 # File: helper_diary.py
 # <<< REMOVED: json, os imports as file I/O is handled by state_manager >>>
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Union, Tuple, Optional # Keep typing imports
 from rich import print
 import module_call_counter
@@ -233,6 +233,23 @@ def update_todays_objective(new_objective: str):
         # State manager handles internal errors and validation printing
         print("[red]Diary objective update failed (see previous messages).[/red]")
     # Success message is printed inside state_manager.update_todays_objective
+
+
+def show_previous_objective_tagline(reference_date: Optional[date] = None):
+    """Shows the most recent objective before today (yesterday or latest prior entry)."""
+    today = reference_date or datetime.now().date()
+    search_start_date = today - timedelta(days=1)
+    objective, objective_date = state_manager.find_most_recent_objective(
+        search_start_date,
+        lookback_days=OBJECTIVE_LOOKBACK_DAYS,
+    )
+
+    if objective:
+        date_display = objective_date.strftime("%A, %d %B %Y") if objective_date else "Unknown date"
+        print(f"\n[bold]Previous Diary Tagline[/bold] (from {date_display}):")
+        print(f"[gold1]{objective}[/gold1]\n")
+    else:
+        print("\n[yellow]No previous diary tagline found before today.[/yellow]\n")
 
 
 # Apply call counter decorator (No changes needed)

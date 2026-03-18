@@ -33,6 +33,7 @@ CMD_COMPLETED = "completed"
 CMD_SHOW_COMPLETED = "show completed"
 CMD_SHOW_LONG = "show long"
 CMD_DIARY = "diary"
+CMD_DIARY_YESTERDAY = "diary yesterday"
 CMD_TIMESHEET = "timesheet"
 CMD_CLEAR = "clear"
 CMD_HIDE = "hide" # New command
@@ -90,6 +91,7 @@ STARTUP_COMMAND_REFERENCE = [
     ("priority long <index> <1|2|3|4>", "Set long-term task priority."),
     ("postpone long <index> <schedule>", "Postpone long-term task to a new schedule."),
     ("diary", "Open diary view."),
+    ("diary yesterday", "Show the most recent diary tagline before today."),
     ("diary <objective>", "Update today's diary objective."),
     ("timesheet", "Build a timesheet entry from completed tasks."),
     ("clear", "Clear the terminal display."),
@@ -406,6 +408,10 @@ def _handle_diary(api, user_message):
     helper_diary.diary()
     return True
 
+def _handle_diary_yesterday(api, user_message):
+    helper_diary.show_previous_objective_tagline()
+    return True
+
 def _handle_diary_update(api, user_message):
     new_objective = user_message[len(PREFIX_DIARY_UPDATE):].strip()
     if not new_objective:
@@ -450,6 +456,7 @@ COMMAND_DISPATCH = [
     (PREFIX_PRIORITY, _handle_priority, True),
     (PREFIX_ADD_TASK, _handle_add_task, True),
     (PREFIX_FUZZY_SEARCH, _handle_fuzzy_search, True),
+    (CMD_DIARY_YESTERDAY, _handle_diary_yesterday, False),
     (PREFIX_DIARY_UPDATE, _handle_diary_update, True),
     (CMD_DONE, _handle_done, False),
     (CMD_SKIP, _handle_skip, False),

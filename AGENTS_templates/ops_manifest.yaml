@@ -1,0 +1,123 @@
+# Ops Manifest Template v2.0
+
+## Purpose
+
+`ops/manifest.yaml` is the startup-ingested agent map. It should be the fastest way for an agent to understand what runs, what matters operationally, and what default read-only checks are safe to run.
+
+## Constraints
+
+- Startup-ingested: keep it compact and factual
+- Target ~80 lines, hard max 120
+- Prefer stable runtime facts over prose
+- Do not duplicate README procedures
+- Do not list every file in the repo
+- Required top-level keys: `project`, `entrypoints`, `runtime`, `testing`, `deploy`, `open_on_demand`, `gotchas`
+- Maximum counts:
+  - `entrypoints.app`: 3
+  - `entrypoints.workers`: 12
+  - `runtime.services`: 6
+  - `runtime.timers`: 16
+  - `integrations`: 8
+  - `gotchas`: 6
+
+## Forbidden Content
+
+- Globs, wildcards, or repo file patterns in any `name`
+- Vague labels such as `various workers`, `misc timers`, or `many scripts`
+- README-style setup procedures or troubleshooting steps
+- File inventories that are not operationally relevant
+- Long prose paragraphs inside YAML values
+- Read-write commands in `health_checks` or `post_deploy_checks`
+
+## Required Semantics
+
+- Every `name` must be a concrete runtime unit or executable identifier
+- `runtime.services` contains long-running service units only
+- `runtime.timers` contains concrete timer units only
+- `health_checks` and `post_deploy_checks` must be read-only
+- Mutating commands are allowed only under clearly mutating keys such as `deploy.restart`
+- Every `open_on_demand` doc must exist or be intentionally planned for creation during validation
+
+## Template
+
+```yaml
+# DATETIME of last agent review: DD MMM YYYY HH:MM (Europe/London)
+
+project:
+  name: Project Name
+  type: node-api | laravel-web | python-worker | mixed
+  summary: One sentence describing what this repo does
+
+entrypoints:
+  app:
+    - path: backend/src/index.ts
+      role: api server
+  workers:
+    - name: comment-autotrade
+      path: backend/src/bin/polyscore-comment-autotrade.ts
+      trigger: systemd timer every minute
+
+runtime:
+  services:
+    - name: polyscore-backend.service
+      purpose: api
+  timers:
+    - name: polyscore-comment-autotrade.timer
+      purpose: minute worker schedule
+  env_files:
+    - /etc/polyscore/polyscore.env
+  state_paths:
+    - backend/ops/state
+  health_checks:
+    - curl -sS http://127.0.0.1:8080/api/health/workers
+
+data:
+  stores:
+    - MariaDB: poly
+  key_runtime_tables:
+    - dashboard_settings
+    - worker_errors
+
+integrations:
+  - name: poly-agent
+    purpose: trade execution and position awareness
+  - name: upstream market APIs
+    purpose: ingest and pricing
+
+testing:
+  default_commands:
+    - npm --prefix backend test
+    - npm --prefix backend run build
+
+deploy:
+  restart:
+    - sudo systemctl restart polyscore-backend.service
+  post_deploy_checks:
+    - curl -sS http://127.0.0.1:8080/api/health/workers
+
+open_on_demand:
+  - ops/runtime.md
+  - ops/integrations.md
+  - ops/TESTING.md
+
+gotchas:
+  - Runtime toggles may live in DB, not only env.
+  - Remove stale service units when deleting entrypoints.
+```
+
+## Design Rules
+
+- Keep keys stable across repos where possible
+- Do not use globs, wildcards, or repo file patterns in `name`; `name` must be a concrete runtime unit or executable identifier
+- Every command must be copy-paste ready
+- Only include tables, queues, or paths that matter operationally
+- `open_on_demand` should list only truly useful follow-up docs
+- Omit a subsystem entirely if it is not operationally important enough to survive startup ingest
+
+## Validation Checklist
+
+- [ ] Every named service or timer exists in repo config or deployment files
+- [ ] `health_checks` and `post_deploy_checks` are read-only
+- [ ] No command here duplicates a long README procedure
+- [ ] Each `gotcha` prevents a likely bad decision
+- [ ] The manifest can be read in under 60 seconds

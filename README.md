@@ -1,41 +1,39 @@
 # GPTodoist
 
-DATETIME of last agent review: 16 Feb 2026 12:27 (Europe/London)
+DATETIME of last agent review: 18 Mar 2026 09:59 (Europe/London)
 
-A command-line interface (CLI) tool for fast interaction with your Todoist account: pick and act on an active task, manage long-term tasks, and generate diary and timesheet entries from completed items.
+Interactive CLI for Todoist task execution, long-term task handling, and local diary/timesheet tracking.
 
 ## Stack
-- Python 3.10 to 3.11 (see `pyproject.toml`, tested with 3.11)
-- Todoist REST via `todoist_api.py` (requests, `/api/v1/*`)
-- Dependencies pinned in `requirements.txt`
+- Python `>=3.10,<3.12` (from `pyproject.toml`; tested with `python3`)
+- Todoist API client in `todoist_api.py` using `https://api.todoist.com/api/v1/*`
+- Optional shared status integration with `https://data.pinescore.com/v1/*`
+- Dependencies in `requirements.txt` (`requests`, `rich`, `python-dateutil`, `pytz`, `fuzzywuzzy`, etc.)
 
 ## Quick Start
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
+python3 -m pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
-export TODOIST_API_KEY="YOUR_ACTUAL_API_KEY"
-python main.py
+export TODOIST_API_KEY="YOUR_TODOIST_TOKEN"
+python3 main.py
 ```
 
 ## Configuration
+Required environment variable:
+- `TODOIST_API_KEY`: Todoist API token (Settings -> Integrations -> Developer).
 
-### Todoist API Key
-Set `TODOIST_API_KEY` in your shell environment (Todoist: Settings -> Integrations -> Developer -> API token).
+Optional environment variables:
+- `PINESCOREDATA_WRITE_TOKEN`: enables status pushes to `data.pinescore.com`.
+- `PINESCOREDATA_BASE_URL`: override base URL (default `https://data.pinescore.com`).
+- `PINESCOREDATA_UPDATED_BY`: source tag for state updates (default `gptodoist`).
+- `PINESCOREDATA_DEVICE_ID`: stable device ID override for background ownership.
+- `PINESCOREDATA_DEVICE_LABEL`: readable device label override.
+- `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS`: background push interval (default `300`).
+- `TODOIST_FILTER_LANG`: language sent to Todoist task filter API (default `en`).
 
-### Active Filters (`j_todoist_filters.json`)
-Defines filter views you can cycle using `flip`. The filter with `isActive: 1` is used for fetching and displaying tasks.
-
-- File: `j_todoist_filters.json` (create it in the project root if missing)
-- Structure: JSON list containing filter objects
-- Fields:
-  - `id`: integer identifier (currently unused)
-  - `filter`: Todoist filter query string
-  - `isActive`: `1` for active, `0` for inactive (only one should be active)
-  - `project_id`: optional project ID used by `add task ...`
-
-Example:
+`j_todoist_filters.json` controls active filter selection (`flip`) and optional `project_id` for `add task`:
 ```json
 [
   { "id": 1, "filter": "(no due date | today | overdue) & #Inbox", "isActive": 1, "project_id": "" },
@@ -43,77 +41,50 @@ Example:
 ]
 ```
 
-### Pinescore Status Push
-Optional API status push to `data.pinescore.com`.
+Long-term commands require a Todoist project named exactly `Long Term Tasks`.
 
-- `PINESCOREDATA_WRITE_TOKEN`: enables status updates (`todo.tasks_up_to_date` and metadata)
-- `PINESCOREDATA_BASE_URL`: optional override (default `https://data.pinescore.com`)
-- `PINESCOREDATA_UPDATED_BY`: optional source label (default `gptodoist`)
-- `PINESCOREDATA_DEVICE_ID`: optional stable device ID override for ownership gating (default: machine fingerprint hash)
-- `PINESCOREDATA_DEVICE_LABEL`: optional human label for ownership debugging (default: hostname)
-- `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS`: background refresh interval in seconds (default `300`)
-
-When enabled, status updates run both:
-- once per interactive loop refresh
-- in a background loop every `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS` (default 5 minutes), but only on the device that currently owns background status updates
-
-Ownership is claimed when a non-empty manual command is entered in the app. The owner device ID is stored in API state so stale/idle machines no longer overwrite `todo.tasks_up_to_date` from background threads.
-
-## Usage
+## Common Operations
+Start the app:
 ```bash
-python main.py
+python3 main.py
 ```
 
-The main loop shows up to two Next Long Tasks automatically (recurring first, then one-shots; only due or overdue). Use `show long` to list all due long tasks.
+Quick verification after edits:
+```bash
+python3 -m py_compile $(git ls-files '*.py')
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
 
-## Commands Reference
-Commands are matched case-insensitively.
+In-app command help is printed at startup (`helper_commands.print_startup_command_reference()`), including:
+- regular task actions (`done`, `due`, `postpone`, `add task`, `hide`)
+- long-task actions (`show long`, `add long`, `done long`, `touch long`, `due long`)
+- diary/timesheet actions (`diary`, `timesheet`)
 
-### Core Task Actions (Active Task)
-- `done`: Complete and log to `j_todays_completed_tasks.json`
-- `skip`: Complete without logging
-- `delete`: Delete from Todoist
-- `time <due_string>`: Set due date/time
-- `due <due_string|day_of_month>`: Move due date while preserving recurrence and existing due-time metadata
-- `postpone <due_string>`: Postpone (recurring: complete and recreate)
-- `rename <new_name>`: Rename
-- `priority <1|2|3|4>`: Set priority (1=P1 High, 4=P4 Low)
+Operational behavior:
+- Backup runs hourly from `main.py` and copies all root `*.json` files into `backups/`.
+- Backup pruning keeps the latest 10 days (`helper_general.backup_retention_days`).
+- Optional pinescore status push runs each loop and in an owned background thread.
 
-### Task Creation
-- `add task <content>`: Create task (uses active filter `project_id` if set)
-- `xx <task_name>`: Log an ad-hoc completion without creating a Todoist task
-- `xx (t) <task_name>`: Log an ad-hoc completion as if completed tomorrow at 09:00
+## Troubleshooting
+### `python: command not found`
+Use `python3` for all commands on hosts where `python` is not linked.
 
-### Fuzzy Matching / Search
-- `~~~ <fuzzy_name>`: Fuzzy match and complete from active filter
-- `||| <search_term>`: Search Todoist and show results
+### Todoist auth/startup failures
+- `TODOIST_API_KEY` is required at import time in `main.py`.
+- If missing, startup fails before command loop begins.
+- If wrong, Todoist API calls return `401 Unauthorized`.
 
-### Display & View Commands
-- `all` / `show all`: Show tasks in active filter plus due long-term tasks
-- `completed` / `show completed`: Show today's locally logged completions
-- `flip`: Cycle active filter in `j_todoist_filters.json`
-- `hide`: Hide the current regular task until tomorrow (stored in `j_regular_hidden.json`)
-- `clear`: Clear terminal
+### Long-term commands unavailable
+Create a Todoist project named `Long Term Tasks`; long-task helpers resolve project ID by exact name.
 
-### Long-Term Task Management ("Long Term Tasks" project)
-- `show long`: Show due long-term tasks (requires `[index]` prefixes)
-- `add long <task_name>`: Create long-term task with next `[index]`
-- `time long <index> <schedule>`: Reschedule
-- `due long <index> <due_string|day_of_month>`: Move due date while preserving recurrence and existing due-time metadata
-- `skip long <index>`: Touch without logging completion
-- `done long <index>`: Complete and log completion (recurring tasks will reappear per schedule)
-- `touch long <index>`: Touch and log (non-recurring: move due to tomorrow; recurring: complete)
-- `hide long <index>`: Hide for today only (Europe/London)
-- `rename long <index> <new_name>`: Rename (keeps index)
-- `delete long <index>`: Delete
-- `priority long <index> <1|2|3|4>`: Set priority
-- `postpone long <index> <schedule>`: Postpone (recurring: complete and recreate)
+### Unexpected Todoist endpoint errors
+This repo is pinned to `/api/v1/*`. Avoid switching back to deprecated `/rest/v2/*` endpoints.
 
-### Diary & Timesheets
-- `diary`: View diary (prompts for day/week)
-- `diary <objective>`: Update today's `overall_objective` in `j_diary.json`
-- `timesheet`: Build a timesheet entry from completed tasks
+### Background status updates not publishing
+Background pushes are owner-gated by `todo.tasks_background_owner_device_id`.
+Manual non-empty input claims ownership; stale devices are intentionally blocked.
 
-## Todoist API Note
-- Uses Todoist `/api/v1/*` endpoints via `todoist_api.py`.
-- Compatibility layer: `todoist_compat.py` adds retry and backoff (429/5xx).
+## Links
+- Agent runtime map: `ops/manifest.yaml`
+- Test command map: `ops/TESTING.md`
+- Pinescore API snapshot: `ops/api_guide.txt`

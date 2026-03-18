@@ -1,83 +1,71 @@
-# Ops Doc Testing Template v1.0
+# Ops Doc Testing Template v3.0
 
 ## Why This Matters
 
-Testing ops docs define the test strategy for components. Tests MUST be designed for rapid agent execution - quick feedback loops enable agents to verify changes immediately after implementation.
+`ops/TESTING.md` is one of the default startup-ingested docs. It should tell the agent the fastest safe verification path for the repo, plus any area-specific overrides that are worth knowing before editing.
 
 **Critical Rule:** Tests are run at the end of every new feature. This rule persists through all ops/ audits and recreations.
 
 ## Template
 
 ```markdown
-# [Component Name] - Testing
+# Testing
 
 DATETIME of last agent review: DD MMM YYYY HH:MM (Europe/London)
 
 ## Purpose
-One sentence describing what testing this doc covers.
+One sentence describing the repo's testing surface.
 
-## Test Commands
+## Fast Path
 Agent-runnable commands. Keep execution time minimal (<30s preferred).
-- `npm test path/to/tests` - what it validates
-- `npm run test:unit` - quick unit tests
+- `npm test` - default quick verification
+- `npm run build` - compile/type smoke
 
-## Key Test Files
-- `tests/component.test.ts` - brief coverage description
-- `tests/integration/` - integration test location
+## Area Overrides
+- `path/or/area` -> `exact command` - when to use this instead of the fast path
+- `path/or/area` -> `exact command` - what it validates
 
-## Coverage Scope
-- What is tested (brief bullets)
-- Known gaps (if any)
+## Read-Only Runtime Checks
+- `exact command` - prod-safe smoke or health query
+- Delete section if empty
+
+## Key Test Locations
+- `tests/` - primary suite
+- `path/to/special-tests` - optional area-specific tests
+- Delete lines that do not apply
+
+## Known Gaps
+- Only real gaps or caveats
+- Delete section if empty
 
 ## Agent Testing Protocol
-**MANDATORY:** Run relevant tests after every new feature or change.
-- Tests must complete quickly (target <30s for unit, <2min for integration)
-- On failure: fix before proceeding, do not defer
-- This protocol persists through ops/ recreation
+**MANDATORY:** Run relevant tests after every new feature or change; fix failures immediately.
 
 ## Notes
 - Optional critical context only
 - Delete if empty
 ```
 
----
+## Forbidden Content
 
-## Good Example: AUTH_TESTING.md
+- Deploy or restart procedures
+- DB migrations or other write-heavy operator actions
+- Vague commands such as `run relevant tests`
+- Test lists with no guidance on when to use them
 
-```markdown
-# Authentication - Testing
+## Validation Rules
 
-DATETIME of last agent review: 08 Dec 2025 10:00 (Europe/London)
-
-## Purpose
-Tests for JWT auth, session management, and permission guards.
-
-## Test Commands
-- `npm test tests/auth/` - all auth tests (~15s)
-- `npm test tests/auth/jwt.test.ts` - token validation only (~3s)
-
-## Key Test Files
-- `tests/auth/jwt.test.ts` - token create/verify/refresh
-- `tests/auth/guards.test.ts` - route permission checks
-- `tests/auth/session.test.ts` - session lifecycle
-
-## Coverage Scope
-- Token generation and validation
-- Permission middleware
-- Session expiry handling
-
-## Agent Testing Protocol
-**MANDATORY:** Run `npm test tests/auth/` after any auth-related change.
-```
-
-**Why it works:** Agent knows exactly what to run, how long it takes, and what it validates. No ambiguity.
+- `Fast Path` should be enough for most code changes
+- Every override must map a path or subsystem to an exact command
+- `Read-Only Runtime Checks` must be safe on production hosts
+- Keep this doc lean enough to scan in under 60 seconds
 
 ---
 
 ## Principles
 
-1. **Speed over completeness** - Tests must run fast enough for agent iteration
-2. **Explicit commands** - No guessing what to run
-3. **Mandatory post-feature testing** - Non-negotiable, persists through recreation
-4. **Fail fast** - Agent fixes failures immediately, no deferral
-5. **50 lines max** - Testing docs should be lean indexes
+1. **Startup useful** - this doc is ingested early, so keep it high-signal
+2. **Speed over completeness** - tests must run fast enough for agent iteration
+3. **Explicit commands** - no guessing what to run
+4. **Mandatory post-feature testing** - non-negotiable, persists through recreation
+5. **60 lines max** - `ops/TESTING.md` should be lean

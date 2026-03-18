@@ -1,10 +1,10 @@
-# README Template v3.0
+# README Template v4.0
 
 ## Purpose
 
 Get a new contributor from clone to running code, AND provide first-time server setup instructions. README is for humans doing deployment - it is NOT ingested by agents at startup, so it can contain operational depth.
 
-Agent awareness lives in `ops/` docs (which ARE ingested).
+Agent awareness lives in `ops/manifest.yaml` plus a few focused runtime notes.
 
 ## Principles
 
@@ -12,7 +12,7 @@ Agent awareness lives in `ops/` docs (which ARE ingested).
 2. **Omit sections with no evidence** - no placeholders, no guesses
 3. **Section budgets prevent bloat** - each section has a max line count
 4. **Operational depth allowed** - first-time setup, troubleshooting, real procedures
-5. **Point to ops/ for component awareness** - README says HOW to deploy, ops/ says WHAT exists
+5. **Point to the manifest for agent awareness** - README says HOW to deploy, ops says runtime facts
 
 ## Section Structure
 
@@ -170,7 +170,7 @@ Fix: `exact command`
 
 ## Links
 - [Dashboard](https://...)
-- Operations docs: `ops/`
+- Agent manifest: `ops/manifest.yaml`
 ```
 
 ## Validation Checklist
@@ -178,5 +178,5 @@ Fix: `exact command`
 - [ ] Every command tested or verified in repo
 - [ ] Section budgets respected
 - [ ] Empty sections omitted (not left as placeholders)
-- [ ] Points to `ops/` for component awareness
+- [ ] Points to `ops/manifest.yaml` for agent awareness
 - [ ] No marketing copy, badges, or screenshots
