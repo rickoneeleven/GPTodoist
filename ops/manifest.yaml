@@ -1,9 +1,9 @@
-# DATETIME of last agent review: 18 Mar 2026 09:59 (Europe/London)
+DATETIME of last agent review: 21 Mar 2026 11:13 (Europe/London)
 
 project:
   name: GPTodoist
   type: python-cli
-  summary: Interactive Todoist CLI with long-term task workflows and optional shared status publishing.
+  summary: Interactive Todoist CLI with long-term workflows, local JSON state, and optional shared status publishing.
 
 entrypoints:
   app:
@@ -12,13 +12,13 @@ entrypoints:
   workers:
     - name: pinescore-status-push
       path: helper_pinescore_status.py
-      trigger: optional background thread started by main.py every PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS
+      trigger: background thread started by main.py when PINESCOREDATA_WRITE_TOKEN is set
 
 runtime:
   services: []
   timers: []
   env_files:
-    - shell environment variables only (no committed .env file)
+    - shell environment variables only
   state_paths:
     - backups/
     - j_options.json
@@ -31,36 +31,39 @@ runtime:
     - j_regular_hidden.json
     - j_long_hidden.json
     - j_recurring_anomalies.json
+    - j_recurring_due_deferrals.json
   health_checks:
-    - "python3 -m py_compile $(git ls-files '*.py')"
-    - "python3 -m unittest discover -s tests -p 'test_*.py'"
+    - python3 -m py_compile $(git ls-files '*.py')
+    - python3 -m unittest discover -s tests -p 'test_*.py'
 
 data:
   stores:
-    - Local JSON files in repo root
-    - Todoist task/project state via HTTPS API
-    - Optional shared status state at data.pinescore.com
+    - Root JSON files in the repo for local state
+    - Todoist task and project state via HTTPS API
+    - Optional shared state at data.pinescore.com
   key_runtime_tables:
     - todo.tasks_up_to_date
+    - todo.tasks_last_checked_at
     - todo.tasks_background_owner_device_id
+    - todo.tasks_background_owner_claimed_at
 
 integrations:
   - name: api.todoist.com/api/v1
-    purpose: task CRUD, filtering, quick add, and project lookup
+    purpose: task CRUD, quick add, filtering, and project lookup
   - name: data.pinescore.com/v1
-    purpose: optional status hub with ETag + If-Match state updates
+    purpose: optional shared task-status publishing with ETag and If-Match concurrency
 
 testing:
   default_commands:
-    - "python3 -m py_compile $(git ls-files '*.py')"
-    - "python3 -m unittest discover -s tests -p 'test_*.py'"
+    - python3 -m py_compile $(git ls-files '*.py')
+    - python3 -m unittest discover -s tests -p 'test_*.py'
 
 deploy:
   restart:
-    - Stop the current process and run `python3 main.py` from repo root.
+    - Stop the current GPTodoist process and rerun `python3 main.py` from repo root.
   post_deploy_checks:
-    - "python3 -m py_compile $(git ls-files '*.py')"
-    - "python3 -m unittest discover -s tests -p 'test_*.py'"
+    - python3 -m py_compile $(git ls-files '*.py')
+    - python3 -m unittest discover -s tests -p 'test_*.py'
 
 open_on_demand:
   - ops/TESTING.md
@@ -69,8 +72,10 @@ open_on_demand:
 
 gotchas:
   - TODOIST_API_KEY is read at import time in main.py; missing it prevents startup.
-  - Long-term commands require a Todoist project named exactly "Long Term Tasks".
-  - Keep Todoist endpoints on /api/v1; /rest/v2 usage returns HTTP 410.
-  - Background pinescore pushes are owner-gated by todo.tasks_background_owner_device_id.
-  - Hourly backup copies all root *.json files and prunes backups older than 10 days.
-  - Commands are blocked when active-task device id differs from local device id.
+  - Long-term commands depend on a Todoist project named exactly "Long Term Tasks".
+  - Todoist traffic must stay on /api/v1; /rest/v2 is deprecated and breaks this client.
+  - Background shared-status pushes are owner-gated by todo.tasks_background_owner_device_id.
+  - Manual non-empty input claims background ownership for the local device.
+  - The backup loop copies all root JSON files hourly and prunes backups older than 10 days.
+  - Recurring tasks moved earlier are updated in place with the same recurrence plus an explicit earlier due date; later moves may still use local deferral when Todoist cannot safely jump a future occurrence.
+  - Recurring `due` updates never recreate `starting YYYY-MM-DD`; later starts are tracked in `j_recurring_due_deferrals.json` when Todoist cannot safely move a future occurrence.

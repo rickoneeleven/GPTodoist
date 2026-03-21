@@ -6,6 +6,9 @@ from typing import Optional
 
 import pytz
 from dateutil.parser import parse
+import recurring_due_deferrals
+import todoist_compat
+from long_term_recurring_validation import get_due_key, has_starting_anchor_due_string, verify_recurring_due_advanced
 
 
 LONDON_TZ = pytz.timezone("Europe/London")
@@ -170,16 +173,104 @@ def _strip_starting_anchors(due_string: str) -> str:
     return _STARTING_ANCHOR_RE.sub("", due_string).strip()
 
 
-def _build_recovery_due_candidates(original_due_string: str, target_date: date) -> list[str]:
+def _build_recovery_due_candidates(original_due_string: str) -> list[str]:
     cleaned_due_string = _strip_starting_anchors(original_due_string)
     if not cleaned_due_string:
         return []
+    return [cleaned_due_string]
 
-    anchored_due_string = f"{cleaned_due_string} starting {target_date.isoformat()}"
-    if anchored_due_string == cleaned_due_string:
-        return [cleaned_due_string]
 
-    return [cleaned_due_string, anchored_due_string]
+def extract_due_date(task) -> Optional[date]:
+    if task is None:
+        return None
+    return _extract_date_from_due(getattr(task, "due", None))
+
+
+def _normalize_recurring_rule_if_needed(api, task, original_due_string: str | None):
+    if task is None or not getattr(task, "id", None):
+        return task
+    if not has_starting_anchor_due_string(original_due_string):
+        return task
+
+    cleaned_due_string = _strip_starting_anchors(original_due_string or "")
+    if not cleaned_due_string:
+        raise RuntimeError("Recurring task has an invalid anchored rule and could not be normalized.")
+
+    api.update_task(task_id=task.id, due_string=cleaned_due_string)
+    normalized_task = api.get_task(task.id)
+    if normalized_task is None:
+        raise RuntimeError("Todoist did not return task data after recurrence normalization.")
+    normalized_due = getattr(normalized_task, "due", None)
+    if not (normalized_due and getattr(normalized_due, "is_recurring", False)):
+        raise RuntimeError("Recurring task lost recurrence during normalization.")
+    return normalized_task
+
+
+def _pull_recurring_task_earlier_in_place(api, task, target_date: date):
+    due = getattr(task, "due", None)
+    due_string = getattr(due, "string", None) if due is not None else None
+    if not isinstance(due_string, str) or not due_string.strip():
+        raise RuntimeError("Recurring task is missing its recurrence rule and could not be moved earlier safely.")
+
+    update_payload = _build_due_update_payload(task, target_date)
+    api.update_task(task_id=task.id, due_string=due_string, **update_payload)
+    refreshed_task = api.get_task(task.id)
+    if refreshed_task is None:
+        raise RuntimeError("Todoist did not return task data after recurring due update.")
+
+    refreshed_due = getattr(refreshed_task, "due", None)
+    if not (refreshed_due and getattr(refreshed_due, "is_recurring", False)):
+        raise RuntimeError("Recurring task lost recurrence during due update.")
+
+    refreshed_date = extract_due_date(refreshed_task)
+    if refreshed_date != target_date:
+        raise RuntimeError(
+            f"Recurring due update mismatch after update (expected {target_date.isoformat()}, got {refreshed_date})."
+        )
+
+    recurring_due_deferrals.clear_recurring_due_deferral(str(refreshed_task.id))
+    return refreshed_task, refreshed_date
+
+
+def _advance_recurring_task_until_future_boundary(api, task, target_date: date, today_london: date):
+    current_task = task
+    current_date = extract_due_date(current_task)
+    if current_date is None:
+        raise RuntimeError("Recurring task is missing a resolvable due date.")
+    if current_date >= target_date:
+        return current_task, current_date
+
+    max_advances = 64
+    advance_count = 0
+    while current_date < target_date and current_date <= today_london:
+        if advance_count >= max_advances:
+            return current_task, current_date
+
+        previous_due_key = get_due_key(current_task)
+        if not previous_due_key:
+            raise RuntimeError("Recurring task is missing a due key and could not be advanced safely.")
+
+        success = todoist_compat.complete_task(api, current_task.id)
+        if not success:
+            raise RuntimeError("Todoist did not confirm recurring task completion while advancing due date.")
+
+        advanced_task = verify_recurring_due_advanced(api, current_task.id, previous_due_key)
+        if advanced_task is None:
+            raise RuntimeError("Todoist did not return the next recurring occurrence after completion.")
+
+        advanced_due_key = get_due_key(advanced_task)
+        if advanced_due_key == previous_due_key:
+            raise RuntimeError(
+                "Todoist did not advance the recurring task while applying the due change."
+            )
+
+        current_task = advanced_task
+        current_date = extract_due_date(current_task)
+        if current_date is None:
+            raise RuntimeError("Recurring task advanced but the new due date could not be resolved.")
+        advance_count += 1
+
+    return current_task, current_date
 
 
 def update_task_due_preserving_schedule(api, task, raw_due_input: str):
@@ -192,8 +283,33 @@ def update_task_due_preserving_schedule(api, task, raw_due_input: str):
     project_id = getattr(task, "project_id", None)
 
     target_date = resolve_due_input_to_date(api, raw_due_input, project_id=project_id)
-    update_payload = _build_due_update_payload(task, target_date)
 
+    if original_is_recurring:
+        normalized_task = _normalize_recurring_rule_if_needed(api, task, original_due_string)
+        effective_date = extract_due_date(normalized_task)
+        if effective_date is None:
+            raise RuntimeError("Recurring task is missing a resolvable due date.")
+        today_london = datetime.now(LONDON_TZ).date()
+        if target_date == effective_date:
+            recurring_due_deferrals.clear_recurring_due_deferral(str(normalized_task.id))
+            return normalized_task, target_date, effective_date
+        if target_date < effective_date:
+            pulled_task, pulled_date = _pull_recurring_task_earlier_in_place(api, normalized_task, target_date)
+            return pulled_task, target_date, pulled_date
+        advanced_task, effective_date = _advance_recurring_task_until_future_boundary(
+            api,
+            normalized_task,
+            target_date,
+            today_london,
+        )
+        if effective_date >= target_date:
+            recurring_due_deferrals.clear_recurring_due_deferral(str(advanced_task.id))
+            return advanced_task, target_date, effective_date
+        recurring_due_deferrals.set_recurring_due_deferral(str(advanced_task.id), target_date)
+        setattr(advanced_task, "deferred_until_date", target_date)
+        return advanced_task, target_date, effective_date
+
+    update_payload = _build_due_update_payload(task, target_date)
     api.update_task(task_id=task.id, **update_payload)
     verification_task = api.get_task(task.id)
     if verification_task is None:
@@ -205,49 +321,4 @@ def update_task_due_preserving_schedule(api, task, raw_due_input: str):
             f"Due date mismatch after update (expected {target_date.isoformat()}, got {verified_date})."
         )
 
-    effective_date = verified_date
-
-    if original_is_recurring:
-        verification_due = getattr(verification_task, "due", None)
-        if not (verification_due and getattr(verification_due, "is_recurring", False)):
-            if not original_due_string:
-                raise RuntimeError("Recurring metadata changed and could not be recovered.")
-
-            recovery_candidates = _build_recovery_due_candidates(original_due_string, target_date)
-            if not recovery_candidates:
-                raise RuntimeError("Recurring metadata changed and recovery failed.")
-
-            last_valid_recovery_due_string = None
-            last_valid_recovery_date = None
-            for due_string_candidate in recovery_candidates:
-                api.update_task(task_id=task.id, due_string=due_string_candidate)
-                verification_task = api.get_task(task.id)
-                verification_due = getattr(verification_task, "due", None) if verification_task else None
-
-                if not (verification_due and getattr(verification_due, "is_recurring", False)):
-                    continue
-
-                recovered_date = _extract_date_from_due(verification_due)
-                last_valid_recovery_due_string = due_string_candidate
-                last_valid_recovery_date = recovered_date
-                if recovered_date == target_date:
-                    break
-
-            if last_valid_recovery_due_string is None:
-                raise RuntimeError("Recurring metadata changed and recovery failed.")
-
-            verification_due = getattr(verification_task, "due", None) if verification_task else None
-            is_currently_recurring = bool(verification_due and getattr(verification_due, "is_recurring", False))
-            current_due_string = getattr(verification_due, "string", None) if verification_due else None
-            if not is_currently_recurring or current_due_string != last_valid_recovery_due_string:
-                api.update_task(task_id=task.id, due_string=last_valid_recovery_due_string)
-                verification_task = api.get_task(task.id)
-                verification_due = getattr(verification_task, "due", None) if verification_task else None
-                if not (verification_due and getattr(verification_due, "is_recurring", False)):
-                    raise RuntimeError("Recurring metadata changed and recovery failed.")
-
-            effective_date = _extract_date_from_due(verification_due)
-            if effective_date is None:
-                effective_date = last_valid_recovery_date
-
-    return verification_task, target_date, effective_date
+    return verification_task, target_date, verified_date

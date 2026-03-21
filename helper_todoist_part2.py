@@ -19,6 +19,7 @@ import state_manager # <<< ADDED: Import state manager
 import todoist_compat
 from helper_display import get_task_display_info
 import helper_hide # Import helper_hide to filter hidden tasks
+import recurring_due_deferrals
 from todoist_errors import describe_todoist_http_error
 
 # Import necessary functions from part1 or state_manager
@@ -149,9 +150,21 @@ def fetch_todoist_tasks(api, filter_query_override=None):
             london_tz = pytz.timezone("Europe/London")
             now_utc = datetime.datetime.now(timezone.utc)
             now_london = now_utc.astimezone(london_tz)
+            deferred_filtered_count = 0
+            recurring_adjusted_count = 0
             processed_tasks = []
             for task in tasks:
                 try:
+                    if not recurring_due_deferrals.apply_recurring_due_deferral(task, now_london.date()):
+                        deferred_filtered_count += 1
+                        continue
+
+                    if hasattr(task, "due"):
+                        actual_due = getattr(task.due, "datetime", None) or getattr(task.due, "date", None)
+                        adjusted_due = getattr(task.due, "datetime", None) or getattr(task.due, "date", None)
+                        if actual_due != adjusted_due:
+                            recurring_adjusted_count += 1
+
                     task.has_time = False
                     # Default fields
                     task.due_string_raw = None
@@ -240,6 +253,9 @@ def fetch_todoist_tasks(api, filter_query_override=None):
                     processed_tasks.append(task)
                 except Exception as process_error:
                     print(f"[yellow]Warn: Err processing task {getattr(task, 'id', 'N/A')}: {process_error}. Skip.[/yellow]")
+
+            if deferred_filtered_count > 0:
+                print(f"[dim yellow]Deferred {deferred_filtered_count} recurring task(s) until a later date.[/dim yellow]")
 
             # Sorting logic remains the same...
             sorted_final_tasks = sorted(

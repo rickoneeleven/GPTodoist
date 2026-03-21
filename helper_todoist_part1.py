@@ -5,12 +5,17 @@ import signal
 import pyfiglet
 import time
 import module_call_counter
+import pytz
 from dateutil.parser import parse
 from datetime import timedelta, timezone
 from rich import print
+import recurring_due_deferrals
 import state_manager
 from typing import Optional, Tuple
 import todoist_compat
+
+
+LONDON_TZ = pytz.timezone("Europe/London")
 
 def change_active_task():
     """Toggles the active filter using the state manager."""
@@ -58,19 +63,52 @@ def complete_todoist_task_by_id(api, task_id, skip_logging=False):
     if hasattr(signal, 'SIGALRM'):
         def handler(signum, frame):
             raise TimeoutError(f"Todoist API call timed out after 30 seconds for task ID {task_id}")
+        def catch_up_handler(signum, frame):
+            raise TimeoutError(f"Todoist deferred recurring catch-up timed out after 30 seconds for task ID {task_id}")
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(30)
     else:
         print("[yellow]Warning: signal.SIGALRM not available. Cannot enforce timeout.[/yellow]")
 
     try:
+        if hasattr(signal, 'SIGALRM'):
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(5)
         task = api.get_task(task_id)
         if not task:
             print(f"[yellow]No task found with ID: {task_id}[/yellow]")
             if hasattr(signal, 'SIGALRM'): signal.alarm(0)
             return False
+        if hasattr(signal, 'SIGALRM'):
+            signal.alarm(0)
+
+        due = getattr(task, "due", None)
+        if due is not None and getattr(due, "is_recurring", False):
+            today_london = datetime.datetime.now(LONDON_TZ).date()
+            try:
+                if hasattr(signal, 'SIGALRM'):
+                    signal.signal(signal.SIGALRM, catch_up_handler)
+                    signal.alarm(30)
+                try:
+                    task, catch_up_count = recurring_due_deferrals.prepare_recurring_task_for_completion(
+                        api,
+                        task,
+                        today_london,
+                    )
+                finally:
+                    if hasattr(signal, 'SIGALRM'):
+                        signal.alarm(0)
+            except RuntimeError as error:
+                print(f"[yellow]{error}[/yellow]")
+                if hasattr(signal, 'SIGALRM'): signal.alarm(0)
+                return False
+            if catch_up_count > 0:
+                print(f"[dim]Advanced {catch_up_count} deferred recurring occurrence(s) before completion.[/dim]")
 
         task_name = task.content
+        if hasattr(signal, 'SIGALRM'):
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(30)
         success = todoist_compat.complete_task(api, task_id)
 
         if hasattr(signal, 'SIGALRM'): signal.alarm(0) # Disable alarm after API call
@@ -108,6 +146,8 @@ def complete_active_todoist_task(api, skip_logging=False):
     if hasattr(signal, 'SIGALRM'):
         def handler(signum, frame):
             raise TimeoutError("Todoist API call timed out after 5 seconds for active task")
+        def catch_up_handler(signum, frame):
+            raise TimeoutError("Todoist deferred recurring catch-up timed out after 30 seconds for active task")
     # else: # Warning printed elsewhere
 
     # 1. Get Active Task from State Manager
@@ -136,7 +176,35 @@ def complete_active_todoist_task(api, skip_logging=False):
                 state_manager.clear_active_task() # Clear stale active task
                 if hasattr(signal, 'SIGALRM'): signal.alarm(0)
                 return False # Task gone
+            if hasattr(signal, 'SIGALRM'):
+                signal.alarm(0)
 
+            due = getattr(task, "due", None)
+            if due is not None and getattr(due, "is_recurring", False):
+                today_london = datetime.datetime.now(LONDON_TZ).date()
+                try:
+                    if hasattr(signal, 'SIGALRM'):
+                        signal.signal(signal.SIGALRM, catch_up_handler)
+                        signal.alarm(30)
+                    try:
+                        task, catch_up_count = recurring_due_deferrals.prepare_recurring_task_for_completion(
+                            api,
+                            task,
+                            today_london,
+                        )
+                    finally:
+                        if hasattr(signal, 'SIGALRM'):
+                            signal.alarm(0)
+                except RuntimeError as error:
+                    if hasattr(signal, 'SIGALRM'): signal.alarm(0)
+                    print(f"[yellow]{error}[/yellow]")
+                    return False
+                if catch_up_count > 0:
+                    print(f"[dim]Advanced {catch_up_count} deferred recurring occurrence(s) before completion.[/dim]")
+
+            if hasattr(signal, 'SIGALRM'):
+                signal.signal(signal.SIGALRM, handler)
+                signal.alarm(5)
             success = todoist_compat.complete_task(api, task_id)
             if hasattr(signal, 'SIGALRM'): signal.alarm(0)
 

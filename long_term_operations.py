@@ -1,7 +1,6 @@
 import pytz
-import re
+import time
 import traceback
-import time as time_module
 from datetime import datetime, timedelta
 from rich import print
 from long_term_core import (
@@ -13,51 +12,15 @@ from long_term_core import (
 import state_manager
 import todoist_compat
 import long_term_recent
-
-_STARTING_ANCHOR_RE = re.compile(r"\bstarting\s+\d{4}-\d{2}-\d{2}\b", flags=re.IGNORECASE)
-
-
-def _get_due_key(task) -> str | None:
-    due = getattr(task, "due", None)
-    if due is None:
-        return None
-    key = getattr(due, "datetime", None) or getattr(due, "date", None)
-    if key is None:
-        return None
-    return str(key)
-
-def _should_log_due_not_advanced(task) -> bool:
-    due_string = getattr(getattr(task, "due", None), "string", None)
-    if not isinstance(due_string, str) or not due_string.strip():
-        return False
-    return bool(_STARTING_ANCHOR_RE.search(due_string))
-
-
-def _verify_recurring_due_advanced(api, task_id: str, previous_due_key: str | None) -> object | None:
-    if not previous_due_key:
-        return None
-    if not hasattr(api, "get_task"):
-        return None
-
-    max_wait_s = 8.0
-    delay_s = 0.35
-    deadline = time_module.monotonic() + max_wait_s
-    last_task = None
-    while True:
-        try:
-            last_task = api.get_task(task_id)
-        except Exception:
-            last_task = None
-        else:
-            new_key = _get_due_key(last_task)
-            if new_key and new_key != previous_due_key:
-                return last_task
-
-        now = time_module.monotonic()
-        if now >= deadline:
-            return last_task
-        time_module.sleep(min(delay_s, max(0.0, deadline - now)))
-        delay_s = min(delay_s * 1.7, 2.0)
+import recurring_due_deferrals
+from long_term_recurring_validation import (
+    build_validation_snapshot,
+    format_validation_snapshot,
+    get_due_key,
+    has_starting_anchor_due_string,
+    should_log_due_not_advanced,
+    verify_recurring_due_advanced,
+)
 
 def delete_task(api, index):
     """Deletes a task with the given index from the Long Term Tasks project."""
@@ -77,7 +40,7 @@ def delete_task(api, index):
         print(f"[bold red]You are about to delete long-term task index [{index}]:[/bold red] {task_content_for_log}")
         for remaining in range(5, 0, -1):
             print(f"[yellow]Deleting in {remaining} second(s)... Press Ctrl+C to abort.[/yellow]")
-            time_module.sleep(1)
+            time.sleep(1)
 
         choice = input("Delete this long-term task? (y/N): ").strip().lower()
         if choice != "y":
@@ -111,7 +74,7 @@ def reschedule_task(api, index, schedule):
     if schedule.isdigit() and len(schedule) == 4:
         print("[red]Invalid time format for reschedule. Use formats like 'tomorrow 9am', 'next monday', etc.[/red]")
         return None
-    if _STARTING_ANCHOR_RE.search(schedule or ""):
+    if has_starting_anchor_due_string(schedule):
         print(
             "[bold red]Refusing schedule with 'starting YYYY-MM-DD'.[/bold red] "
             "Todoist can stop advancing recurring tasks that include a starting anchor."
@@ -145,7 +108,7 @@ def reschedule_task(api, index, schedule):
             return None
 
         print("[cyan]Verifying reschedule...[/cyan]")
-        time_module.sleep(1)
+        time.sleep(1)
         verification_task = api.get_task(target_task.id)
 
         if verification_task and verification_task.due and verification_task.due.string:
@@ -170,17 +133,31 @@ def handle_recurring_task(api, task, skip_logging=False, source: str | None = No
         print("[red]Error: No task provided to handle_recurring_task.[/red]")
         return False
 
-    previous_due_key = _get_due_key(task)
-    print(f"[cyan]Completing recurring task: '{task.content}' (ID: {task.id})[/cyan]")
     try:
+        london_tz = pytz.timezone("Europe/London")
+        try:
+            task, catch_up_count = recurring_due_deferrals.prepare_recurring_task_for_completion(
+                api,
+                task,
+                datetime.now(london_tz).date(),
+            )
+        except RuntimeError as error:
+            print(f"[yellow]{error}[/yellow]")
+            return False
+        if catch_up_count > 0:
+            print(f"[dim]Advanced {catch_up_count} deferred recurring occurrence(s) before completion.[/dim]")
+
+        previous_due_key = get_due_key(task)
+        print(f"[cyan]Completing recurring task: '{task.content}' (ID: {task.id})[/cyan]")
         success = todoist_compat.complete_task(api, task.id)
         if not success:
             print(f"[red]Failed to complete recurring task '{task.content}'.[/red]")
             return False
 
-        verified_task = _verify_recurring_due_advanced(api, task.id, previous_due_key)
+        verified_task = verify_recurring_due_advanced(api, task.id, previous_due_key)
         if verified_task is not None:
-            verified_due_key = _get_due_key(verified_task)
+            verified_due_key = get_due_key(verified_task)
+            validation_snapshot = build_validation_snapshot(verified_task)
             if verified_due_key and verified_due_key != previous_due_key:
                 if not is_task_due_today_or_earlier(verified_task):
                     long_term_recent.suppress_task_id(str(getattr(verified_task, "id", task.id)))
@@ -189,7 +166,11 @@ def handle_recurring_task(api, task, skip_logging=False, source: str | None = No
                 print(
                     "[dim yellow]Note: Todoist has not reflected the next recurrence yet (it can lag briefly after completion).[/dim yellow]"
                 )
-                if _should_log_due_not_advanced(task):
+                print(
+                    "[dim yellow]Validation: Todoist still returns "
+                    f"{format_validation_snapshot(validation_snapshot)}[/dim yellow]"
+                )
+                if should_log_due_not_advanced(task):
                     state_manager.add_recurring_anomaly_log(
                         {
                             "event": "recurrence_due_not_advanced",
@@ -199,6 +180,10 @@ def handle_recurring_task(api, task, skip_logging=False, source: str | None = No
                             "due_string": getattr(getattr(task, "due", None), "string", None),
                             "previous_due_key": previous_due_key,
                             "verified_due_key": verified_due_key,
+                            "validated_task_checked": validation_snapshot.get("checked"),
+                            "validated_task_updated_at": validation_snapshot.get("updated_at"),
+                            "validated_task_completed_at": validation_snapshot.get("completed_at"),
+                            "validated_task_due_string": validation_snapshot.get("due_string"),
                         }
                     )
         elif previous_due_key:
@@ -425,7 +410,7 @@ def postpone_task(api, index, schedule):
     if schedule.isdigit() and len(schedule) == 4:
         print("[red]Invalid time format for postpone. Use formats like 'tomorrow', 'next monday 9am', etc.[/red]")
         return None
-    if _STARTING_ANCHOR_RE.search(schedule or ""):
+    if has_starting_anchor_due_string(schedule):
         print(
             "[bold red]Refusing schedule with 'starting YYYY-MM-DD'.[/bold red] "
             "Todoist can stop advancing recurring tasks that include a starting anchor."

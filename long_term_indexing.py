@@ -7,6 +7,7 @@ from rich import print
 from long_term_core import get_long_term_project_id, is_task_recurring, is_task_due_today_or_earlier
 from long_term_hide import get_hidden_indices_for_today
 import long_term_recent
+import recurring_due_deferrals
 import todoist_compat
 
 
@@ -149,9 +150,19 @@ def get_categorized_tasks(api):
             return [], []
 
         hidden_today = get_hidden_indices_for_today()
+        deferred_filtered_tasks = []
+        adjusted_tasks = []
+
+        filtered_source_tasks = []
+        for task in indexed_tasks_map.values():
+            if recurring_due_deferrals.apply_recurring_due_deferral(task, now_london.date()):
+                filtered_source_tasks.append(task)
+                adjusted_tasks.append(task)
+            else:
+                deferred_filtered_tasks.append(task)
 
         filtered_tasks = [
-            task for task in indexed_tasks_map.values()
+            task for task in filtered_source_tasks
             if is_task_due_today_or_earlier(task)
             and get_sort_index(task) not in hidden_today
             and not long_term_recent.is_suppressed(str(getattr(task, "id", "")))

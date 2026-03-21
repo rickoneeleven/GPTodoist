@@ -1,6 +1,5 @@
 from rich import print
 
-
 def update_recurrence_patterns(api):
     updated_count = 0
     error_count = 0
@@ -50,4 +49,3 @@ def update_recurrence_patterns(api):
 
     except Exception as e:
         print(f"[red]Unexpected error during recurrence update: {e}[/red]")
-

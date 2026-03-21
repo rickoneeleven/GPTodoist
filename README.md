@@ -1,14 +1,14 @@
 # GPTodoist
 
-DATETIME of last agent review: 18 Mar 2026 09:59 (Europe/London)
+DATETIME of last agent review: 21 Mar 2026 11:13 (Europe/London)
 
-Interactive CLI for Todoist task execution, long-term task handling, and local diary/timesheet tracking.
+Interactive Python CLI for Todoist task execution, long-term task handling, and local diary/timesheet tracking.
 
 ## Stack
-- Python `>=3.10,<3.12` (from `pyproject.toml`; tested with `python3`)
-- Todoist API client in `todoist_api.py` using `https://api.todoist.com/api/v1/*`
-- Optional shared status integration with `https://data.pinescore.com/v1/*`
-- Dependencies in `requirements.txt` (`requests`, `rich`, `python-dateutil`, `pytz`, `fuzzywuzzy`, etc.)
+- Python `>=3.10,<3.12` from `pyproject.toml`
+- Dependencies from `requirements.txt`: `requests`, `rich`, `python-dateutil`, `pytz`, `fuzzywuzzy`, `levenshtein`, `pyfiglet`, `pyowm`
+- Todoist HTTP client in `todoist_api.py` against `https://api.todoist.com/api/v1/*`
+- Optional shared-status integration with `https://data.pinescore.com/v1/*`
 
 ## Quick Start
 ```bash
@@ -22,18 +22,24 @@ python3 main.py
 
 ## Configuration
 Required environment variable:
-- `TODOIST_API_KEY`: Todoist API token (Settings -> Integrations -> Developer).
+- `TODOIST_API_KEY`: Todoist API token. `main.py` reads this at import time, so startup fails immediately if it is missing.
 
 Optional environment variables:
-- `PINESCOREDATA_WRITE_TOKEN`: enables status pushes to `data.pinescore.com`.
-- `PINESCOREDATA_BASE_URL`: override base URL (default `https://data.pinescore.com`).
-- `PINESCOREDATA_UPDATED_BY`: source tag for state updates (default `gptodoist`).
-- `PINESCOREDATA_DEVICE_ID`: stable device ID override for background ownership.
-- `PINESCOREDATA_DEVICE_LABEL`: readable device label override.
-- `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS`: background push interval (default `300`).
-- `TODOIST_FILTER_LANG`: language sent to Todoist task filter API (default `en`).
+- `PINESCOREDATA_WRITE_TOKEN`: enables shared status writes to `data.pinescore.com`
+- `PINESCOREDATA_BASE_URL`: defaults to `https://data.pinescore.com`
+- `PINESCOREDATA_UPDATED_BY`: defaults to `gptodoist`
+- `PINESCOREDATA_DEVICE_ID`: overrides the derived device identifier used for ownership gating
+- `PINESCOREDATA_DEVICE_LABEL`: overrides the readable device label sent to shared status
+- `PINESCOREDATA_BACKGROUND_INTERVAL_SECONDS`: background status push interval in seconds, default `300`
+- `TODOIST_FILTER_LANG`: language sent to Todoist filter queries, default `en`
 
-`j_todoist_filters.json` controls active filter selection (`flip`) and optional `project_id` for `add task`:
+Runtime state lives in JSON files at repo root. Important files include:
+- `j_todoist_filters.json`: active filter rotation plus optional `project_id` for `add task`
+- `j_active_task.json`: active-task ownership lock
+- `j_options.json`: backup timestamp and all-done celebration state
+- `j_recurring_anomalies.json`: recurring long-task anomaly log when Todoist does not advance due state
+
+`j_todoist_filters.json` uses this shape:
 ```json
 [
   { "id": 1, "filter": "(no due date | today | overdue) & #Inbox", "isActive": 1, "project_id": "" },
@@ -44,47 +50,48 @@ Optional environment variables:
 Long-term commands require a Todoist project named exactly `Long Term Tasks`.
 
 ## Common Operations
-Start the app:
+Start the CLI:
 ```bash
 python3 main.py
 ```
 
-Quick verification after edits:
+Default verification after edits:
 ```bash
 python3 -m py_compile $(git ls-files '*.py')
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-In-app command help is printed at startup (`helper_commands.print_startup_command_reference()`), including:
-- regular task actions (`done`, `due`, `postpone`, `add task`, `hide`)
-- long-task actions (`show long`, `add long`, `done long`, `touch long`, `due long`)
-- diary/timesheet actions (`diary`, `timesheet`)
+Focused verification for the most sensitive areas:
+```bash
+python3 -m unittest tests.test_long_term_operations tests.test_helper_pinescore_status -v
+python3 -m unittest tests.test_todoist_api_quick_add tests.test_helper_commands_reference -v
+```
 
-Operational behavior:
-- Backup runs hourly from `main.py` and copies all root `*.json` files into `backups/`.
-- Backup pruning keeps the latest 10 days (`helper_general.backup_retention_days`).
-- Optional pinescore status push runs each loop and in an owned background thread.
+The startup command reference is printed by `helper_commands.py` and covers regular task, long-task, diary, and timesheet commands.
 
 ## Troubleshooting
-### `python: command not found`
-Use `python3` for all commands on hosts where `python` is not linked.
+### Startup fails before the prompt appears
+- Check `TODOIST_API_KEY`: `test -n "$TODOIST_API_KEY" && echo "TODOIST_API_KEY is set" || echo "TODOIST_API_KEY is missing"`
+- `main.py` constructs `TodoistAPI` during import, so a missing token stops the process before the command loop starts.
 
-### Todoist auth/startup failures
-- `TODOIST_API_KEY` is required at import time in `main.py`.
-- If missing, startup fails before command loop begins.
-- If wrong, Todoist API calls return `401 Unauthorized`.
+### Long-term commands do not work
+- Confirm the Todoist project name is exactly `Long Term Tasks`.
+- Long-task helpers resolve the project by exact name in `long_term_core.py`.
 
-### Long-term commands unavailable
-Create a Todoist project named `Long Term Tasks`; long-task helpers resolve project ID by exact name.
+### Shared status updates are skipped or look stale
+- Background pushes run only when `PINESCOREDATA_WRITE_TOKEN` is set and the local device owns `todo.tasks_background_owner_device_id`.
+- A manual non-empty command claims ownership for the local device. Another device can block background updates until ownership changes.
 
-### Unexpected Todoist endpoint errors
-This repo is pinned to `/api/v1/*`. Avoid switching back to deprecated `/rest/v2/*` endpoints.
+### Unexpected Todoist API errors
+- This repo is pinned to `/api/v1/*`. Regressing to deprecated `/rest/v2/*` endpoints will break requests.
+- Quick-add handling expects Todoist's current `/tasks/quick` response shapes and falls back to `task_id` or `item_id` when needed.
 
-### Background status updates not publishing
-Background pushes are owner-gated by `todo.tasks_background_owner_device_id`.
-Manual non-empty input claims ownership; stale devices are intentionally blocked.
+### Backup noise or missing history
+- The CLI checks backups once per loop and copies all root `*.json` files into `backups/`.
+- Old backups are pruned after 10 days in `helper_general.py`.
 
 ## Links
 - Agent runtime map: `ops/manifest.yaml`
 - Test command map: `ops/TESTING.md`
-- Pinescore API snapshot: `ops/api_guide.txt`
+- Runtime caveats: `ops/runtime.md`
+- Pinescore API reference: `ops/api_guide.txt`
