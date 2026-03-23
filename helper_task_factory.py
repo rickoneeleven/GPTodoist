@@ -81,7 +81,18 @@ def _parse_http_error_payload(error: HTTPError) -> Dict[str, Any] | None:
 def _is_legacy_id_error(payload: Dict[str, Any] | None) -> bool:
     if not payload:
         return False
-    return payload.get("error_tag") == "V1_ID_CANNOT_BE_USED"
+    if payload.get("error_tag") == "V1_ID_CANNOT_BE_USED":
+        return True
+
+    if payload.get("error_tag") != "INVALID_ARGUMENT_VALUE":
+        return False
+
+    error_extra = payload.get("error_extra") or {}
+    if error_extra.get("argument") != "project_id":
+        return False
+
+    expected = str(error_extra.get("expected") or "").lower()
+    return "base32" in expected
 
 
 def _retry_with_quick_add(api, parsed_data: Dict[str, Any], options: Dict[str, Any]):

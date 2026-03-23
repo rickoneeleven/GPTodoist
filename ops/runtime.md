@@ -38,3 +38,4 @@ python3 main.py
 - `due` and `due long` now prefer a safe recurring rule over re-adding `starting YYYY-MM-DD`, even if Todoist shifts the next occurrence.
 - For recurring tasks moved earlier, `due` now updates the existing Todoist task in place with the same recurrence plus an explicit earlier date, instead of re-anchoring the rule or recreating the task.
 - When a recurring task is moved later than Todoist can safely advance today, the app defers it locally and catches up skipped overdue occurrences at completion time.
+- `add task` can still work with legacy numeric filter `project_id` values because task creation falls back to Quick Add with `#project_name` when Todoist rejects direct `project_id` writes as non-base32.

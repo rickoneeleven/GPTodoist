@@ -22,14 +22,29 @@ def _legacy_project_id_error():
     return error
 
 
+def _invalid_project_id_base32_error():
+    error = HTTPError("400 Client Error")
+    error.response = _FakeHttpResponse(
+        {
+            "error_tag": "INVALID_ARGUMENT_VALUE",
+            "error_extra": {
+                "argument": "project_id",
+                "expected": "Value error, Non-base32 digit found",
+            },
+        }
+    )
+    return error
+
+
 class _FakeApi:
-    def __init__(self, *, quick_task):
+    def __init__(self, *, quick_task, add_task_error_factory=_legacy_project_id_error):
         self.quick_task = quick_task
+        self.add_task_error_factory = add_task_error_factory
         self.quick_add_calls = []
         self.update_calls = []
 
     def add_task(self, **kwargs):
-        raise _legacy_project_id_error()
+        raise self.add_task_error_factory()
 
     def add_task_quick(self, text):
         self.quick_add_calls.append(text)
@@ -104,6 +119,23 @@ class TestHelperTaskFactory(unittest.TestCase):
         self.assertEqual(task_id, "task-456")
         self.assertEqual(payload.get("priority"), 4)
         self.assertNotIn("due_string", payload)
+
+    def test_create_task_fallbacks_to_quick_add_for_invalid_base32_project_id(self):
+        api = _FakeApi(
+            quick_task=SimpleNamespace(id="task-987"),
+            add_task_error_factory=_invalid_project_id_base32_error,
+        )
+
+        task = helper_task_factory.create_task(
+            api=api,
+            task_content="print out eyewear email 09:00 tom",
+            task_type="normal",
+            options={"project_id": "2294289600", "project_name": "RCP"},
+        )
+
+        self.assertIsNotNone(task)
+        self.assertEqual(getattr(task, "id", None), "task-987")
+        self.assertEqual(api.quick_add_calls, ["print out eyewear email 09:00 tom #RCP"])
 
     def test_create_task_quick_add_missing_id_returns_none(self):
         api = _FakeApi(quick_task=SimpleNamespace())
